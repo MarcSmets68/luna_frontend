@@ -1,0 +1,31 @@
+import { StatCards } from "./stat-cards";
+import { RecentActivityCard } from "./recent-activity-card";
+import { ProductionCard } from "./production-card";
+
+const today = new Date().toLocaleDateString("nl-BE", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+export function DashboardPage() {
+  return (
+    <div>
+      <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+        Overzicht
+      </div>
+      <div className="mb-6 flex items-baseline justify-between">
+        <h1 className="text-[26px] font-bold text-foreground">Dashboard</h1>
+        <div className="text-[13px] text-[#5e5e5e] capitalize">{today}</div>
+      </div>
+
+      <StatCards />
+
+      <div className="grid grid-cols-[2fr_1fr] gap-4">
+        <RecentActivityCard />
+        <ProductionCard />
+      </div>
+    </div>
+  );
+}
