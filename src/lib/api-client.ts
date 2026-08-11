@@ -278,3 +278,90 @@ export async function getKlant(klnr: number): Promise<KlantItem | null> {
 
   return response.json() as Promise<KlantItem>;
 }
+
+export type FactuurItem = {
+  facnr: number;
+  type: boolean;
+  stempel: string;
+  datum: string | null;
+  klnr: number;
+  naam: string;
+  adres: string;
+  postnr: string;
+  stad: string;
+  munt: string;
+  uRef: string;
+  oRef: string;
+  vervaldat: string | null;
+  swBetaald: boolean;
+  bdatum: string | null;
+  nBedrag: number;
+  bBedrag: number;
+  totBtw: number;
+  totaal: number;
+  voorschot: number;
+  swFactuur: boolean;
+  projectnr: number;
+  opm: string;
+};
+
+type FacturenResponse = {
+  items: FactuurItem[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+};
+
+/**
+ * Paged list of facturen (invoices). No exact total count is available
+ * (same reasoning as getArtikelen) - so pagination relies on `hasMore`
+ * rather than a page count. Filter by `klnr`, `naam`, `datum` and/or
+ * `projectnr`.
+ * Backend: GET /web/factuur (Luna.Web.FactuurHandler, read-only).
+ */
+export async function getFacturen(
+  params: {
+    klnr?: number;
+    naam?: string;
+    datum?: string;
+    projectnr?: number;
+    page?: number;
+    pageSize?: number;
+  } = {}
+): Promise<FacturenResponse> {
+  const { klnr, naam, datum, projectnr, page = 1, pageSize = 25 } = params;
+  const query = new URLSearchParams();
+  if (klnr !== undefined) query.set("klnr", String(klnr));
+  if (naam !== undefined) query.set("naam", naam);
+  if (datum !== undefined) query.set("datum", datum);
+  if (projectnr !== undefined) query.set("projectnr", String(projectnr));
+  query.set("page", String(page));
+  query.set("pageSize", String(pageSize));
+  return apiGet<FacturenResponse>(`/factuur?${query.toString()}`);
+}
+
+/**
+ * Single factuur lookup by facnr. Returns `null` when the backend responds
+ * with 404 (factuur not found/removed) instead of throwing, so callers can
+ * render a not-found state. Any other non-OK status still throws, mirroring
+ * `apiGet`'s error format.
+ * Backend: GET /web/factuur/{facnr} (Luna.Web.FactuurHandler).
+ */
+export async function getFactuur(facnr: number): Promise<FactuurItem | null> {
+  const path = `/factuur/${facnr}`;
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`API request to ${path} failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<FactuurItem>;
+}

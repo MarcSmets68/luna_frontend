@@ -31,7 +31,15 @@ export const navItems: NavItem[] = [
     ],
   },
   { key: "inventory", label: "Voorraad", href: "/voorraad", available: true },
-  { key: "invoicing", label: "Facturatie", href: "/facturatie", available: false },
+  {
+    key: "invoicing",
+    label: "Facturatie",
+    href: "/facturatie",
+    available: true,
+    children: [
+      { key: "invoicing-all", label: "Alle facturen", href: "/facturatie/alle", available: true },
+    ],
+  },
   { key: "scheduling", label: "Planning", href: "/planning", available: false },
   { key: "reports", label: "Rapportage", href: "/rapportage", available: false },
 ];
