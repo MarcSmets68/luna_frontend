@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Table,
@@ -26,6 +29,12 @@ export function FacturenPage({
   page: number;
   hasMore: boolean;
 }) {
+  const router = useRouter();
+
+  function goToFactuur(facnr: number) {
+    router.push(`/facturatie/${facnr}`);
+  }
+
   return (
     <div>
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
@@ -54,42 +63,29 @@ export function FacturenPage({
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <TableRow key={item.facnr} className="cursor-pointer">
-                  <TableCell className="font-semibold">
-                    <Link href={`/facturatie/${item.facnr}`} className="block">
-                      {item.facnr}
-                    </Link>
-                  </TableCell>
+                <TableRow
+                  key={item.facnr}
+                  tabIndex={0}
+                  role="link"
+                  aria-label={`Open factuur ${item.facnr}`}
+                  className="cursor-pointer focus:bg-muted/50 focus:outline-none"
+                  onClick={() => goToFactuur(item.facnr)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      goToFactuur(item.facnr);
+                    }
+                  }}
+                >
+                  <TableCell className="font-semibold">{item.facnr}</TableCell>
+                  <TableCell>{formatDatum(item.datum)}</TableCell>
+                  <TableCell className="whitespace-normal">{item.naam}</TableCell>
+                  <TableCell>{item.stad}</TableCell>
                   <TableCell>
-                    <Link href={`/facturatie/${item.facnr}`} className="block">
-                      {formatDatum(item.datum)}
-                    </Link>
+                    {formatBedrag(item.totaal)} {item.munt}
                   </TableCell>
-                  <TableCell className="whitespace-normal">
-                    <Link href={`/facturatie/${item.facnr}`} className="block">
-                      {item.naam}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Link href={`/facturatie/${item.facnr}`} className="block">
-                      {item.stad}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Link href={`/facturatie/${item.facnr}`} className="block">
-                      {formatBedrag(item.totaal)} {item.munt}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Link href={`/facturatie/${item.facnr}`} className="block">
-                      {formatDatum(item.vervaldat)}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Link href={`/facturatie/${item.facnr}`} className="block">
-                      {betaaldLabel(item)}
-                    </Link>
-                  </TableCell>
+                  <TableCell>{formatDatum(item.vervaldat)}</TableCell>
+                  <TableCell>{betaaldLabel(item)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

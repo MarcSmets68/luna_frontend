@@ -1,7 +1,13 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { FacturenPage } from "../facturen-page";
 import type { FactuurItem } from "@/lib/api-client";
+
+const pushMock = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
 
 const mockItems: FactuurItem[] = [
   {
@@ -37,14 +43,29 @@ describe("FacturenPage", () => {
     expect(screen.getByRole("heading", { name: "Alle facturen" })).toBeInTheDocument();
   });
 
-  it("renders every item's facnr and naam, linking to the detail page", () => {
+  it("renders every item's facnr and naam", () => {
     render(<FacturenPage items={mockItems} page={1} hasMore={false} />);
     for (const item of mockItems) {
       expect(screen.getByText(String(item.facnr))).toBeInTheDocument();
       expect(screen.getByText(item.naam)).toBeInTheDocument();
     }
-    const links = screen.getAllByRole("link", { name: String(mockItems[0].facnr) });
-    expect(links[0]).toHaveAttribute("href", `/facturatie/${mockItems[0].facnr}`);
+  });
+
+  it("navigates to the factuur detail page when a row is clicked", () => {
+    pushMock.mockClear();
+    render(<FacturenPage items={mockItems} page={1} hasMore={false} />);
+    const row = screen.getByRole("link", { name: `Open factuur ${mockItems[0].facnr}` });
+    row.click();
+    expect(pushMock).toHaveBeenCalledWith(`/facturatie/${mockItems[0].facnr}`);
+  });
+
+  it("navigates to the factuur detail page when Enter is pressed on a focused row", () => {
+    pushMock.mockClear();
+    render(<FacturenPage items={mockItems} page={1} hasMore={false} />);
+    const row = screen.getByRole("link", { name: `Open factuur ${mockItems[0].facnr}` });
+    row.focus();
+    row.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(pushMock).toHaveBeenCalledWith(`/facturatie/${mockItems[0].facnr}`);
   });
 
   it("shows 'Openstaand' for unpaid invoices and 'Betaald' for paid ones", () => {
