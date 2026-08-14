@@ -10,7 +10,6 @@ export type NavItem = {
 
 export const navItems: NavItem[] = [
   { key: "dashboard", label: "Dashboard", href: "/", available: true },
-  { key: "lakproductie", label: "Lakproduktie", href: "/lakproduktie", available: true },
   { key: "crm", label: "Klanten", href: "/klanten", available: true },
   {
     key: "quotes",
@@ -28,8 +27,10 @@ export const navItems: NavItem[] = [
     available: true,
     children: [
       { key: "orders-all", label: "Alle orders", href: "/orders/alle", available: true },
+      { key: "lakproductie", label: "Lakproduktie", href: "/lakproduktie", available: true },
     ],
   },
+  { key: "bestellingen", label: "Bestellingen", href: "/bestellingen", available: true },
   { key: "inventory", label: "Voorraad", href: "/voorraad", available: true },
   {
     key: "invoicing",

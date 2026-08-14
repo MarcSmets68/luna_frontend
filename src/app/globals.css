@@ -128,3 +128,19 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  tr,
+  thead {
+    break-inside: avoid;
+  }
+}

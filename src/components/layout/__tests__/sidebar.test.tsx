@@ -33,12 +33,13 @@ describe("Sidebar", () => {
     expect(screen.queryByRole("link", { name: /alle offertes/i })).not.toBeInTheDocument();
   });
 
-  it("expands the 'Orders & Productie' submenu on click, revealing 'Alle orders'", () => {
+  it("expands the 'Orders & Productie' submenu on click, revealing 'Alle orders' and 'Lakproduktie'", () => {
     render(<Sidebar />);
 
     fireEvent.click(screen.getByRole("button", { name: /orders & productie/i }));
 
     expect(screen.getByRole("button", { name: /orders & productie/i })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("link", { name: /alle orders/i })).toHaveAttribute("href", "/orders/alle");
+    expect(screen.getByRole("link", { name: /lakproduktie/i })).toHaveAttribute("href", "/lakproduktie");
   });
 });

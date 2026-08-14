@@ -31,6 +31,23 @@ export type LakproductieItem = {
   groepeerKleur: string;
   orderdatum: string | null;
   leverdatum: string | null;
+  voorraad: number;
+  gereserveerd: number;
+  extVoorraad: number;
+  extGereserveerd: number;
+  ledAlu: string;
+  ledType: string;
+  ledKenmerk: string;
+  artikelTypeAfwerking: string;
+  lakLevnr: number;
+  lakNaam: string;
+  voorbewerkingNodig: boolean;
+  maatBevestigd: boolean | null;
+  verkoop1Maand: number;
+  verkoop3Maand: number;
+  verkoop6Maand: number;
+  verkoop9Maand: number;
+  verkoop12Maand: number;
 };
 
 type LakproductieResponse = {
@@ -253,6 +270,47 @@ export async function getBonnen(
   return apiGet<BonnenResponse>(`/bon?${query.toString()}`);
 }
 
+export type BestelorderItem = {
+  ordnr: number;
+  stempel: string;
+  datum: string | null;
+  levnr: number;
+  naam: string;
+  stad: string;
+  munt: string;
+  bedrag: number;
+  levDatum: string | null;
+  geparkeerd: boolean;
+  uRef: string;
+  opm: string;
+};
+
+type BestelordersResponse = {
+  items: BestelorderItem[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+};
+
+/**
+ * Paged list of bestelorders (purchase orders to suppliers, `order`
+ * table) - not to be confused with `bon` (customer orders, "Orders &
+ * Productie"). No exact total count is available (same reasoning as
+ * getArtikelen/getBonnen) - so pagination relies on `hasMore` rather than
+ * a page count. Filter by `levnr` (supplier number, exact).
+ * Backend: GET /web/bestelorder (Luna.Web.BestelorderHandler, read-only).
+ */
+export async function getBestelorders(
+  params: { levnr?: number; page?: number; pageSize?: number } = {}
+): Promise<BestelordersResponse> {
+  const { levnr, page = 1, pageSize = 25 } = params;
+  const query = new URLSearchParams();
+  if (levnr !== undefined) query.set("levnr", String(levnr));
+  query.set("page", String(page));
+  query.set("pageSize", String(pageSize));
+  return apiGet<BestelordersResponse>(`/bestelorder?${query.toString()}`);
+}
+
 /**
  * Single klant lookup by klnr. Returns `null` when the backend responds
  * with 404 (klant not found/removed) instead of throwing, so callers can
@@ -364,4 +422,61 @@ export async function getFactuur(facnr: number): Promise<FactuurItem | null> {
   }
 
   return response.json() as Promise<FactuurItem>;
+}
+
+export type DashboardStatCards = {
+  openOffertesCount: number;
+  openOffertesBedragPotentieel: number;
+  ordersInProductieCount: number;
+  ordersInProductieLeverenDezeWeek: number;
+  omzetDezeMaand: number;
+  omzetVsVorigeMaandPct: number | null;
+  lageVoorraadCount: number;
+};
+
+export type DashboardActivityItem = {
+  text: string;
+  datum: string | null;
+  type: "offerte" | "bon" | "factuur";
+};
+
+export type DashboardProductionItem = {
+  bonnr: number;
+  klant: string;
+  leverdatum: string | null;
+  bedrag: number;
+  geparkeerd: boolean;
+};
+
+export type DashboardResponse = {
+  statCards: DashboardStatCards;
+  recentActivity: DashboardActivityItem[];
+  productionThisWeek: DashboardProductionItem[];
+};
+
+/**
+ * Dashboard summary: stat cards, recent activity and open orders due this
+ * week - all derived server-side from offerte/bon/factuur/artikel (there is
+ * no activity-log or production-stage table in the schema).
+ *
+ * Unlike every other `apiGet` call, this one is deliberately cached for 60s
+ * (`next.revalidate`) instead of `no-store`: the backend's "lage voorraad"
+ * stat requires a full scan of ~1.8M `artikel` rows (no index on
+ * stock/aantal/minv - see Luna.BusinessLogic.DashboardBE), which takes
+ * ~45s. Without caching, every dashboard page load would pay that cost;
+ * with it, only one request per minute does.
+ * Backend: GET /web/dashboard (Luna.Web.DashboardHandler).
+ */
+export async function getDashboard(): Promise<DashboardResponse> {
+  const response = await fetch(`${API_BASE_URL}/dashboard`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    next: { revalidate: 60 },
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request to /dashboard failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<DashboardResponse>;
 }

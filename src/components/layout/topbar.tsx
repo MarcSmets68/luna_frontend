@@ -1,9 +1,15 @@
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
-export function Topbar() {
+export function Topbar({ className }: { className?: string }) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-7">
+    <header
+      className={cn(
+        "flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-7",
+        className
+      )}
+    >
       <Input
         type="text"
         placeholder="Zoek klanten, offertes, orders..."

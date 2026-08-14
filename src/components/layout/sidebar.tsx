@@ -11,7 +11,7 @@ function isItemActive(item: NavItem, pathname: string): boolean {
   return pathname === item.href || (item.children?.some((child) => pathname === child.href) ?? false);
 }
 
-export function Sidebar() {
+export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const [openKeys, setOpenKeys] = useState<string[]>(() =>
     navItems.filter((item) => isItemActive(item, pathname)).map((item) => item.key)
@@ -22,7 +22,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex h-full w-58 shrink-0 flex-col bg-sidebar">
+    <aside className={cn("flex h-full w-58 shrink-0 flex-col bg-sidebar", className)}>
       <div className="px-5 pt-6 pb-4.5">
         <div className="font-serif text-[26px] leading-none text-white">
           <span className="font-normal">Noma</span>
