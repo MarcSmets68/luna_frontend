@@ -15,7 +15,8 @@ import { BronBadge, StatusBadge } from "./bron-badge";
 
 const DASH = "\u2014";
 
-function formatQty(value: number): string {
+function formatQty(value: number | null | undefined): string {
+  if (value === null || value === undefined) return DASH;
   return value.toLocaleString("nl-BE", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
