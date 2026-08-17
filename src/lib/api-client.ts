@@ -17,37 +17,69 @@ async function apiGet<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export type LakproductieBron = "lopende-orders" | "lopende-productielijnen" | "min-max-voorraad";
+
+export type LakproductieStatus =
+  | "Gereserveerd"
+  | "Deels gereserveerd"
+  | "Besteld"
+  | "Nog te bestellen";
+
+/**
+ * Every field is always present; fields that don't apply to a given `bron`
+ * are `null` (not omitted) - see Backend contract for GET /web/lakproduktie.
+ * `bonnr`/`klant`/`status`/... are only populated for `bron` "lopende-orders"
+ * and "lopende-productielijnen" (the "a/b" sources); `bestelAdvies` is only
+ * populated for `bron` "min-max-voorraad" (the "c" source); `prodLijnnr` is
+ * only populated for "lopende-productielijnen".
+ */
 export type LakproductieItem = {
-  bonnr: number;
-  klant: string;
+  bron: LakproductieBron;
   artnr: string;
   omschrijving: string;
-  aantal: number;
+  ledAlu: string;
   behandeling: string;
-  techniek: string;
   kleursoort: string;
   kleurkode: string;
   afwerking: string;
+  techniek: string;
   groepeerKleur: string;
-  orderdatum: string | null;
-  leverdatum: string | null;
-  voorraad: number;
-  gereserveerd: number;
-  extVoorraad: number;
-  extGereserveerd: number;
-  ledAlu: string;
+  typeAfwerking: string;
   ledType: string;
   ledKenmerk: string;
-  artikelTypeAfwerking: string;
   lakLevnr: number;
   lakNaam: string;
+  voorraad: number;
+  gereserveerdVoorraad: number;
+  extVoorraad: number;
+  extGereserveerd: number;
   voorbewerkingNodig: boolean;
-  maatBevestigd: boolean | null;
+  premontageDatum: string | null;
   verkoop1Maand: number;
   verkoop3Maand: number;
   verkoop6Maand: number;
   verkoop9Maand: number;
   verkoop12Maand: number;
+  // a/b only (null for "min-max-voorraad"):
+  bonnr: number | null;
+  klant: string | null;
+  lijnnr: number | null;
+  prodLijnnr: number | null;
+  groepnr: number | null;
+  subgroepnr: number | null;
+  aantal: number | null;
+  lijnGereserveerd: number | null;
+  lijnBesteld: number | null;
+  status: LakproductieStatus | null;
+  deadline: string | null;
+  ordnr: number | null;
+  orderLevnr: number | null;
+  orderNaam: string | null;
+  orderDatum: string | null;
+  maatBevestigd: boolean | null;
+  kleurOnbepaald: boolean;
+  // c only (null for "lopende-orders"/"lopende-productielijnen"):
+  bestelAdvies: number | null;
 };
 
 type LakproductieResponse = {

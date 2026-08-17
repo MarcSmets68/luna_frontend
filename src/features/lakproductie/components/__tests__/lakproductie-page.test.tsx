@@ -3,29 +3,59 @@ import { describe, expect, it } from "vitest";
 import { LakproductiePage } from "../lakproductie-page";
 import type { LakproductieItem } from "@/lib/api-client";
 
-const baseFields = {
-  voorraad: 100,
-  gereserveerd: 10,
-  extVoorraad: 0,
-  extGereserveerd: 0,
+const baseFields: Omit<
+  LakproductieItem,
+  | "bron"
+  | "bonnr"
+  | "klant"
+  | "artnr"
+  | "omschrijving"
+  | "aantal"
+  | "behandeling"
+  | "techniek"
+  | "kleursoort"
+  | "kleurkode"
+  | "afwerking"
+  | "groepeerKleur"
+  | "orderDatum"
+  | "deadline"
+  | "lakNaam"
+  | "status"
+  | "bestelAdvies"
+> = {
   ledAlu: "SAPA.RAE.46990.BRUT",
   ledType: "Profiel",
   ledKenmerk: "-----",
-  artikelTypeAfwerking: "ANO",
+  typeAfwerking: "ANO",
   lakLevnr: 623,
-  lakNaam: "ALUCOL BV",
+  voorraad: 100,
+  gereserveerdVoorraad: 10,
+  extVoorraad: 0,
+  extGereserveerd: 0,
   voorbewerkingNodig: false,
-  maatBevestigd: null,
+  premontageDatum: null,
   verkoop1Maand: 1,
   verkoop3Maand: 2,
   verkoop6Maand: 3,
   verkoop9Maand: 4,
   verkoop12Maand: 5,
+  lijnnr: null,
+  prodLijnnr: null,
+  groepnr: null,
+  subgroepnr: null,
+  lijnGereserveerd: null,
+  lijnBesteld: null,
+  ordnr: null,
+  orderLevnr: null,
+  orderNaam: null,
+  maatBevestigd: null,
+  kleurOnbepaald: false,
 };
 
 const mockItems: LakproductieItem[] = [
   {
     ...baseFields,
+    bron: "lopende-orders",
     bonnr: 2177435,
     klant: "CONE LIGHTING BV",
     artnr: "SAPA.RAE.46990.AT",
@@ -37,8 +67,11 @@ const mockItems: LakproductieItem[] = [
     kleurkode: "TITANIUM",
     afwerking: "",
     groepeerKleur: "ANO · TITANIUM",
-    orderdatum: "2026-07-15",
-    leverdatum: "2026-08-04",
+    orderDatum: "2026-07-15",
+    deadline: "2026-08-04",
+    lakNaam: "ALUCOL BV",
+    status: "Gereserveerd",
+    bestelAdvies: null,
   },
   // Same derived techniek/kleurkode/afwerking as the item above (ANO ·
   // TITANIUM) but a different raw behandeling spec - must land in the same
@@ -46,6 +79,7 @@ const mockItems: LakproductieItem[] = [
   // subgroup within it.
   {
     ...baseFields,
+    bron: "lopende-productielijnen",
     bonnr: 2177500,
     klant: "SUBGROUP CLIENT BV",
     artnr: "SAPA.RAE.47000.AT",
@@ -57,12 +91,16 @@ const mockItems: LakproductieItem[] = [
     kleurkode: "TITANIUM",
     afwerking: "",
     groepeerKleur: "ANO · TITANIUM",
-    orderdatum: "2026-07-15",
-    leverdatum: "2026-08-04",
+    orderDatum: "2026-07-15",
+    deadline: "2026-08-04",
     lakNaam: "ALUCOL BV",
+    status: "Deels gereserveerd",
+    bestelAdvies: null,
+    prodLijnnr: 42,
   },
   {
     ...baseFields,
+    bron: "lopende-orders",
     bonnr: 2177999,
     klant: "ANOTHER CLIENT BV",
     artnr: "SAPA.RAE.12345.AT",
@@ -74,12 +112,15 @@ const mockItems: LakproductieItem[] = [
     kleurkode: "9005",
     afwerking: "Structuurlak",
     groepeerKleur: "LAK · RAL 9005 · Structuurlak",
-    orderdatum: "2026-07-16",
-    leverdatum: "2026-08-05",
+    orderDatum: "2026-07-16",
+    deadline: "2026-08-05",
     lakNaam: "Wilms Lakkerij",
+    status: "Besteld",
+    bestelAdvies: null,
   },
   {
     ...baseFields,
+    bron: "lopende-orders",
     bonnr: 2178050,
     klant: "THIRD CLIENT BV",
     artnr: "SAPA.RAE.99999.AT",
@@ -91,8 +132,11 @@ const mockItems: LakproductieItem[] = [
     kleurkode: "",
     afwerking: "",
     groepeerKleur: "WIL.101270.9016.COATEX",
-    orderdatum: "2026-07-17",
-    leverdatum: "2026-08-06",
+    orderDatum: "2026-07-17",
+    deadline: "2026-08-06",
+    lakNaam: "ALUCOL BV",
+    status: "Nog te bestellen",
+    bestelAdvies: null,
   },
 ];
 
@@ -106,7 +150,7 @@ describe("LakproductiePage", () => {
     render(<LakproductiePage items={mockItems} />);
     for (const item of mockItems) {
       expect(screen.getByText(String(item.bonnr))).toBeInTheDocument();
-      expect(screen.getByText(item.klant)).toBeInTheDocument();
+      expect(screen.getByText(item.klant ?? "\u2014")).toBeInTheDocument();
       expect(screen.getByText(item.artnr)).toBeInTheDocument();
     }
   });
@@ -166,6 +210,7 @@ describe("LakproductiePage", () => {
   it("shows the Axalta product name/code next to the group heading for internal \"RAL n\" codes", () => {
     const axaltaItem: LakproductieItem = {
       ...baseFields,
+      bron: "lopende-orders",
       bonnr: 2179000,
       klant: "AXALTA CLIENT BV",
       artnr: "SAPA.RAE.55555.AT",
@@ -177,8 +222,11 @@ describe("LakproductiePage", () => {
       kleurkode: "1",
       afwerking: "",
       groepeerKleur: "ANO · 1",
-      orderdatum: "2026-07-18",
-      leverdatum: "2026-08-07",
+      orderDatum: "2026-07-18",
+      deadline: "2026-08-07",
+      lakNaam: "ALUCOL BV",
+      status: "Gereserveerd",
+      bestelAdvies: null,
     };
     render(<LakproductiePage items={[axaltaItem]} />);
     expect(
@@ -191,5 +239,104 @@ describe("LakproductiePage", () => {
     expect(
       screen.getByRole("heading", { name: "LAK · RAL 9005 · Structuurlak" })
     ).toBeInTheDocument();
+  });
+
+  it("shows a bron badge for every row, labelling each of the three sources", () => {
+    const minMaxItem: LakproductieItem = {
+      ...baseFields,
+      bron: "min-max-voorraad",
+      bonnr: null,
+      klant: null,
+      artnr: "SAPA.RAE.77777.AT",
+      omschrijving: "Min-max voorraaditem",
+      aantal: null,
+      behandeling: "MINMAX.9005",
+      techniek: "LAK",
+      kleursoort: "RAL",
+      kleurkode: "9005",
+      afwerking: "",
+      groepeerKleur: "LAK · RAL 9005",
+      orderDatum: null,
+      deadline: null,
+      lakNaam: "Wilms Lakkerij",
+      status: null,
+      bestelAdvies: 25,
+    };
+    render(<LakproductiePage items={[...mockItems, minMaxItem]} />);
+    expect(screen.getAllByText("Order").length).toBeGreaterThan(0);
+    expect(screen.getByText("Productielijn")).toBeInTheDocument();
+    expect(screen.getByText("Min-max")).toBeInTheDocument();
+  });
+
+  it("shows a status badge for lopende-orders/lopende-productielijnen rows", () => {
+    render(<LakproductiePage items={mockItems} />);
+    expect(screen.getByText("Gereserveerd")).toBeInTheDocument();
+    expect(screen.getByText("Deels gereserveerd")).toBeInTheDocument();
+    expect(screen.getByText("Besteld")).toBeInTheDocument();
+    expect(screen.getByText("Nog te bestellen")).toBeInTheDocument();
+  });
+
+  it("hides order/klant/aantal and shows a bestel-advies for min-max-voorraad rows instead", () => {
+    const minMaxItem: LakproductieItem = {
+      ...baseFields,
+      bron: "min-max-voorraad",
+      bonnr: null,
+      klant: null,
+      artnr: "SAPA.RAE.77777.AT",
+      omschrijving: "Min-max voorraaditem",
+      aantal: null,
+      behandeling: "MINMAX.9005",
+      techniek: "LAK",
+      kleursoort: "RAL",
+      kleurkode: "9005",
+      afwerking: "",
+      groepeerKleur: "LAK · RAL 9005",
+      orderDatum: null,
+      deadline: null,
+      lakNaam: "Wilms Lakkerij",
+      status: null,
+      bestelAdvies: 25,
+    };
+    render(<LakproductiePage items={[minMaxItem]} />);
+
+    // No bonnr/klant/aantal (order-only fields) rendered for this row.
+    expect(screen.queryByText("2177435")).not.toBeInTheDocument();
+    expect(screen.queryByText("CONE LIGHTING BV")).not.toBeInTheDocument();
+
+    // Bestel-advies value shown instead of a status badge.
+    expect(screen.getByText(/Bestel-advies:\s*25/)).toBeInTheDocument();
+
+    // Em-dashes shown for the inapplicable order/klant/aantal columns.
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+  });
+
+  it("shows gereserveerdVoorraad (renamed from gereserveerd) in the per-row detail line", () => {
+    render(<LakproductiePage items={mockItems} />);
+    expect(screen.getAllByText(/Gereserveerd 10/).length).toBeGreaterThan(0);
+  });
+
+  it("renders a bestelAdvies of 0 as \"0\", not as a dash", () => {
+    const zeroAdviesItem: LakproductieItem = {
+      ...baseFields,
+      bron: "min-max-voorraad",
+      bonnr: null,
+      klant: null,
+      artnr: "SAPA.RAE.88888.AT",
+      omschrijving: "Min-max voorraaditem zonder bestel-advies",
+      aantal: null,
+      behandeling: "MINMAX.0000",
+      techniek: "LAK",
+      kleursoort: "RAL",
+      kleurkode: "0000",
+      afwerking: "",
+      groepeerKleur: "LAK · RAL 0000",
+      orderDatum: null,
+      deadline: null,
+      lakNaam: "Wilms Lakkerij",
+      status: null,
+      bestelAdvies: 0,
+    };
+    render(<LakproductiePage items={[zeroAdviesItem]} />);
+    expect(screen.getByText(/Bestel-advies:\s*0(?!\S)/)).toBeInTheDocument();
   });
 });

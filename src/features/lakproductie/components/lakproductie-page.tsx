@@ -11,6 +11,9 @@ import type { LakproductieItem } from "@/lib/api-client";
 import { getColorHex } from "../colorMap";
 import { mapToAxaltaColor } from "../colorMapping";
 import { PrintButton } from "./print-button";
+import { BronBadge, StatusBadge } from "./bron-badge";
+
+const DASH = "\u2014";
 
 function formatQty(value: number): string {
   return value.toLocaleString("nl-BE", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -109,12 +112,14 @@ export function LakproductiePage({ items }: { items: LakproductieItem[] }) {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Bron</TableHead>
                       <TableHead>Order</TableHead>
                       <TableHead>Klant</TableHead>
                       <TableHead>Artikel</TableHead>
                       <TableHead>Omschrijving</TableHead>
                       <TableHead>Aantal</TableHead>
                       <TableHead>Leverancier</TableHead>
+                      <TableHead>Status / Bestel-advies</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -122,7 +127,7 @@ export function LakproductiePage({ items }: { items: LakproductieItem[] }) {
                       <Fragment key={behandeling}>
                         <TableRow className="hover:bg-transparent">
                           <TableCell
-                            colSpan={6}
+                            colSpan={8}
                             className="bg-muted/40 text-[12px] font-medium text-muted-foreground"
                           >
                             {behandeling}
@@ -132,32 +137,54 @@ export function LakproductiePage({ items }: { items: LakproductieItem[] }) {
                             </span>
                           </TableCell>
                         </TableRow>
-                        {subgroupItems.map((item, i) => (
-                          <Fragment key={`${item.bonnr}-${item.artnr}-${i}`}>
-                            <TableRow className="[&>td]:pb-0.5">
-                              <TableCell className="font-semibold">{item.bonnr}</TableCell>
-                              <TableCell>{item.klant}</TableCell>
-                              <TableCell>{item.artnr}</TableCell>
-                              <TableCell className="whitespace-normal">
-                                {item.omschrijving}
-                              </TableCell>
-                              <TableCell>{item.aantal}</TableCell>
-                              <TableCell>{item.lakNaam || "-"}</TableCell>
-                            </TableRow>
-                            <TableRow className="hover:bg-transparent [&>td]:pt-0">
-                              <TableCell colSpan={6} className="text-[11px] text-muted-foreground">
-                                Voorraad {formatQty(item.voorraad)} · Gereserveerd{" "}
-                                {formatQty(item.gereserveerd)} · Ext. voorraad{" "}
-                                {formatQty(item.extVoorraad)} · Ext. gereserveerd{" "}
-                                {formatQty(item.extGereserveerd)}
-                                {"  ·  "}
-                                Verkoop 1/3/6/9/12m: {formatQty(item.verkoop1Maand)} /{" "}
-                                {formatQty(item.verkoop3Maand)} / {formatQty(item.verkoop6Maand)} /{" "}
-                                {formatQty(item.verkoop9Maand)} / {formatQty(item.verkoop12Maand)}
-                              </TableCell>
-                            </TableRow>
-                          </Fragment>
-                        ))}
+                        {subgroupItems.map((item, i) => {
+                          const isMinMax = item.bron === "min-max-voorraad";
+                          return (
+                            <Fragment key={`${item.bron}-${item.bonnr ?? "x"}-${item.artnr}-${i}`}>
+                              <TableRow className="[&>td]:pb-0.5">
+                                <TableCell>
+                                  <BronBadge bron={item.bron} />
+                                </TableCell>
+                                <TableCell className="font-semibold">
+                                  {isMinMax ? DASH : item.bonnr}
+                                </TableCell>
+                                <TableCell>{isMinMax ? DASH : item.klant}</TableCell>
+                                <TableCell>{item.artnr}</TableCell>
+                                <TableCell className="whitespace-normal">
+                                  {item.omschrijving}
+                                </TableCell>
+                                <TableCell>{isMinMax ? DASH : item.aantal}</TableCell>
+                                <TableCell>{item.lakNaam || "-"}</TableCell>
+                                <TableCell>
+                                  {isMinMax ? (
+                                    <span className="text-[12px] text-foreground">
+                                      Bestel-advies:{" "}
+                                      {item.bestelAdvies !== null
+                                        ? formatQty(item.bestelAdvies)
+                                        : DASH}
+                                    </span>
+                                  ) : item.status ? (
+                                    <StatusBadge status={item.status} />
+                                  ) : (
+                                    DASH
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                              <TableRow className="hover:bg-transparent [&>td]:pt-0">
+                                <TableCell colSpan={8} className="text-[11px] text-muted-foreground">
+                                  Voorraad {formatQty(item.voorraad)} · Gereserveerd{" "}
+                                  {formatQty(item.gereserveerdVoorraad)} · Ext. voorraad{" "}
+                                  {formatQty(item.extVoorraad)} · Ext. gereserveerd{" "}
+                                  {formatQty(item.extGereserveerd)}
+                                  {"  ·  "}
+                                  Verkoop 1/3/6/9/12m: {formatQty(item.verkoop1Maand)} /{" "}
+                                  {formatQty(item.verkoop3Maand)} / {formatQty(item.verkoop6Maand)} /{" "}
+                                  {formatQty(item.verkoop9Maand)} / {formatQty(item.verkoop12Maand)}
+                                </TableCell>
+                              </TableRow>
+                            </Fragment>
+                          );
+                        })}
                       </Fragment>
                     ))}
                   </TableBody>
