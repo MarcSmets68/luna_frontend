@@ -17,6 +17,44 @@ async function apiGet<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = (await response.json().catch(() => null)) as {
+      error?: { message?: string };
+    } | null;
+    throw new Error(
+      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PUT",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = (await response.json().catch(() => null)) as {
+      error?: { message?: string };
+    } | null;
+    throw new Error(
+      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
 export type LakproductieBron = "lopende-orders" | "lopende-productielijnen" | "min-max-voorraad";
 
 export type LakproductieStatus =
@@ -54,6 +92,7 @@ export type LakproductieItem = {
   extVoorraad: number;
   extGereserveerd: number;
   voorbewerkingNodig: boolean;
+  verpakking: number;
   premontageDatum: string | null;
   verkoop1Maand: number;
   verkoop3Maand: number;
@@ -94,6 +133,57 @@ type LakproductieResponse = {
 export async function getLakproductieItems(): Promise<LakproductieItem[]> {
   const data = await apiGet<LakproductieResponse>("/lakproduktie");
   return data.items;
+}
+
+export type CreateBestellingLine = {
+  artnr: string;
+  omschrijving: string;
+  aantal: number;
+  // Link naar de klantorder-lijn deze bestelling-regel bedoeld is voor -
+  // weggelaten voor min-max-voorraad-regels (geen klantlink). `volgnr`
+  // erbij betekent dat de lijn uit een productielijn (bonlijn_productie)
+  // komt i.p.v. rechtstreeks uit een bonlijn.
+  bonnr?: number;
+  blijnnr?: number;
+  volgnr?: number;
+};
+
+export type CreateBestellingRequest = {
+  levnr: number;
+  lines: CreateBestellingLine[];
+};
+
+export type BestellingResult = {
+  ordnr: number;
+  levnr: number;
+  naam: string;
+  datum: string | null;
+  munt: string;
+  lines: Array<{
+    ordnr: number;
+    lijnnr: number;
+    artnr: string;
+    omschrijving: string;
+    aantal: number;
+    bonnr: number | null;
+    blijnnr: number | null;
+    volgnr: number | null;
+  }>;
+};
+
+/**
+ * Creëert een nieuwe inkooporder (`order` + `ordlijn`) vanuit een
+ * bevestigde Lakproduktie bestelling-preview. Regels met een
+ * bonnr/blijnnr(/volgnr) worden gekoppeld aan de klantorder(-lijn) zodat
+ * bij levering duidelijk is voor wie het bedoeld is; regels zonder link
+ * zijn zuivere voorraadaanvulling (min-max-voorraad).
+ * Backend: POST /web/lakproduktie/bestelling (Luna.Web.LakproductieHandler
+ * + Luna.BusinessLogic.LakproductieBestellingBE).
+ */
+export async function createLakproductieBestelling(
+  payload: CreateBestellingRequest
+): Promise<BestellingResult> {
+  return apiPost<BestellingResult>("/lakproduktie/bestelling", payload);
 }
 
 export type ArtikelItem = {
@@ -197,11 +287,29 @@ type KlantenResponse = {
 /**
  * Paged list of klanten (customers). No exact total count is available
  * (same reasoning as getArtikelen) - see Backend/README.md - so pagination
- * relies on `hasMore` rather than a page count.
+ * relies on `hasMore` rather than a page count. Pass `naam` to filter to
+ * customers matching every space-separated word (case-insensitive, any
+ * order) across naam/naam1 - e.g. "Smets Marc" matches naam "Smets" /
+ * naam1 "Marc".
+ *
+ * The `naam` value is deliberately appended with encodeURIComponent
+ * rather than through URLSearchParams: URLSearchParams serializes spaces
+ * as "+" (the legacy form-urlencoded convention), but a multi-word naam
+ * filter needs each space to reach the backend as "%20" - same reasoning
+ * as getArtikel() - OpenEdge's query-value decoder does not treat "+" as
+ * a space, so a "+" would silently glue the words together and never
+ * split on KlantBE's word-boundary match.
  * Backend: GET /web/klant (Luna.Web.KlantHandler).
  */
-export async function getKlanten(page = 1, pageSize = 25): Promise<KlantenResponse> {
-  return apiGet<KlantenResponse>(`/klant?page=${page}&pageSize=${pageSize}`);
+export async function getKlanten(
+  params: { naam?: string; page?: number; pageSize?: number } = {}
+): Promise<KlantenResponse> {
+  const { naam, page = 1, pageSize = 25 } = params;
+  const query = new URLSearchParams();
+  query.set("page", String(page));
+  query.set("pageSize", String(pageSize));
+  const naamPart = naam ? `&naam=${encodeURIComponent(naam)}` : "";
+  return apiGet<KlantenResponse>(`/klant?${query.toString()}${naamPart}`);
 }
 
 export type OfferteItem = {
@@ -241,18 +349,89 @@ type OffertenResponse = {
  * Backend/README.md - so pagination relies on `hasMore` rather than a page
  * count. Each row is one offerte revision (offnr + versie); this does not
  * dedupe to "latest versie per offnr". Pass `klnr` to filter to a single
- * customer's offertes.
+ * customer's offertes. Also filterable by `offnr` (prefix match on the
+ * quote number) and/or `naam` (substring match on the customer name),
+ * both optional and server-side. No sorting support on this endpoint.
  * Backend: GET /web/offerte (Luna.Web.OfferteHandler, read-only for now).
  */
 export async function getOffertes(
-  params: { klnr?: number; page?: number; pageSize?: number } = {}
+  params: { klnr?: number; offnr?: string; naam?: string; page?: number; pageSize?: number } = {}
 ): Promise<OffertenResponse> {
-  const { klnr, page = 1, pageSize = 25 } = params;
+  const { klnr, offnr, naam, page = 1, pageSize = 25 } = params;
   const query = new URLSearchParams();
   if (klnr !== undefined) query.set("klnr", String(klnr));
+  if (offnr) query.set("offnr", offnr);
+  if (naam) query.set("naam", naam);
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
   return apiGet<OffertenResponse>(`/offerte?${query.toString()}`);
+}
+
+export type OfflijnItem = {
+  offnr: number;
+  versie: number;
+  lijnnr: number;
+  groepnr: number;
+  subgroepnr: number;
+  artnr: string;
+  omschrijving: string;
+  omschrijvingOfferte: string;
+  aantal: number;
+  teLeveren: number;
+  verkoopprijs: number;
+  brutoVerkoopprijs: number;
+  korting: number;
+  btwKode: string;
+  bedrag: number;
+  bruto: number;
+  aankoopprijs: number;
+  opm: string;
+  bestellen: boolean;
+  blokkeren: boolean;
+  subtotaal: boolean;
+  kolomtitel: boolean;
+  infolijn: boolean;
+};
+
+type OfflijnenResponse = {
+  items: OfflijnItem[];
+};
+
+/**
+ * Single offerte lookup by offnr+versie. Returns `null` when the backend
+ * responds with 404 (offerte not found/removed) instead of throwing, so
+ * callers can render a not-found state. Any other non-OK status still
+ * throws, mirroring `apiGet`'s error format.
+ * Backend: GET /web/offerte/{offnr}/{versie} (Luna.Web.OfferteHandler).
+ */
+export async function getOfferte(offnr: number, versie: number): Promise<OfferteItem | null> {
+  const path = `/offerte/${offnr}/${versie}`;
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`API request to ${path} failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<OfferteItem>;
+}
+
+/**
+ * List of offlijn (quote line) rows for a single offerte revision. No
+ * paging - a quote typically has a bounded number of lines.
+ * Backend: GET /web/offerte/{offnr}/{versie}/lijn (Luna.Web.OfferteHandler,
+ * read-only).
+ */
+export async function getOfferteLijnen(offnr: number, versie: number): Promise<OfflijnItem[]> {
+  const data = await apiGet<OfflijnenResponse>(`/offerte/${offnr}/${versie}/lijn`);
+  return data.items;
 }
 
 export type BonItem = {
@@ -284,19 +463,95 @@ type BonnenResponse = {
 };
 
 /**
+ * Single bon lookup by bonnr. Returns `null` when the backend responds
+ * with 404 (bon not found/removed) instead of throwing, so callers can
+ * render a not-found state. Any other non-OK status still throws, mirroring
+ * `apiGet`'s error format.
+ * Backend: GET /web/bon/{bonnr} (Luna.Web.BonHandler).
+ */
+export async function getBon(bonnr: number): Promise<BonItem | null> {
+  const path = `/bon/${bonnr}`;
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`API request to ${path} failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<BonItem>;
+}
+
+export type BonLijnItem = {
+  bonnr: number;
+  lijnnr: number;
+  stempel: string;
+  artnr: string;
+  omschrijving: string;
+  aantal: number;
+  teLeveren: number;
+  besteld: number;
+  vprijs: number;
+  aprijs: number;
+  korting: number;
+  btwKode: string;
+  bedrag: number;
+  levDatum: string | null;
+  bestelDatum: string | null;
+  klnr: number;
+  groepnr: number;
+  subgroepnr: number;
+  hold: boolean;
+  opm: string;
+  subtotaal: boolean;
+  kolomtitel: boolean;
+  infolijn: boolean;
+};
+
+type BonLijnenResponse = {
+  items: BonLijnItem[];
+};
+
+/**
+ * List of bonlijn (order lines) for a bon - no paging, a bon typically has
+ * a bounded number of lines.
+ * Backend: GET /web/bon/{bonnr}/lijn (Luna.Web.BonHandler, read-only).
+ */
+export async function getBonLijnen(bonnr: number): Promise<BonLijnItem[]> {
+  const data = await apiGet<BonLijnenResponse>(`/bon/${bonnr}/lijn`);
+  return data.items;
+}
+
+/**
  * Paged list of bonnen (orders/order confirmations etc.). No exact total
  * count is available (same reasoning as getArtikelen) - so pagination
- * relies on `hasMore` rather than a page count. Filter by `klnr` and/or
- * `type` (e.g. "ORDERBEVESTIGING").
+ * relies on `hasMore` rather than a page count. Filter by `klnr` (exact),
+ * `type` (exact, e.g. "ORDERBEVESTIGING"), `bonnr` (prefix match on the
+ * order number) and/or `naam` (substring match on the customer name).
  * Backend: GET /web/bon (Luna.Web.BonHandler, read-only).
  */
 export async function getBonnen(
-  params: { klnr?: number; type?: string; page?: number; pageSize?: number } = {}
+  params: {
+    klnr?: number;
+    type?: string;
+    bonnr?: string;
+    naam?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}
 ): Promise<BonnenResponse> {
-  const { klnr, type, page = 1, pageSize = 25 } = params;
+  const { klnr, type, bonnr, naam, page = 1, pageSize = 25 } = params;
   const query = new URLSearchParams();
   if (klnr !== undefined) query.set("klnr", String(klnr));
   if (type !== undefined) query.set("type", type);
+  if (bonnr) query.set("bonnr", bonnr);
+  if (naam) query.set("naam", naam);
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
   return apiGet<BonnenResponse>(`/bon?${query.toString()}`);
@@ -317,11 +572,16 @@ export type BestelorderItem = {
   opm: string;
 };
 
+export type BestelorderSortField = "ordnr" | "datum" | "naam" | "stempel";
+export type BestelorderSortDir = "asc" | "desc";
+
 type BestelordersResponse = {
   items: BestelorderItem[];
   page: number;
   pageSize: number;
   hasMore: boolean;
+  sortField: BestelorderSortField;
+  sortDir: BestelorderSortDir;
 };
 
 /**
@@ -329,18 +589,95 @@ type BestelordersResponse = {
  * table) - not to be confused with `bon` (customer orders, "Orders &
  * Productie"). No exact total count is available (same reasoning as
  * getArtikelen/getBonnen) - so pagination relies on `hasMore` rather than
- * a page count. Filter by `levnr` (supplier number, exact).
+ * a page count. Filter by `levnr` (supplier number, exact), `ordnr`
+ * (prefix match on the order number) and/or `naam` (substring match on
+ * the leverancier name). Sort by `sortField`/`sortDir` (both optional,
+ * default "ordnr"/"desc" - matches the backend's own fallback).
  * Backend: GET /web/bestelorder (Luna.Web.BestelorderHandler, read-only).
  */
 export async function getBestelorders(
-  params: { levnr?: number; page?: number; pageSize?: number } = {}
+  params: {
+    levnr?: number;
+    ordnr?: string;
+    naam?: string;
+    sortField?: BestelorderSortField;
+    sortDir?: BestelorderSortDir;
+    page?: number;
+    pageSize?: number;
+  } = {}
 ): Promise<BestelordersResponse> {
-  const { levnr, page = 1, pageSize = 25 } = params;
+  const { levnr, ordnr, naam, sortField, sortDir, page = 1, pageSize = 25 } = params;
   const query = new URLSearchParams();
   if (levnr !== undefined) query.set("levnr", String(levnr));
+  if (ordnr) query.set("ordnr", ordnr);
+  if (naam) query.set("naam", naam);
+  if (sortField) query.set("sortField", sortField);
+  if (sortDir) query.set("sortDir", sortDir);
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
   return apiGet<BestelordersResponse>(`/bestelorder?${query.toString()}`);
+}
+
+/**
+ * Single bestelorder lookup by ordnr. Returns `null` when the backend
+ * responds with 404 (order not found/removed) instead of throwing, so
+ * callers can render a not-found state. Any other non-OK status still
+ * throws, mirroring `apiGet`'s error format.
+ * Backend: GET /web/bestelorder/{ordnr} (Luna.Web.BestelorderHandler).
+ */
+export async function getBestelorder(ordnr: number): Promise<BestelorderItem | null> {
+  const path = `/bestelorder/${ordnr}`;
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`API request to ${path} failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<BestelorderItem>;
+}
+
+export type BestelorderLijnItem = {
+  ordnr: number;
+  lijnnr: number;
+  artnr: string;
+  omschrijving: string;
+  aantal: number;
+  teLeveren: number;
+  vprijs: number;
+  korting: number;
+  btwKode: string;
+  bedrag: number;
+  stempel: string;
+  levnr: number;
+  levDatum: string | null;
+  bonnr: number;
+  blijnnr: number;
+  volgnr: number;
+  opm: string;
+};
+
+type BestelorderLijnenResponse = {
+  items: BestelorderLijnItem[];
+};
+
+/**
+ * Every ordlijn (purchase order line) row for a given bestelorder, ordered
+ * by lijnnr. Does not 404 if `ordnr` doesn't exist - it just returns an
+ * empty list (same reasoning as the backend, see Backend/README.md) -
+ * callers that need a not-found state should call `getBestelorder` first.
+ * Backend: GET /web/bestelorder/{ordnr}/lijn (Luna.Web.BestelorderHandler).
+ */
+export async function getBestelorderLijnen(ordnr: number): Promise<BestelorderLijnItem[]> {
+  const data = await apiGet<BestelorderLijnenResponse>(`/bestelorder/${ordnr}/lijn`);
+  return data.items;
 }
 
 /**
@@ -367,6 +704,24 @@ export async function getKlant(klnr: number): Promise<KlantItem | null> {
   }
 
   return response.json() as Promise<KlantItem>;
+}
+
+/**
+ * Partial update payload for a klant - every field is optional (only
+ * fields present are changed) and `klnr` is deliberately excluded since
+ * it's the immutable primary key (see Luna.BusinessLogic.KlantBE).
+ */
+export type UpdateKlantPayload = Partial<Omit<KlantItem, "klnr">>;
+
+/**
+ * Updates a klant. Only the fields present in `payload` are changed.
+ * Backend: PUT /web/klant/{klnr} (Luna.Web.KlantHandler).
+ */
+export async function updateKlant(
+  klnr: number,
+  payload: UpdateKlantPayload
+): Promise<KlantItem> {
+  return apiPut<KlantItem>(`/klant/${klnr}`, payload);
 }
 
 export type FactuurItem = {
@@ -511,4 +866,27 @@ export async function getDashboard(): Promise<DashboardResponse> {
   }
 
   return response.json() as Promise<DashboardResponse>;
+}
+
+export type DevUserItem = {
+  kode: string;
+  naam: string;
+  email: string;
+  niveau: number;
+  passief: boolean;
+};
+
+type DevUsersResponse = {
+  items: DevUserItem[];
+};
+
+/**
+ * Dev-only verification list of Luna users - no auth on this endpoint and
+ * it is not linked from production navigation (see Sidebar). The password
+ * field is never returned by the backend.
+ * Backend: GET /web/dev-users (Luna.Web.DevUsersHandler).
+ */
+export async function getDevUsers(): Promise<DevUserItem[]> {
+  const data = await apiGet<DevUsersResponse>("/dev-users");
+  return data.items;
 }

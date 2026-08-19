@@ -7,15 +7,21 @@ const PAGE_SIZE = 25;
 export default async function OffertesAlle({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; offnr?: string; naam?: string }>;
 }) {
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, offnr, naam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const { items, hasMore } = await getOffertes({ page, pageSize: PAGE_SIZE });
+  const { items, hasMore } = await getOffertes({ page, pageSize: PAGE_SIZE, offnr, naam });
 
   return (
     <AppShell>
-      <OffertesPage items={items} page={page} hasMore={hasMore} />
+      <OffertesPage
+        items={items}
+        page={page}
+        hasMore={hasMore}
+        offnr={offnr ?? ""}
+        naam={naam ?? ""}
+      />
     </AppShell>
   );
 }
