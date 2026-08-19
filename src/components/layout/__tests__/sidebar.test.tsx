@@ -1,10 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Sidebar } from "../sidebar";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("Sidebar", () => {
   it("renders 'Offertes' collapsed by default with its submenu hidden", () => {
@@ -40,5 +44,19 @@ describe("Sidebar", () => {
 
     expect(screen.getByRole("button", { name: /orders & productie/i })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("link", { name: /alle orders/i })).toHaveAttribute("href", "/orders/alle");
+  });
+
+  it("shows the 'Users (dev)' link outside production", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    render(<Sidebar />);
+
+    expect(screen.getByRole("link", { name: /users \(dev\)/i })).toHaveAttribute("href", "/dev-users");
+  });
+
+  it("hides the 'Users (dev)' link in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    render(<Sidebar />);
+
+    expect(screen.queryByRole("link", { name: /users \(dev\)/i })).not.toBeInTheDocument();
   });
 });

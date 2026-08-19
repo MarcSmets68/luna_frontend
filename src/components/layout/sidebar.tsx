@@ -34,7 +34,12 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col pt-1.5">
-        {navItems.map((item) => {
+        {navItems
+          // "dev-users" is a one-off dev-only verification page (see
+          // /web/dev-users backend contract) - hidden outside development
+          // rather than adding a devOnly field to the shared NavItem type.
+          .filter((item) => item.key !== "dev-users" || process.env.NODE_ENV !== "production")
+          .map((item) => {
           const hasChildren = !!item.children?.length;
           const isActive = pathname === item.href;
           const isOpen = openKeys.includes(item.key);

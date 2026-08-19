@@ -34,4 +34,5 @@ export const navItems: NavItem[] = [
   { key: "invoicing", label: "Facturatie", href: "/facturatie", available: false },
   { key: "scheduling", label: "Planning", href: "/planning", available: false },
   { key: "reports", label: "Rapportage", href: "/rapportage", available: false },
+  { key: "dev-users", label: "Users (dev)", href: "/dev-users", available: true },
 ];
