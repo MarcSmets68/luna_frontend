@@ -40,6 +40,7 @@ export function OffertesPage({
   const [filters, setFilters] = useState<OffertesFiltersState>({ offnr, naam });
   const isFirstRender = useRef(true);
   const skipNextPropsSync = useRef(false);
+  const isSyncingFromProps = useRef(false);
 
   /* The URL is the source of truth (server component re-fetches on every
      navigation). Re-sync local state when the props change from outside
@@ -51,12 +52,22 @@ export function OffertesPage({
       skipNextPropsSync.current = false;
       return;
     }
+    isSyncingFromProps.current = true;
     setFilters({ offnr, naam });
   }, [offnr, naam]);
 
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      return;
+    }
+
+    /* Skip the debounced push when this filters change was itself caused
+       by the resync effect above (e.g. browser back/forward) - otherwise
+       we'd immediately push page=1 and clobber the URL the user just
+       navigated to. */
+    if (isSyncingFromProps.current) {
+      isSyncingFromProps.current = false;
       return;
     }
 

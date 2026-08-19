@@ -105,6 +105,27 @@ describe("OffertesPage", () => {
       expect(pushMock).toHaveBeenCalledWith("/offertes/alle?page=1&naam=Cone");
     });
 
+    it("resyncs local filter state when props change externally (e.g. browser back/forward) without re-pushing to the URL", () => {
+      pushMock.mockClear();
+      const { rerender } = render(
+        <OffertesPage items={mockItems} page={2} hasMore={false} offnr="216" naam="Cone" />
+      );
+
+      // Simulate the browser back button: Next.js re-renders the server
+      // component with different props from a URL we did NOT just push
+      // ourselves.
+      rerender(<OffertesPage items={mockItems} page={1} hasMore={false} offnr="" naam="" />);
+
+      expect(screen.getByLabelText("Offnr")).toHaveValue("");
+      expect(screen.getByLabelText("Klant")).toHaveValue("");
+
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+
+      expect(pushMock).not.toHaveBeenCalled();
+    });
+
     it("preserves the current filters when navigating between pages", () => {
       render(<OffertesPage items={mockItems} page={2} hasMore={true} offnr="216" naam="Cone" />);
 
