@@ -118,4 +118,21 @@ describe("OffertesPage", () => {
       );
     });
   });
+
+  it("navigates to the offerte detail page when a row is clicked", () => {
+    pushMock.mockClear();
+    render(<OffertesPage items={mockItems} page={1} hasMore={false} />);
+    const row = screen.getByRole("link", { name: /open offerte 2167769\/1/i });
+    row.click();
+    expect(pushMock).toHaveBeenCalledWith("/offertes/2167769/1");
+  });
+
+  it("navigates to the offerte detail page when Enter is pressed on a focused row", () => {
+    pushMock.mockClear();
+    render(<OffertesPage items={mockItems} page={1} hasMore={false} />);
+    const row = screen.getByRole("link", { name: /open offerte 2167769\/1/i });
+    row.focus();
+    row.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(pushMock).toHaveBeenCalledWith("/offertes/2167769/1");
+  });
 });

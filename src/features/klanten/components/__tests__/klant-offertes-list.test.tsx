@@ -1,7 +1,13 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { KlantOffertesList } from "../klant-offertes-list";
 import type { OfferteItem } from "@/lib/api-client";
+
+const pushMock = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
 
 const mockItems: OfferteItem[] = [
   {
@@ -61,5 +67,22 @@ describe("KlantOffertesList", () => {
       "href",
       "/klanten/14644?offertesPage=1&ordersPage=3"
     );
+  });
+
+  it("navigates to the offerte detail page when a row is clicked", () => {
+    pushMock.mockClear();
+    render(<KlantOffertesList klnr={14644} items={mockItems} page={1} hasMore={false} ordersPage={1} />);
+    const row = screen.getByRole("link", { name: /open offerte 2167769\/1/i });
+    row.click();
+    expect(pushMock).toHaveBeenCalledWith("/offertes/2167769/1");
+  });
+
+  it("navigates to the offerte detail page when Enter is pressed on a focused row", () => {
+    pushMock.mockClear();
+    render(<KlantOffertesList klnr={14644} items={mockItems} page={1} hasMore={false} ordersPage={1} />);
+    const row = screen.getByRole("link", { name: /open offerte 2167769\/1/i });
+    row.focus();
+    row.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(pushMock).toHaveBeenCalledWith("/offertes/2167769/1");
   });
 });

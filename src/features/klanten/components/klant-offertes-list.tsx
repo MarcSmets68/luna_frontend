@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Table,
@@ -26,8 +29,14 @@ export function KlantOffertesList({
   hasMore: boolean;
   ordersPage: number;
 }) {
+  const router = useRouter();
+
   function pageHref(offertesPage: number): string {
     return `/klanten/${klnr}?offertesPage=${offertesPage}&ordersPage=${ordersPage}`;
+  }
+
+  function goToOfferte(offnr: number, versie: number) {
+    router.push(`/offertes/${offnr}/${versie}`);
   }
 
   return (
@@ -51,7 +60,20 @@ export function KlantOffertesList({
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <TableRow key={`${item.offnr}-${item.versie}`}>
+                <TableRow
+                  key={`${item.offnr}-${item.versie}`}
+                  tabIndex={0}
+                  role="link"
+                  aria-label={`Open offerte ${item.offnr}/${item.versie}`}
+                  className="cursor-pointer focus:bg-muted/50 focus:outline-none"
+                  onClick={() => goToOfferte(item.offnr, item.versie)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      goToOfferte(item.offnr, item.versie);
+                    }
+                  }}
+                >
                   <TableCell className="font-semibold">{item.offnr}</TableCell>
                   <TableCell>{item.versie}</TableCell>
                   <TableCell>{formatDatum(item.datum)}</TableCell>

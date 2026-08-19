@@ -78,6 +78,10 @@ export function OffertesPage({
     return `/offertes/alle?${query.toString()}`;
   }
 
+  function goToOfferte(offnr: number, versie: number) {
+    router.push(`/offertes/${offnr}/${versie}`);
+  }
+
   return (
     <div>
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
@@ -109,7 +113,20 @@ export function OffertesPage({
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <TableRow key={`${item.offnr}-${item.versie}`}>
+                <TableRow
+                  key={`${item.offnr}-${item.versie}`}
+                  tabIndex={0}
+                  role="link"
+                  aria-label={`Open offerte ${item.offnr}/${item.versie}`}
+                  className="cursor-pointer focus:bg-muted/50 focus:outline-none"
+                  onClick={() => goToOfferte(item.offnr, item.versie)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      goToOfferte(item.offnr, item.versie);
+                    }
+                  }}
+                >
                   <TableCell className="font-semibold">{item.offnr}</TableCell>
                   <TableCell>{item.versie}</TableCell>
                   <TableCell>{formatDatum(item.datum)}</TableCell>
