@@ -42,4 +42,18 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: /alle orders/i })).toHaveAttribute("href", "/orders/alle");
     expect(screen.getByRole("link", { name: /lakproduktie/i })).toHaveAttribute("href", "/lakproduktie");
   });
+
+  it("shows the 'Users (dev)' nav item outside production", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    render(<Sidebar />);
+    expect(screen.getByRole("link", { name: /users \(dev\)/i })).toHaveAttribute("href", "/dev-users");
+    vi.unstubAllEnvs();
+  });
+
+  it("hides the 'Users (dev)' nav item when NODE_ENV=production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    render(<Sidebar />);
+    expect(screen.queryByRole("link", { name: /users \(dev\)/i })).not.toBeInTheDocument();
+    vi.unstubAllEnvs();
+  });
 });

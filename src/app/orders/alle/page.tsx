@@ -7,15 +7,15 @@ const PAGE_SIZE = 25;
 export default async function OrdersAlle({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; bonnr?: string; naam?: string }>;
 }) {
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, bonnr, naam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const { items, hasMore } = await getBonnen({ page, pageSize: PAGE_SIZE });
+  const { items, hasMore } = await getBonnen({ page, pageSize: PAGE_SIZE, bonnr, naam });
 
   return (
     <AppShell>
-      <OrdersPage items={items} page={page} hasMore={hasMore} />
+      <OrdersPage items={items} page={page} hasMore={hasMore} bonnr={bonnr ?? ""} naam={naam ?? ""} />
     </AppShell>
   );
 }

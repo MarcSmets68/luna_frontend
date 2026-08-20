@@ -129,6 +129,21 @@
   }
 }
 
+/* Indeterminate sweep animation for Progress (components/ui/progress.tsx)
+   when its value is unknown (e.g. a loading.tsx while a slow backend call
+   is still running) - moves a short bar back and forth across the track. */
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%) scaleX(0.4);
+  }
+  50% {
+    transform: translateX(20%) scaleX(0.6);
+  }
+  100% {
+    transform: translateX(100%) scaleX(0.4);
+  }
+}
+
 @media print {
   @page {
     size: A4;

@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KlantenPage } from "../klanten-page";
 import type { KlantItem } from "@/lib/api-client";
 
@@ -78,5 +78,40 @@ describe("KlantenPage", () => {
     row.focus();
     row.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     expect(pushMock).toHaveBeenCalledWith("/klanten/1");
+  });
+
+  describe("naam filter", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("renders the naam search input", () => {
+      render(<KlantenPage items={mockItems} page={1} hasMore={false} />);
+      expect(screen.getByPlaceholderText(/zoek op naam/i)).toBeInTheDocument();
+    });
+
+    it("debounces typing in the naam filter before navigating and resets to page 1", () => {
+      pushMock.mockClear();
+      render(<KlantenPage items={mockItems} page={3} hasMore={false} />);
+
+      fireEvent.change(screen.getByPlaceholderText(/zoek op naam/i), { target: { value: "Testklant" } });
+      expect(pushMock).not.toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+      expect(pushMock).toHaveBeenCalledWith("/klanten?page=1&naam=Testklant");
+    });
+
+    it("preserves the current naam filter when navigating between pages", () => {
+      render(<KlantenPage items={mockItems} page={2} hasMore={true} naam="Test" />);
+
+      expect(screen.getByRole("link", { name: /vorige/i })).toHaveAttribute("href", "/klanten?page=1&naam=Test");
+      expect(screen.getByRole("link", { name: /volgende/i })).toHaveAttribute("href", "/klanten?page=3&naam=Test");
+    });
   });
 });

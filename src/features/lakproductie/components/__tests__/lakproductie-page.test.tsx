@@ -1,7 +1,12 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { LakproductiePage } from "../lakproductie-page";
 import type { LakproductieItem } from "@/lib/api-client";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 const baseFields: Omit<
   LakproductieItem,
@@ -33,6 +38,7 @@ const baseFields: Omit<
   extVoorraad: 0,
   extGereserveerd: 0,
   voorbewerkingNodig: false,
+  verpakking: 12,
   premontageDatum: null,
   verkoop1Maand: 1,
   verkoop3Maand: 2,
@@ -74,8 +80,8 @@ const mockItems: LakproductieItem[] = [
     bestelAdvies: null,
   },
   // Same derived techniek/kleurkode/afwerking as the item above (ANO ·
-  // TITANIUM) but a different raw behandeling spec - must land in the same
-  // top-level kleur/techniek/afwerking group, as its own behandeling
+  // TITANIUM) but a different leverancier - must land in the same
+  // top-level kleur/techniek/afwerking group, as its own leverancier
   // subgroup within it.
   {
     ...baseFields,
@@ -93,7 +99,7 @@ const mockItems: LakproductieItem[] = [
     groepeerKleur: "ANO · TITANIUM",
     orderDatum: "2026-07-15",
     deadline: "2026-08-04",
-    lakNaam: "ALUCOL BV",
+    lakNaam: "Anogel bvba",
     status: "Deels gereserveerd",
     bestelAdvies: null,
     prodLijnnr: 42,
@@ -146,13 +152,120 @@ describe("LakproductiePage", () => {
     expect(screen.getByRole("heading", { name: "Lakproduktie" })).toBeInTheDocument();
   });
 
-  it("renders every item's order, klant and artikel", () => {
+  it("renders every item's order and artikel", () => {
     render(<LakproductiePage items={mockItems} />);
     for (const item of mockItems) {
       expect(screen.getByText(String(item.bonnr))).toBeInTheDocument();
-      expect(screen.getByText(item.klant ?? "\u2014")).toBeInTheDocument();
       expect(screen.getByText(item.artnr)).toBeInTheDocument();
     }
+  });
+
+  it("does not show a Klant column in the table", () => {
+    render(<LakproductiePage items={mockItems} />);
+    expect(screen.queryByRole("columnheader", { name: "Klant" })).not.toBeInTheDocument();
+    // Klant names aren't rendered anywhere until a row is clicked.
+    expect(screen.queryByText("CONE LIGHTING BV")).not.toBeInTheDocument();
+  });
+
+  it("shows a Verpakking column with the artikel's verpakking value", () => {
+    render(<LakproductiePage items={mockItems} />);
+    expect(screen.getAllByRole("columnheader", { name: "Verpakking" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("12").length).toBeGreaterThan(0);
+  });
+
+  it("filters order lines by order number", () => {
+    render(<LakproductiePage items={mockItems} />);
+    fireEvent.change(screen.getByPlaceholderText("Ordernr."), { target: { value: "2177435" } });
+
+    expect(screen.getByText("2177435")).toBeInTheDocument();
+    expect(screen.queryByText("2177500")).not.toBeInTheDocument();
+    expect(screen.queryByText("2177999")).not.toBeInTheDocument();
+  });
+
+  it("filters order lines by leverancier", async () => {
+    const user = userEvent.setup();
+    render(<LakproductiePage items={mockItems} />);
+    await user.click(screen.getByRole("combobox", { name: "Leverancier" }));
+    await user.click(await screen.findByRole("option", { name: "Wilms Lakkerij" }));
+
+    expect(screen.getByText("2177999")).toBeInTheDocument();
+    expect(screen.queryByText("2177435")).not.toBeInTheDocument();
+    expect(screen.queryByText("2177500")).not.toBeInTheDocument();
+  });
+
+  it("filters order lines by bron", async () => {
+    const user = userEvent.setup();
+    render(<LakproductiePage items={mockItems} />);
+    await user.click(screen.getByRole("combobox", { name: /bron/i }));
+    await user.click(await screen.findByRole("option", { name: "Productielijn" }));
+
+    expect(screen.getByText("2177500")).toBeInTheDocument();
+    expect(screen.queryByText("2177435")).not.toBeInTheDocument();
+    expect(screen.queryByText("2177999")).not.toBeInTheDocument();
+  });
+
+  it("allows editing the aantal for an order line", () => {
+    render(<LakproductiePage items={mockItems} />);
+    const aantalInput = screen.getByRole("spinbutton", {
+      name: "Aantal voor SAPA.RAE.46990.AT",
+    });
+    expect(aantalInput).toHaveValue(6);
+
+    fireEvent.change(aantalInput, { target: { value: "9" } });
+    expect(aantalInput).toHaveValue(9);
+  });
+
+  it("allows editing the aantal for min-max-voorraad rows too, defaulting to the bestel-advies", () => {
+    const minMaxItem: LakproductieItem = {
+      ...baseFields,
+      bron: "min-max-voorraad",
+      bonnr: null,
+      klant: null,
+      artnr: "SAPA.RAE.77777.AT",
+      omschrijving: "Min-max voorraaditem",
+      aantal: null,
+      behandeling: "MINMAX.9005",
+      techniek: "LAK",
+      kleursoort: "RAL",
+      kleurkode: "9005",
+      afwerking: "",
+      groepeerKleur: "LAK · RAL 9005",
+      orderDatum: null,
+      deadline: null,
+      lakNaam: "Wilms Lakkerij",
+      status: null,
+      bestelAdvies: 25,
+    };
+    render(<LakproductiePage items={[minMaxItem]} />);
+    const aantalInput = screen.getByRole("spinbutton", {
+      name: "Aantal voor SAPA.RAE.77777.AT",
+    });
+    expect(aantalInput).toHaveValue(25);
+
+    fireEvent.change(aantalInput, { target: { value: "30" } });
+    expect(aantalInput).toHaveValue(30);
+  });
+
+  it("allows editing the leverancier for an order line via a dropdown", async () => {
+    const user = userEvent.setup();
+    render(<LakproductiePage items={mockItems} />);
+    await user.click(
+      screen.getByRole("combobox", { name: "Leverancier voor SAPA.RAE.46990.AT" })
+    );
+    await user.click(await screen.findByRole("option", { name: "Wilms Lakkerij" }));
+
+    expect(
+      screen.getByRole("combobox", { name: "Leverancier voor SAPA.RAE.46990.AT" })
+    ).toHaveTextContent("Wilms Lakkerij");
+  });
+
+  it("shows the klant and other detail fields in a popup when a row is clicked", () => {
+    render(<LakproductiePage items={mockItems} />);
+    fireEvent.click(screen.getByText("2177435"));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("CONE LIGHTING BV")).toBeInTheDocument();
+    expect(within(dialog).getByText("SAPA.RAE.46990.AT")).toBeInTheDocument();
   });
 
   it("shows an empty state when there are no items", () => {
@@ -175,12 +288,13 @@ describe("LakproductiePage", () => {
     expect(screen.getByRole("heading", { name: "WIL.101270.9016.COATEX" })).toBeInTheDocument();
   });
 
-  it("subgroups articles with different behandeling specs but the same techniek/kleurkode/afwerking together", () => {
+  it("subgroups order lines within a kleur group by leverancier", () => {
     render(<LakproductiePage items={mockItems} />);
-    // Both distinct behandeling specs that resolve to "ANO · TITANIUM" must
-    // appear (as subgroup headings) once the top-level group is rendered.
-    expect(screen.getByText("ALDOR.E.1D.00.AT.TITANIUM")).toBeInTheDocument();
-    expect(screen.getByText("ALU.1D.00.AT.1")).toBeInTheDocument();
+    // Both distinct leveranciers within the "ANO · TITANIUM" kleur group
+    // must appear as their own subgroup heading (each name also shows up
+    // again in that row's leverancier dropdown, hence getAllByText).
+    expect(screen.getAllByText("ALUCOL BV").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Anogel bvba").length).toBeGreaterThan(0);
     // Both order lines are still individually visible under that one group.
     expect(screen.getByText("2177435")).toBeInTheDocument();
     expect(screen.getByText("2177500")).toBeInTheDocument();
@@ -188,7 +302,7 @@ describe("LakproductiePage", () => {
 
   it("shows the coating supplier (leverancier) for each order line", () => {
     render(<LakproductiePage items={mockItems} />);
-    expect(screen.getByText("Wilms Lakkerij")).toBeInTheDocument();
+    expect(screen.getAllByText("Wilms Lakkerij").length).toBeGreaterThan(0);
     expect(screen.getAllByText("ALUCOL BV").length).toBeGreaterThan(0);
   });
 
@@ -303,11 +417,19 @@ describe("LakproductiePage", () => {
     expect(screen.queryByText("2177435")).not.toBeInTheDocument();
     expect(screen.queryByText("CONE LIGHTING BV")).not.toBeInTheDocument();
 
+    // "STOCK" shown in the Order column instead of a bonnr for min-max
+    // rows - these have no order, they're plain stock articles.
+    expect(screen.getByText("STOCK")).toBeInTheDocument();
+
     // Bestel-advies value shown instead of a status badge.
     expect(screen.getByText(/Bestel-advies:\s*25/)).toBeInTheDocument();
 
-    // Em-dashes shown for the inapplicable order/klant/aantal columns.
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    // Aantal is still editable for min-max rows, pre-filled with the
+    // bestel-advies as a starting suggestion (see the dedicated test for
+    // this behaviour).
+    expect(
+      screen.getByRole("spinbutton", { name: "Aantal voor SAPA.RAE.77777.AT" })
+    ).toHaveValue(25);
   });
 
   it("shows gereserveerdVoorraad (renamed from gereserveerd) in the per-row detail line", () => {
@@ -338,5 +460,136 @@ describe("LakproductiePage", () => {
     };
     render(<LakproductiePage items={[zeroAdviesItem]} />);
     expect(screen.getByText(/Bestel-advies:\s*0(?!\S)/)).toBeInTheDocument();
+  });
+
+  it("shows a 'Bestelling aanmaken' button per leverancier-subgroep", () => {
+    render(<LakproductiePage items={mockItems} />);
+    // "ANO · TITANIUM" has 2 leverancier-subgroups (ALUCOL BV, Anogel
+    // bvba); "LAK · RAL 9005 · Structuurlak" and the fallback group each
+    // have 1 - 4 buttons in total.
+    expect(screen.getAllByRole("button", { name: "Bestelling aanmaken" })).toHaveLength(4);
+  });
+
+  it("opens the bestelling-preview for the clicked leverancier-subgroep only", async () => {
+    const user = userEvent.setup();
+    render(<LakproductiePage items={mockItems} />);
+
+    // "Wilms Lakkerij" also shows up as the current value in that row's
+    // leverancier <Select>, so pick the subgroup-header occurrence
+    // specifically (the one whose closest <tr> holds the "Bestelling
+    // aanmaken" button).
+    const wilmsRow = screen
+      .getAllByText("Wilms Lakkerij")
+      .map((el) => el.closest("tr"))
+      .find((tr) => tr?.querySelector("button"));
+    if (!wilmsRow) throw new Error("Wilms Lakkerij subgroup header row not found");
+    await user.click(within(wilmsRow).getByRole("button", { name: "Bestelling aanmaken" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/Bestelling aanmaken — Wilms Lakkerij/)).toBeInTheDocument();
+    // Only the line(s) from that subgroup show up in the preview.
+    expect(within(dialog).getByText("SAPA.RAE.12345.AT")).toBeInTheDocument();
+    expect(within(dialog).queryByText("SAPA.RAE.46990.AT")).not.toBeInTheDocument();
+  });
+
+  it("hides slow-moving min-max-voorraad rows (verkoop6Maand < voorraad) when the toggle is clicked", async () => {
+    const user = userEvent.setup();
+    const traagItem: LakproductieItem = {
+      ...baseFields,
+      bron: "min-max-voorraad",
+      bonnr: null,
+      klant: null,
+      artnr: "SAPA.RAE.66666.AT",
+      omschrijving: "Traag min-max voorraaditem",
+      aantal: null,
+      behandeling: "MINMAX.9010",
+      techniek: "LAK",
+      kleursoort: "RAL",
+      kleurkode: "9010",
+      afwerking: "",
+      groepeerKleur: "LAK · RAL 9010",
+      orderDatum: null,
+      deadline: null,
+      lakNaam: "Wilms Lakkerij",
+      status: null,
+      bestelAdvies: 25,
+      // baseFields.voorraad (100) > baseFields.verkoop6Maand (3), so this
+      // item is a "trage" min-max article.
+    };
+    const snelItem: LakproductieItem = {
+      ...traagItem,
+      artnr: "SAPA.RAE.55556.AT",
+      omschrijving: "Snel min-max voorraaditem",
+      verkoop6Maand: 500,
+    };
+    render(<LakproductiePage items={[traagItem, snelItem]} />);
+
+    expect(screen.getByText("SAPA.RAE.66666.AT")).toBeInTheDocument();
+    expect(screen.getByText("SAPA.RAE.55556.AT")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Verberg trage min-max artikelen" }));
+
+    expect(screen.queryByText("SAPA.RAE.66666.AT")).not.toBeInTheDocument();
+    expect(screen.getByText("SAPA.RAE.55556.AT")).toBeInTheDocument();
+
+    // Toggling back shows it again.
+    await user.click(screen.getByRole("button", { name: "Toon trage min-max artikelen" }));
+    expect(screen.getByText("SAPA.RAE.66666.AT")).toBeInTheDocument();
+  });
+
+  it("also hides a min-max-voorraad row with verkoop6Maand 0, even when voorraad is 0 too", async () => {
+    const user = userEvent.setup();
+    const geenVerkoopItem: LakproductieItem = {
+      ...baseFields,
+      bron: "min-max-voorraad",
+      bonnr: null,
+      klant: null,
+      artnr: "SAPA.RAE.77778.AT",
+      omschrijving: "Min-max voorraaditem zonder verkoop",
+      aantal: null,
+      behandeling: "MINMAX.9011",
+      techniek: "LAK",
+      kleursoort: "RAL",
+      kleurkode: "9011",
+      afwerking: "",
+      groepeerKleur: "LAK · RAL 9011",
+      orderDatum: null,
+      deadline: null,
+      lakNaam: "Wilms Lakkerij",
+      status: null,
+      bestelAdvies: 25,
+      voorraad: 0,
+      verkoop6Maand: 0,
+    };
+    render(<LakproductiePage items={[geenVerkoopItem]} />);
+    expect(screen.getByText("SAPA.RAE.77778.AT")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Verberg trage min-max artikelen" }));
+    expect(screen.queryByText("SAPA.RAE.77778.AT")).not.toBeInTheDocument();
+  });
+
+  it("disables the button for the 'Geen leverancier' subgroup", () => {
+    const noSupplierItem: LakproductieItem = {
+      ...baseFields,
+      bron: "min-max-voorraad",
+      bonnr: null,
+      klant: null,
+      artnr: "SAPA.RAE.00001.AT",
+      omschrijving: "Item zonder gekende lak-leverancier",
+      aantal: null,
+      behandeling: "MINMAX.0001",
+      techniek: "",
+      kleursoort: "",
+      kleurkode: "",
+      afwerking: "",
+      groepeerKleur: "MINMAX.0001",
+      orderDatum: null,
+      deadline: null,
+      lakNaam: "",
+      status: null,
+      bestelAdvies: 5,
+    };
+    render(<LakproductiePage items={[noSupplierItem]} />);
+    expect(screen.getByRole("button", { name: "Bestelling aanmaken" })).toBeDisabled();
   });
 });

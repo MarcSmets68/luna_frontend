@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Table,
@@ -26,8 +29,14 @@ export function KlantOrdersList({
   hasMore: boolean;
   offertesPage: number;
 }) {
+  const router = useRouter();
+
   function pageHref(ordersPage: number): string {
     return `/klanten/${klnr}?offertesPage=${offertesPage}&ordersPage=${ordersPage}`;
+  }
+
+  function goToBon(bonnr: number) {
+    router.push(`/orders/${bonnr}`);
   }
 
   return (
@@ -51,7 +60,20 @@ export function KlantOrdersList({
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <TableRow key={item.bonnr}>
+                <TableRow
+                  key={item.bonnr}
+                  tabIndex={0}
+                  role="link"
+                  aria-label={`Open bon ${item.bonnr}`}
+                  className="cursor-pointer focus:bg-muted/50 focus:outline-none"
+                  onClick={() => goToBon(item.bonnr)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      goToBon(item.bonnr);
+                    }
+                  }}
+                >
                   <TableCell className="font-semibold">{item.bonnr}</TableCell>
                   <TableCell>{formatDatum(item.datum)}</TableCell>
                   <TableCell>{formatBedrag(item.bedrag)}</TableCell>
