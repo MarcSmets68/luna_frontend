@@ -11,6 +11,7 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { key: "dashboard", label: "Dashboard", href: "/", available: true },
   { key: "crm", label: "Klanten", href: "/klanten", available: true },
+  { key: "leveranciers", label: "Leveranciers", href: "/leveranciers", available: true },
   {
     key: "quotes",
     label: "Offertes",
