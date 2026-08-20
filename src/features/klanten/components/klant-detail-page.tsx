@@ -1,7 +1,20 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { KlantOffertesList } from "./klant-offertes-list";
 import { KlantOrdersList } from "./klant-orders-list";
-import type { BonItem, KlantItem, OfferteItem } from "@/lib/api-client";
+import {
+  updateKlant,
+  type BonItem,
+  type KlantItem,
+  type OfferteItem,
+  type UpdateKlantPayload,
+} from "@/lib/api-client";
 
 function formatSaldo(value: number): string {
   return value.toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -16,6 +29,77 @@ function DetailField({ label, value }: { label: string; value: string }) {
       <div className="text-sm text-foreground">{value || "\u2014"}</div>
     </div>
   );
+}
+
+function EditField({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+        {label}
+        <Input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="mt-1 font-normal normal-case"
+        />
+      </label>
+    </div>
+  );
+}
+
+// Bewerkbare velden op de klantkaart - `klnr` (identificatie, immutable
+// primary key op de backend) en de offertes/orders-secties horen hier
+// bewust niet bij.
+type KlantFormState = {
+  naam: string;
+  naam1: string;
+  contact: string;
+  adres: string;
+  postnr: string;
+  stad: string;
+  land: string;
+  tel: string;
+  fax: string;
+  gsm: string;
+  email: string;
+  taal: string;
+  munt: string;
+  btwNr: string;
+  saldo: string;
+  geblokkeerd: boolean;
+  opm: string;
+};
+
+function toFormState(klant: KlantItem): KlantFormState {
+  return {
+    naam: klant.naam,
+    naam1: klant.naam1,
+    contact: klant.contact,
+    adres: klant.adres,
+    postnr: klant.postnr,
+    stad: klant.stad,
+    land: klant.land,
+    tel: klant.tel,
+    fax: klant.fax,
+    gsm: klant.gsm,
+    email: klant.email,
+    taal: klant.taal,
+    munt: klant.munt,
+    btwNr: klant.btwNr,
+    saldo: String(klant.saldo),
+    geblokkeerd: klant.geblokkeerd,
+    opm: klant.opm,
+  };
 }
 
 export function KlantDetailPage({
@@ -35,6 +119,50 @@ export function KlantDetailPage({
   ordersPage: number;
   ordersHasMore: boolean;
 }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<KlantFormState>(() => toFormState(klant));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setField = <K extends keyof KlantFormState>(key: K, value: KlantFormState[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  function startEditing() {
+    setForm(toFormState(klant));
+    setError(null);
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setForm(toFormState(klant));
+    setError(null);
+    setEditing(false);
+  }
+
+  async function handleSave() {
+    const saldo = Number(form.saldo);
+    if (Number.isNaN(saldo)) {
+      setError("Saldo moet een geldig getal zijn.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const payload: UpdateKlantPayload = { ...form, saldo };
+      await updateKlant(klant.klnr, payload);
+      setEditing(false);
+      router.refresh();
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Er ging iets mis bij het opslaan van de klantgegevens."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div>
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
@@ -42,31 +170,118 @@ export function KlantDetailPage({
       </div>
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-[26px] font-bold text-foreground">{klant.naam}</h1>
-        <div className="text-[13px] text-[#5e5e5e]">Klantnr {klant.klnr}</div>
+        <div className="flex items-center gap-3">
+          <div className="text-[13px] text-[#5e5e5e]">Klantnr {klant.klnr}</div>
+          {!editing && (
+            <Button type="button" size="sm" onClick={startEditing}>
+              Verbeteren
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card className="mb-6">
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailField label="Klantnr" value={String(klant.klnr)} />
-            <DetailField label="Naam" value={klant.naam} />
-            <DetailField label="Naam 1" value={klant.naam1} />
-            <DetailField label="Contact" value={klant.contact} />
-            <DetailField label="Adres" value={klant.adres} />
-            <DetailField label="Postnr" value={klant.postnr} />
-            <DetailField label="Stad" value={klant.stad} />
-            <DetailField label="Land" value={klant.land} />
-            <DetailField label="Telefoon" value={klant.tel} />
-            <DetailField label="Fax" value={klant.fax} />
-            <DetailField label="GSM" value={klant.gsm} />
-            <DetailField label="E-mail" value={klant.email} />
-            <DetailField label="Taal" value={klant.taal} />
-            <DetailField label="Munt" value={klant.munt} />
-            <DetailField label="BTW-nr" value={klant.btwNr} />
-            <DetailField label="Saldo" value={formatSaldo(klant.saldo)} />
-            <DetailField label="Geblokkeerd" value={klant.geblokkeerd ? "Ja" : "Nee"} />
-            <DetailField label="Opmerking" value={klant.opm} />
-          </div>
+          {editing ? (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <DetailField label="Klantnr" value={String(klant.klnr)} />
+                <EditField label="Naam" value={form.naam} onChange={(v) => setField("naam", v)} />
+                <EditField
+                  label="Naam 1"
+                  value={form.naam1}
+                  onChange={(v) => setField("naam1", v)}
+                />
+                <EditField
+                  label="Contact"
+                  value={form.contact}
+                  onChange={(v) => setField("contact", v)}
+                />
+                <EditField
+                  label="Adres"
+                  value={form.adres}
+                  onChange={(v) => setField("adres", v)}
+                />
+                <EditField
+                  label="Postnr"
+                  value={form.postnr}
+                  onChange={(v) => setField("postnr", v)}
+                />
+                <EditField label="Stad" value={form.stad} onChange={(v) => setField("stad", v)} />
+                <EditField label="Land" value={form.land} onChange={(v) => setField("land", v)} />
+                <EditField label="Telefoon" value={form.tel} onChange={(v) => setField("tel", v)} />
+                <EditField label="Fax" value={form.fax} onChange={(v) => setField("fax", v)} />
+                <EditField label="GSM" value={form.gsm} onChange={(v) => setField("gsm", v)} />
+                <EditField
+                  label="E-mail"
+                  value={form.email}
+                  onChange={(v) => setField("email", v)}
+                  type="email"
+                />
+                <EditField label="Taal" value={form.taal} onChange={(v) => setField("taal", v)} />
+                <EditField label="Munt" value={form.munt} onChange={(v) => setField("munt", v)} />
+                <EditField
+                  label="BTW-nr"
+                  value={form.btwNr}
+                  onChange={(v) => setField("btwNr", v)}
+                />
+                <EditField
+                  label="Saldo"
+                  value={form.saldo}
+                  onChange={(v) => setField("saldo", v)}
+                  type="number"
+                />
+                <div>
+                  <div className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+                    Geblokkeerd
+                  </div>
+                  <label className="mt-1 flex h-8 items-center gap-2">
+                    <Checkbox
+                      checked={form.geblokkeerd}
+                      onCheckedChange={() => setField("geblokkeerd", !form.geblokkeerd)}
+                      aria-label="Geblokkeerd"
+                    />
+                    <span className="text-sm text-foreground">
+                      {form.geblokkeerd ? "Ja" : "Nee"}
+                    </span>
+                  </label>
+                </div>
+                <EditField label="Opmerking" value={form.opm} onChange={(v) => setField("opm", v)} />
+              </div>
+
+              {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+
+              <div className="mt-6 flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={handleSave} disabled={saving}>
+                  {saving ? "Bezig..." : "Save"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <DetailField label="Klantnr" value={String(klant.klnr)} />
+              <DetailField label="Naam" value={klant.naam} />
+              <DetailField label="Naam 1" value={klant.naam1} />
+              <DetailField label="Contact" value={klant.contact} />
+              <DetailField label="Adres" value={klant.adres} />
+              <DetailField label="Postnr" value={klant.postnr} />
+              <DetailField label="Stad" value={klant.stad} />
+              <DetailField label="Land" value={klant.land} />
+              <DetailField label="Telefoon" value={klant.tel} />
+              <DetailField label="Fax" value={klant.fax} />
+              <DetailField label="GSM" value={klant.gsm} />
+              <DetailField label="E-mail" value={klant.email} />
+              <DetailField label="Taal" value={klant.taal} />
+              <DetailField label="Munt" value={klant.munt} />
+              <DetailField label="BTW-nr" value={klant.btwNr} />
+              <DetailField label="Saldo" value={formatSaldo(klant.saldo)} />
+              <DetailField label="Geblokkeerd" value={klant.geblokkeerd ? "Ja" : "Nee"} />
+              <DetailField label="Opmerking" value={klant.opm} />
+            </div>
+          )}
         </CardContent>
       </Card>
 
