@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import { KlantOffertesList } from "./klant-offertes-list";
 import { KlantOrdersList } from "./klant-orders-list";
 import {
@@ -165,6 +168,13 @@ export function KlantDetailPage({
 
   return (
     <div>
+      <Link
+        href="/klanten"
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-3 -ml-2.5")}
+      >
+        <ArrowLeft />
+        Terug naar overzicht
+      </Link>
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         Klanten
       </div>

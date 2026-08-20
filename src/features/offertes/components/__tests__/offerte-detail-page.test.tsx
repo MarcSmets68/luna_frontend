@@ -93,4 +93,12 @@ describe("OfferteDetailPage", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={[]} />);
     expect(screen.getByText("Geen lijnen gevonden voor deze offerte.")).toBeInTheDocument();
   });
+
+  it("renders a back link to the offertes overview", () => {
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
+    expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute(
+      "href",
+      "/offertes/alle"
+    );
+  });
 });

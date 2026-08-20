@@ -81,4 +81,12 @@ describe("BonDetailPage", () => {
     render(<BonDetailPage bon={mockBon} lijnen={[]} />);
     expect(screen.getByText("Geen lijnen gevonden voor deze order.")).toBeInTheDocument();
   });
+
+  it("renders a back link to the orders overview", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute(
+      "href",
+      "/orders/alle"
+    );
+  });
 });

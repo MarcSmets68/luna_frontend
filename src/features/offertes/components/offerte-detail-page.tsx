@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -8,6 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum, statusLabel } from "@/lib/format";
 import type { OfferteItem, OfflijnItem } from "@/lib/api-client";
 
@@ -31,6 +34,13 @@ export function OfferteDetailPage({
 }) {
   return (
     <div>
+      <Link
+        href="/offertes/alle"
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-3 -ml-2.5")}
+      >
+        <ArrowLeft />
+        Terug naar overzicht
+      </Link>
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         Offertes
       </div>

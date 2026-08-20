@@ -57,4 +57,12 @@ describe("ArtikelDetailPage", () => {
     render(<ArtikelDetailPage artikel={{ ...mockArtikel, geblokkeerd: true }} />);
     expect(screen.getByText("Geblokkeerd")).toBeInTheDocument();
   });
+
+  it("renders a back link to the voorraad overview", () => {
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+    expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute(
+      "href",
+      "/voorraad"
+    );
+  });
 });

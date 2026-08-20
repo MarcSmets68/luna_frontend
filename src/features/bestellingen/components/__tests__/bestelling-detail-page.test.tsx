@@ -70,4 +70,12 @@ describe("BestellingDetailPage", () => {
     render(<BestellingDetailPage bestelling={mockBestelling} lijnen={[]} />);
     expect(screen.getByText("Geen orderlijnen gevonden.")).toBeInTheDocument();
   });
+
+  it("renders a back link to the bestellingen overview", () => {
+    render(<BestellingDetailPage bestelling={mockBestelling} lijnen={mockLijnen} />);
+    expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute(
+      "href",
+      "/bestellingen"
+    );
+  });
 });

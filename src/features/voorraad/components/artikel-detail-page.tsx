@@ -1,5 +1,9 @@
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import type { ArtikelItem } from "@/lib/api-client";
 
@@ -17,6 +21,13 @@ function DetailField({ label, value }: { label: string; value: string }) {
 export function ArtikelDetailPage({ artikel }: { artikel: ArtikelItem }) {
   return (
     <div>
+      <Link
+        href="/voorraad"
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-3 -ml-2.5")}
+      >
+        <ArrowLeft />
+        Terug naar overzicht
+      </Link>
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         Voorraad
       </div>

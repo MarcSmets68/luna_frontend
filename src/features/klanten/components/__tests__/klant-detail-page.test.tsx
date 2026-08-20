@@ -217,4 +217,22 @@ describe("KlantDetailPage", () => {
     expect(await screen.findByText("Klant 14644 not found")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
+
+  it("renders a back link to the klanten overview", () => {
+    render(
+      <KlantDetailPage
+        klant={mockKlant}
+        offertes={mockOffertes}
+        offertesPage={1}
+        offertesHasMore={false}
+        orders={mockOrders}
+        ordersPage={1}
+        ordersHasMore={false}
+      />
+    );
+    expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute(
+      "href",
+      "/klanten"
+    );
+  });
 });
