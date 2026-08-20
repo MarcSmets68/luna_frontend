@@ -43,6 +43,24 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: /lakproduktie/i })).toHaveAttribute("href", "/lakproduktie");
   });
 
+  it("renders 'Leveranciers' as a top-level link (no submenu) right after 'Klanten'", () => {
+    render(<Sidebar />);
+
+    expect(screen.getByRole("link", { name: /leveranciers/i })).toHaveAttribute(
+      "href",
+      "/leveranciers"
+    );
+
+    const linkLabels = screen
+      .getAllByRole("link")
+      .map((link) => link.textContent?.trim())
+      .filter((text): text is string => !!text);
+    const klantenIndex = linkLabels.indexOf("Klanten");
+    const leveranciersIndex = linkLabels.indexOf("Leveranciers");
+    expect(klantenIndex).toBeGreaterThanOrEqual(0);
+    expect(leveranciersIndex).toBe(klantenIndex + 1);
+  });
+
   it("shows the 'Users (dev)' nav item outside production", () => {
     vi.stubEnv("NODE_ENV", "development");
     render(<Sidebar />);

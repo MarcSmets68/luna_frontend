@@ -73,7 +73,7 @@ export function DeleteLeverancierDialog({
             Annuleren
           </Button>
           <Button type="button" variant="destructive" onClick={handleConfirm} disabled={deleting}>
-            {deleting ? "Bezig..." : "Verwijderen"}
+            {deleting ? "Bezig..." : "Ja, verwijderen"}
           </Button>
         </DialogFooter>
       </DialogContent>

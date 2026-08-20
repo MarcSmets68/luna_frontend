@@ -139,6 +139,24 @@ describe("LeveranciersPage", () => {
       expect(pushMock).toHaveBeenCalledWith("/leveranciers?page=1&naam=Testleverancier");
     });
 
+    it("does not navigate before the full 400ms debounce window has elapsed", () => {
+      render(<LeveranciersPage items={mockItems} page={1} hasMore={false} />);
+
+      fireEvent.change(screen.getByPlaceholderText(/zoek op naam/i), {
+        target: { value: "Testleverancier" },
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(399);
+      });
+      expect(pushMock).not.toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(pushMock).toHaveBeenCalledTimes(1);
+    });
+
     it("preserves the current naam filter when navigating between pages", () => {
       render(<LeveranciersPage items={mockItems} page={2} hasMore={true} naam="Test" />);
 

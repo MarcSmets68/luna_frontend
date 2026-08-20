@@ -96,7 +96,29 @@ describe("LeverancierDetailPage", () => {
       501,
       expect.objectContaining({ naam: "COATING PARTNERS NV", saldo: 1234.56 })
     );
+    // levnr is the immutable primary key - it must never be part of the
+    // update payload (the backend also excludes it, see UpdateLeverancierPayload).
+    const [, payload] = updateLeverancierMock.mock.calls[0];
+    expect(payload).not.toHaveProperty("levnr");
     expect(refreshMock).toHaveBeenCalled();
+  });
+
+  it("sends type/controle as real booleans (not strings) in the update payload", async () => {
+    const user = userEvent.setup();
+    updateLeverancierMock.mockResolvedValue(mockLeverancier);
+
+    render(<LeverancierDetailPage leverancier={mockLeverancier} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    // mockLeverancier starts with type=false, controle=true - toggle both.
+    await user.click(screen.getByRole("checkbox", { name: /^Type/ }));
+    await user.click(screen.getByRole("checkbox", { name: /^Controle/ }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateLeverancierMock).toHaveBeenCalledTimes(1));
+    const [, payload] = updateLeverancierMock.mock.calls[0];
+    expect(payload.type).toBe(true);
+    expect(payload.controle).toBe(false);
   });
 
   it("reverts changes and does not call the API on cancel", async () => {
@@ -147,8 +169,7 @@ describe("LeverancierDetailPage", () => {
       screen.getByText(/Leverancier COATING PARTNERS BV \(501\) verwijderen\?/)
     ).toBeInTheDocument();
 
-    const confirmButtons = screen.getAllByRole("button", { name: "Verwijderen" });
-    await user.click(confirmButtons[confirmButtons.length - 1]);
+    await user.click(screen.getByRole("button", { name: "Ja, verwijderen" }));
 
     await waitFor(() => expect(deleteLeverancierMock).toHaveBeenCalledWith(501));
     expect(pushMock).toHaveBeenCalledWith("/leveranciers");

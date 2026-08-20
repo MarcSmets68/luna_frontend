@@ -50,7 +50,7 @@ describe("DeleteLeverancierDialog", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Verwijderen" }));
+    await user.click(screen.getByRole("button", { name: "Ja, verwijderen" }));
 
     await waitFor(() => expect(deleteLeverancierMock).toHaveBeenCalledWith(42));
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -93,7 +93,7 @@ describe("DeleteLeverancierDialog", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Verwijderen" }));
+    await user.click(screen.getByRole("button", { name: "Ja, verwijderen" }));
 
     expect(await screen.findByText("Leverancier 42 not found")).toBeInTheDocument();
   });
