@@ -1,7 +1,20 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { ArtikelDetailPage } from "../artikel-detail-page";
 import type { ArtikelItem } from "@/lib/api-client";
+
+const getArtikelBeschikbaarheidMock = vi.fn();
+const getArtlogMock = vi.fn();
+
+vi.mock("@/lib/api-client", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
+  return {
+    ...actual,
+    getArtikelBeschikbaarheid: (...args: unknown[]) => getArtikelBeschikbaarheidMock(...args),
+    getArtlog: (...args: unknown[]) => getArtlogMock(...args),
+  };
+});
 
 const mockArtikel: ArtikelItem = {
   artnr: "AB123",
@@ -24,6 +37,19 @@ const mockArtikel: ArtikelItem = {
   gewicht: 1.2,
   type: "STD",
   datum: "2026-01-01",
+  voorraadExtern: 30,
+  gereserveerd: 7,
+  gereserveerdExtern: 2,
+  beschikbaar: 35,
+  beschikbaarExtern: 28,
+  onderMinimumIntern: false,
+  onderMinimumExtern: false,
+  magazijn: "MAG-A-12",
+  voorraadMinExtern: 5,
+  voorraadMaxExtern: 50,
+  swExtern: true,
+  swExProductie: false,
+  isSamengesteld: true,
 };
 
 describe("ArtikelDetailPage", () => {
@@ -45,6 +71,51 @@ describe("ArtikelDetailPage", () => {
     expect(screen.getByText("Algemeen")).toBeInTheDocument();
     expect(screen.getByText("Prijzen")).toBeInTheDocument();
     expect(screen.getByText("Voorraadinformatie")).toBeInTheDocument();
+  });
+
+  it("renders the FR-1 stock fields in the Voorraadinformatie section", () => {
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+    expect(screen.getByText("Voorraad extern")).toBeInTheDocument();
+    expect(screen.getByText("Locatie")).toBeInTheDocument();
+    expect(screen.getByText("MAG-A-12")).toBeInTheDocument();
+    expect(screen.getByText("Beschikbaar")).toBeInTheDocument();
+  });
+
+  it("renders the Overzicht/Beschikbaarheid/Bewegingen tabs", () => {
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+    expect(screen.getByRole("tab", { name: "Overzicht" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Beschikbaarheid" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Bewegingen" })).toBeInTheDocument();
+  });
+
+  it("does not fetch beschikbaarheid/artlog until the corresponding tab is opened", () => {
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+    expect(getArtikelBeschikbaarheidMock).not.toHaveBeenCalled();
+    expect(getArtlogMock).not.toHaveBeenCalled();
+  });
+
+  it("lazily fetches beschikbaarheid when the Beschikbaarheid tab is opened", async () => {
+    getArtikelBeschikbaarheidMock.mockResolvedValue({
+      artnr: "AB123",
+      isSamengesteld: true,
+      bouwbareEenheden: 3,
+      siktaUitzonderingToegepast: false,
+      componenten: [],
+    });
+    const user = userEvent.setup();
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+    await user.click(screen.getByRole("tab", { name: "Beschikbaarheid" }));
+    await waitFor(() => expect(getArtikelBeschikbaarheidMock).toHaveBeenCalledWith("AB123"));
+  });
+
+  it("lazily fetches artlog when the Bewegingen tab is opened", async () => {
+    getArtlogMock.mockResolvedValue({ items: [], page: 1, pageSize: 25, hasMore: false });
+    const user = userEvent.setup();
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+    await user.click(screen.getByRole("tab", { name: "Bewegingen" }));
+    await waitFor(() =>
+      expect(getArtlogMock).toHaveBeenCalledWith("AB123", { page: 1, pageSize: 25 })
+    );
   });
 
   it("shows a Stock badge when the artikel is in stock and no Geblokkeerd badge when it isn't blocked", () => {

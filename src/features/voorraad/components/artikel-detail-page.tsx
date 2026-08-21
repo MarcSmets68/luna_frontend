@@ -3,9 +3,13 @@ import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import type { ArtikelItem } from "@/lib/api-client";
+import { ArtikelStockSectie } from "@/features/voorraad/components/artikel-stock-sectie";
+import { ArtikelBeschikbaarheidWidget } from "@/features/voorraad/components/artikel-beschikbaarheid-widget";
+import { ArtikelArtlogTab } from "@/features/voorraad/components/artikel-artlog-tab";
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -75,19 +79,29 @@ export function ArtikelDetailPage({ artikel }: { artikel: ArtikelItem }) {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Voorraadinformatie</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <DetailField label="Voorraad" value={String(artikel.voorraad)} />
-              <DetailField label="Min. voorraad" value={String(artikel.voorraadMin)} />
-              <DetailField label="Max. voorraad" value={String(artikel.voorraadMax)} />
-              <DetailField label="Gewicht" value={String(artikel.gewicht)} />
-            </div>
-          </CardContent>
-        </Card>
+        <ArtikelStockSectie artikel={artikel} />
+      </div>
+
+      <div className="mt-6">
+        <Tabs defaultValue="overzicht">
+          <TabsList>
+            <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
+            <TabsTrigger value="beschikbaarheid">Beschikbaarheid</TabsTrigger>
+            <TabsTrigger value="bewegingen">Bewegingen</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overzicht">
+            <p className="text-sm text-muted-foreground">
+              Zie de Algemeen/Prijzen/Voorraad-secties hierboven voor een overzicht van dit
+              artikel.
+            </p>
+          </TabsContent>
+          <TabsContent value="beschikbaarheid">
+            <ArtikelBeschikbaarheidWidget artnr={artikel.artnr} />
+          </TabsContent>
+          <TabsContent value="bewegingen">
+            <ArtikelArtlogTab artnr={artikel.artnr} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

@@ -225,6 +225,22 @@ export type ArtikelItem = {
   gewicht: number;
   type: string;
   datum: string | null;
+  // --- Voorraad Fase 1 (FR-1/FR-2/FR-3) ---
+  voorraadExtern: number;
+  gereserveerd: number;
+  gereserveerdExtern: number;
+  beschikbaar: number;
+  beschikbaarExtern: number;
+  onderMinimumIntern: boolean;
+  onderMinimumExtern: boolean;
+  // Detail-only in de praktijk, maar altijd aanwezig in het contract - de
+  // lijst vult ze ook (zie architectuurontwerp §2.1, geen aparte CopyToTt-pad).
+  magazijn: string;
+  voorraadMinExtern: number;
+  voorraadMaxExtern: number;
+  swExtern: boolean;
+  swExProductie: boolean;
+  isSamengesteld: boolean;
 };
 
 type ArtikelenResponse = {
@@ -234,14 +250,29 @@ type ArtikelenResponse = {
   hasMore: boolean;
 };
 
+/** FR-2: "onder minimum"-filter, één 3-waardige query-param i.p.v. twee losse
+ * booleans - zie architectuurontwerp §1.2.1 (OD-1) voor de motivatie. */
+export type OnderMinimumFilter = "intern" | "extern" | "beide";
+
 /**
  * Paged list of artikelen (products/inventory). No exact total count is
  * available - see Backend/README.md ("No exact totalCount") - so pagination
- * relies on `hasMore` rather than a page count.
+ * relies on `hasMore` rather than a page count. `filters.onderMinimum` and
+ * `filters.externInBewerking` are optional, AND-combined server-side (FR-2).
  * Backend: GET /web/artikel (Luna.Web.ArtikelHandler).
  */
-export async function getArtikelen(page = 1, pageSize = 25): Promise<ArtikelenResponse> {
-  return apiGet<ArtikelenResponse>(`/artikel?page=${page}&pageSize=${pageSize}`);
+export async function getArtikelen(
+  page = 1,
+  pageSize = 25,
+  filters: { onderMinimum?: OnderMinimumFilter; externInBewerking?: boolean } = {}
+): Promise<ArtikelenResponse> {
+  const { onderMinimum, externInBewerking } = filters;
+  const query = new URLSearchParams();
+  query.set("page", String(page));
+  query.set("pageSize", String(pageSize));
+  if (onderMinimum) query.set("onderMinimum", onderMinimum);
+  if (externInBewerking !== undefined) query.set("externInBewerking", String(externInBewerking));
+  return apiGet<ArtikelenResponse>(`/artikel?${query.toString()}`);
 }
 
 /**
@@ -272,6 +303,84 @@ export async function getArtikel(artnr: string): Promise<ArtikelItem | null> {
   const data = await apiGet<ArtikelenResponse>(`/artikel?${query}`);
   const match = data.items.find((item) => item.artnr.toUpperCase() === target.toUpperCase());
   return match ?? null;
+}
+
+export type BeschikbaarheidComponent = {
+  componentArtnr: string;
+  componentOmschrijving: string;
+  benodigdPerEenheid: number;
+  componentVoorraad: number;
+  bouwbaarUitDitComponent: number;
+  isBottleneck: boolean;
+};
+
+export type Beschikbaarheid = {
+  artnr: string;
+  isSamengesteld: boolean;
+  bouwbareEenheden: number | null;
+  siktaUitzonderingToegepast: boolean;
+  componenten: BeschikbaarheidComponent[];
+};
+
+/**
+ * FR-4: on-demand composiet-artikel beschikbaarheid ("Hoeveel kan ik nog
+ * bouwen?"). Nooit aangeroepen vanuit de lijst-view - enkel lazy vanuit de
+ * detailpagina bij tab-activatie (zie architectuurontwerp §3.4).
+ * Backend: GET /web/artikel/{artnr}/beschikbaarheid (Luna.Web.ArtikelHandler
+ * + Luna.BusinessLogic.StockAvailabilityBE).
+ */
+export async function getArtikelBeschikbaarheid(artnr: string): Promise<Beschikbaarheid> {
+  return apiGet<Beschikbaarheid>(`/artikel/${encodeURIComponent(artnr)}/beschikbaarheid`);
+}
+
+export type ArtlogItem = {
+  artnr: string;
+  lijnnr: number;
+  datum: string | null;
+  uur: string;
+  beweging: string; // ruwe, ongevertaalde code (BR-3) - niet vertalen in de UI
+  aantal: number;
+  stock: number;
+  docnr: string;
+  omschr: string;
+  kllev: number;
+  naam: string;
+  aprijs: number;
+  munt: string;
+  koers: number;
+  opm: string;
+  refLev: string;
+  id: string;
+  swControle: boolean;
+  cdatum: string | null;
+};
+
+type ArtlogResponse = {
+  items: ArtlogItem[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+};
+
+/**
+ * FR-5: gepagineerde bewegingshistoriek (`artlog`) voor een artikel. Lazy,
+ * eigen lokale paginatie binnen de "Bewegingen"-tab (niet in de hoofd-URL) -
+ * zie architectuurontwerp §3.4.
+ * Backend: GET /web/artikel/{artnr}/artlog (Luna.Web.ArtikelHandler +
+ * Luna.BusinessLogic.ArtlogBE).
+ */
+export async function getArtlog(
+  artnr: string,
+  params: { page?: number; pageSize?: number; datumVan?: string; datumTot?: string; beweging?: string } = {}
+): Promise<ArtlogResponse> {
+  const { page = 1, pageSize = 25, datumVan, datumTot, beweging } = params;
+  const query = new URLSearchParams();
+  query.set("page", String(page));
+  query.set("pageSize", String(pageSize));
+  if (datumVan) query.set("datumVan", datumVan);
+  if (datumTot) query.set("datumTot", datumTot);
+  if (beweging) query.set("beweging", beweging);
+  return apiGet<ArtlogResponse>(`/artikel/${encodeURIComponent(artnr)}/artlog?${query.toString()}`);
 }
 
 export type KlantItem = {

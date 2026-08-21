@@ -31,6 +31,19 @@ const mockItems: ArtikelItem[] = [
     gewicht: 1.2,
     type: "STD",
     datum: "2026-01-01",
+    voorraadExtern: 30,
+    gereserveerd: 7,
+    gereserveerdExtern: 2,
+    beschikbaar: 37,
+    beschikbaarExtern: 28,
+    onderMinimumIntern: false,
+    onderMinimumExtern: false,
+    magazijn: "MAG-A-12",
+    voorraadMinExtern: 5,
+    voorraadMaxExtern: 50,
+    swExtern: true,
+    swExProductie: false,
+    isSamengesteld: false,
   },
 ];
 
@@ -46,6 +59,19 @@ describe("VoorraadPage", () => {
       expect(screen.getByText(item.artnr)).toBeInTheDocument();
       expect(screen.getByText(item.omschrijvingNl)).toBeInTheDocument();
     }
+  });
+
+  it("renders the Extern and Gereserveerd columns with their values", () => {
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
+    expect(screen.getByRole("columnheader", { name: "Extern" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Gereserveerd" })).toBeInTheDocument();
+    expect(screen.getByText("30")).toBeInTheDocument();
+    expect(screen.getByText("7")).toBeInTheDocument();
+  });
+
+  it("renders the onder-minimum and extern-in-bewerking filter checkboxes", () => {
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
+    expect(screen.getAllByRole("checkbox")).toHaveLength(3);
   });
 
   it("shows an empty state when there are no items", () => {

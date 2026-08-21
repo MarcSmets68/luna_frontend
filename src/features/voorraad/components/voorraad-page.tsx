@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { ArtikelItem } from "@/lib/api-client";
+import type { ArtikelItem, OnderMinimumFilter } from "@/lib/api-client";
+import { VoorraadFilters } from "@/features/voorraad/components/voorraad-filters";
 
 function formatPrice(value: number): string {
   return value.toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -23,10 +24,14 @@ export function VoorraadPage({
   items,
   page,
   hasMore,
+  onderMinimum,
+  externInBewerking = false,
 }: {
   items: ArtikelItem[];
   page: number;
   hasMore: boolean;
+  onderMinimum?: OnderMinimumFilter;
+  externInBewerking?: boolean;
 }) {
   const router = useRouter();
 
@@ -44,6 +49,8 @@ export function VoorraadPage({
         <div className="text-[13px] text-[#5e5e5e]">Pagina {page}</div>
       </div>
 
+      <VoorraadFilters onderMinimum={onderMinimum} externInBewerking={externInBewerking} />
+
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Geen artikelen gevonden.</p>
       ) : (
@@ -56,6 +63,8 @@ export function VoorraadPage({
                 <TableHead>Groep</TableHead>
                 <TableHead>Verkoopprijs</TableHead>
                 <TableHead>Voorraad</TableHead>
+                <TableHead>Extern</TableHead>
+                <TableHead>Gereserveerd</TableHead>
                 <TableHead>Min.</TableHead>
                 <TableHead>Max.</TableHead>
                 <TableHead>Geblokkeerd</TableHead>
@@ -82,6 +91,8 @@ export function VoorraadPage({
                   <TableCell>{item.groep}</TableCell>
                   <TableCell>{formatPrice(item.verkoopprijs)}</TableCell>
                   <TableCell>{item.voorraad}</TableCell>
+                  <TableCell>{item.voorraadExtern}</TableCell>
+                  <TableCell>{item.gereserveerd}</TableCell>
                   <TableCell>{item.voorraadMin}</TableCell>
                   <TableCell>{item.voorraadMax}</TableCell>
                   <TableCell>{item.geblokkeerd ? "Ja" : "Nee"}</TableCell>
