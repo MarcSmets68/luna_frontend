@@ -28,54 +28,37 @@ describe("LeverancierCreatePage", () => {
     expect(screen.getByRole("heading", { name: "Nieuwe leverancier" })).toBeInTheDocument();
   });
 
-  it("rejects a missing/non-numeric levnr", async () => {
-    const user = userEvent.setup();
+  it("does not render a Levnr input - it is generated server-side", () => {
     render(<LeverancierCreatePage />);
-
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(await screen.findByText("Levnr moet een geldig positief getal zijn.")).toBeInTheDocument();
-    expect(createLeverancierMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("spinbutton", { name: "Levnr" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Levnr")).not.toBeInTheDocument();
   });
 
-  it("rejects a non-positive levnr", async () => {
-    const user = userEvent.setup();
-    render(<LeverancierCreatePage />);
-
-    await user.type(screen.getByRole("spinbutton", { name: "Levnr" }), "-5");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(await screen.findByText("Levnr moet een geldig positief getal zijn.")).toBeInTheDocument();
-    expect(createLeverancierMock).not.toHaveBeenCalled();
-  });
-
-  it("creates the leverancier and navigates to its detail page on success", async () => {
+  it("creates the leverancier and navigates to its detail page using the server-returned levnr", async () => {
     const user = userEvent.setup();
     createLeverancierMock.mockResolvedValue({ levnr: 777, naam: "Nieuwe Leverancier" });
 
     render(<LeverancierCreatePage />);
 
-    await user.type(screen.getByRole("spinbutton", { name: "Levnr" }), "777");
     await user.type(screen.getByRole("textbox", { name: "Naam" }), "Nieuwe Leverancier");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(createLeverancierMock).toHaveBeenCalledTimes(1));
-    expect(createLeverancierMock).toHaveBeenCalledWith(
-      expect.objectContaining({ levnr: 777, naam: "Nieuwe Leverancier" })
-    );
+    const payload = createLeverancierMock.mock.calls[0][0];
+    expect(payload).not.toHaveProperty("levnr");
+    expect(payload).toEqual(expect.objectContaining({ naam: "Nieuwe Leverancier" }));
     expect(pushMock).toHaveBeenCalledWith("/leveranciers/777");
   });
 
-  it("shows the error thrown by the API (e.g. duplicate levnr)", async () => {
+  it("shows the error thrown by the API", async () => {
     const user = userEvent.setup();
-    createLeverancierMock.mockRejectedValue(new Error("Leverancier 777 bestaat al."));
+    createLeverancierMock.mockRejectedValue(new Error("Er ging iets mis."));
 
     render(<LeverancierCreatePage />);
 
-    await user.type(screen.getByRole("spinbutton", { name: "Levnr" }), "777");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("Leverancier 777 bestaat al.")).toBeInTheDocument();
+    expect(await screen.findByText("Er ging iets mis.")).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });
 

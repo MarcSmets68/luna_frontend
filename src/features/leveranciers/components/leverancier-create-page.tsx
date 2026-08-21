@@ -38,7 +38,6 @@ function EditField({
 }
 
 type LeverancierCreateFormState = {
-  levnr: string;
   naam: string;
   naam1: string;
   contact: string;
@@ -60,7 +59,6 @@ type LeverancierCreateFormState = {
 };
 
 const EMPTY_FORM: LeverancierCreateFormState = {
-  levnr: "",
   naam: "",
   naam1: "",
   contact: "",
@@ -93,12 +91,6 @@ export function LeverancierCreatePage() {
   ) => setForm((prev) => ({ ...prev, [key]: value }));
 
   async function handleSave() {
-    const levnr = Number(form.levnr);
-    if (!form.levnr.trim() || !Number.isInteger(levnr) || levnr <= 0) {
-      setError("Levnr moet een geldig positief getal zijn.");
-      return;
-    }
-
     const saldo = form.saldo.trim() ? Number(form.saldo) : 0;
     if (Number.isNaN(saldo)) {
       setError("Saldo moet een geldig getal zijn.");
@@ -115,7 +107,6 @@ export function LeverancierCreatePage() {
     setError(null);
     try {
       const payload: CreateLeverancierPayload = {
-        levnr,
         naam: form.naam,
         naam1: form.naam1,
         contact: form.contact,
@@ -135,8 +126,8 @@ export function LeverancierCreatePage() {
         controle: form.controle,
         minBestel,
       };
-      await createLeverancier(payload);
-      router.push(`/leveranciers/${levnr}`);
+      const created = await createLeverancier(payload);
+      router.push(`/leveranciers/${created.levnr}`);
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Er ging iets mis bij het aanmaken van de leverancier."
@@ -165,12 +156,6 @@ export function LeverancierCreatePage() {
       <Card className="mb-6">
         <CardContent>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <EditField
-              label="Levnr"
-              value={form.levnr}
-              onChange={(v) => setField("levnr", v)}
-              type="number"
-            />
             <EditField label="Naam" value={form.naam} onChange={(v) => setField("naam", v)} />
             <EditField label="Naam 1" value={form.naam1} onChange={(v) => setField("naam1", v)} />
             <EditField

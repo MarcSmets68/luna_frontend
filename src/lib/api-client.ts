@@ -992,15 +992,16 @@ export async function getLeverancier(levnr: number): Promise<LeverancierItem | n
 }
 
 /**
- * Creation payload for a leverancier - `levnr` is required (chosen by the
- * caller, not server-generated) and every other field is optional.
+ * Creation payload for a leverancier - `levnr` is generated server-side
+ * (next available supplier number) and cannot be set by the caller; every
+ * field is optional. The created `LeverancierItem.levnr` comes back in the
+ * response.
  */
-export type CreateLeverancierPayload = Partial<Omit<LeverancierItem, "levnr">> & {
-  levnr: number;
-};
+export type CreateLeverancierPayload = Partial<Omit<LeverancierItem, "levnr">>;
 
 /**
- * Creates a new leverancier.
+ * Creates a new leverancier. `levnr` is generated server-side and returned
+ * on the created `LeverancierItem` - it cannot be passed in the payload.
  * Backend: POST /web/leverancier (Luna.Web.LeverancierHandler).
  */
 export async function createLeverancier(
