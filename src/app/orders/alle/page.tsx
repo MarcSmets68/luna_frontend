@@ -7,15 +7,30 @@ const PAGE_SIZE = 25;
 export default async function OrdersAlle({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; bonnr?: string; naam?: string }>;
+  searchParams: Promise<{ page?: string; bonnr?: string; naam?: string; geparkeerd?: string }>;
 }) {
-  const { page: pageParam, bonnr, naam } = await searchParams;
+  const { page: pageParam, bonnr, naam, geparkeerd } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const { items, hasMore } = await getBonnen({ page, pageSize: PAGE_SIZE, bonnr, naam });
+  const geparkeerdFilter =
+    geparkeerd === "true" ? true : geparkeerd === "false" ? false : undefined;
+  const { items, hasMore } = await getBonnen({
+    page,
+    pageSize: PAGE_SIZE,
+    bonnr,
+    naam,
+    geparkeerd: geparkeerdFilter,
+  });
 
   return (
     <AppShell>
-      <OrdersPage items={items} page={page} hasMore={hasMore} bonnr={bonnr ?? ""} naam={naam ?? ""} />
+      <OrdersPage
+        items={items}
+        page={page}
+        hasMore={hasMore}
+        bonnr={bonnr ?? ""}
+        naam={naam ?? ""}
+        geparkeerd={geparkeerd === "true" || geparkeerd === "false" ? geparkeerd : ""}
+      />
     </AppShell>
   );
 }

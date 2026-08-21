@@ -29,15 +29,17 @@ export function OrdersPage({
   hasMore,
   bonnr = "",
   naam = "",
+  geparkeerd = "",
 }: {
   items: BonItem[];
   page: number;
   hasMore: boolean;
   bonnr?: string;
   naam?: string;
+  geparkeerd?: OrdersFiltersState["geparkeerd"];
 }) {
   const router = useRouter();
-  const [filters, setFilters] = useState<OrdersFiltersState>({ bonnr, naam });
+  const [filters, setFilters] = useState<OrdersFiltersState>({ bonnr, naam, geparkeerd });
   const isFirstRender = useRef(true);
   const skipNextPropsSync = useRef(false);
 
@@ -51,8 +53,8 @@ export function OrdersPage({
       skipNextPropsSync.current = false;
       return;
     }
-    setFilters({ bonnr, naam });
-  }, [bonnr, naam]);
+    setFilters({ bonnr, naam, geparkeerd });
+  }, [bonnr, naam, geparkeerd]);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -74,6 +76,7 @@ export function OrdersPage({
     query.set("page", String(targetPage));
     if (state.bonnr) query.set("bonnr", state.bonnr);
     if (state.naam) query.set("naam", state.naam);
+    if (state.geparkeerd) query.set("geparkeerd", state.geparkeerd);
 
     return `/orders/alle?${query.toString()}`;
   }

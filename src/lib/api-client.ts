@@ -458,13 +458,22 @@ export type BonItem = {
   stempel: string;
   datum: string | null;
   klnr: number;
+  klnr2: number;
+  klnr3: number;
   naam: string;
   adres: string;
   postnr: string;
   stad: string;
+  lnaam: string;
+  lnaam1: string;
+  ladres: string;
+  lpostnr: string;
+  lstad: string;
   munt: string;
   bedrag: number;
   btw: number;
+  recupelBedrag: number;
+  aBedrag: number;
   uRef: string;
   besteldatum: string | null;
   levDatum: string | null;
@@ -551,7 +560,9 @@ export async function getBonLijnen(bonnr: number): Promise<BonLijnItem[]> {
  * count is available (same reasoning as getArtikelen) - so pagination
  * relies on `hasMore` rather than a page count. Filter by `klnr` (exact),
  * `type` (exact, e.g. "ORDERBEVESTIGING"), `bonnr` (prefix match on the
- * order number) and/or `naam` (substring match on the customer name).
+ * order number), `naam` (substring match on the customer name) and/or
+ * `geparkeerd` (exact match on the geparkeerd flag) - all AND-combinable.
+ * Omitting `geparkeerd` applies no filter on it.
  * Backend: GET /web/bon (Luna.Web.BonHandler, read-only).
  */
 export async function getBonnen(
@@ -560,19 +571,41 @@ export async function getBonnen(
     type?: string;
     bonnr?: string;
     naam?: string;
+    geparkeerd?: boolean;
     page?: number;
     pageSize?: number;
   } = {}
 ): Promise<BonnenResponse> {
-  const { klnr, type, bonnr, naam, page = 1, pageSize = 25 } = params;
+  const { klnr, type, bonnr, naam, geparkeerd, page = 1, pageSize = 25 } = params;
   const query = new URLSearchParams();
   if (klnr !== undefined) query.set("klnr", String(klnr));
   if (type !== undefined) query.set("type", type);
   if (bonnr) query.set("bonnr", bonnr);
   if (naam) query.set("naam", naam);
+  if (geparkeerd !== undefined) query.set("geparkeerd", String(geparkeerd));
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
   return apiGet<BonnenResponse>(`/bon?${query.toString()}`);
+}
+
+export type AnnuleerBonResult = {
+  bonnr: number;
+  stempel: string;
+  bedrag: number;
+  btw: number;
+  recupelBedrag: number;
+  aBedrag: number;
+};
+
+/**
+ * Annuleert een order (zet stempel op "O", wist bedragen en geeft
+ * reservaties vrij) - enkel toegelaten wanneer de order niet al "O" is
+ * (backend geeft 409 wanneer dat wel het geval is). `btw` blijft bewust de
+ * ongewijzigde waarde tonen (legacy-consistent, geen bug).
+ * Backend: POST /web/bon/{bonnr}/annuleer (Luna.Web.BonHandler).
+ */
+export async function annuleerBon(bonnr: number): Promise<AnnuleerBonResult> {
+  return apiPost<AnnuleerBonResult>(`/bon/${bonnr}/annuleer`, {});
 }
 
 export type BestelorderItem = {

@@ -1,8 +1,30 @@
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+export type GeparkeerdFilter = "" | "true" | "false";
+
+// Sentinel select-value for "geen filter" - the underlying Select
+// primitive doesn't support an empty-string item value (same reasoning as
+// ALLE_BRONNEN/ALLE_LEVERANCIERS in lakproductie-filters.tsx), so this maps
+// to/from GeparkeerdFilter's "" at the edges of this component only.
+const GEPARKEERD_ALLE = "alle";
+
+const GEPARKEERD_LABELS: Record<string, string> = {
+  [GEPARKEERD_ALLE]: "Alle",
+  true: "Enkel geparkeerd",
+  false: "Niet geparkeerd",
+};
 
 export type OrdersFiltersState = {
   bonnr: string;
   naam: string;
+  geparkeerd: GeparkeerdFilter;
 };
 
 /**
@@ -44,6 +66,32 @@ export function OrdersFilters({
           value={filters.naam}
           onChange={(e) => onFiltersChange({ ...filters, naam: e.target.value })}
         />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="orders-filter-geparkeerd" className="text-[12px] text-muted-foreground">
+          Geparkeerd
+        </label>
+        <Select
+          value={filters.geparkeerd || GEPARKEERD_ALLE}
+          onValueChange={(value) =>
+            onFiltersChange({
+              ...filters,
+              geparkeerd: (value === GEPARKEERD_ALLE ? "" : value) as GeparkeerdFilter,
+            })
+          }
+        >
+          <SelectTrigger id="orders-filter-geparkeerd" className="w-[170px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(GEPARKEERD_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

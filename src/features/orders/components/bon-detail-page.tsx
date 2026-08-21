@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -13,6 +12,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
+import { BonLijnRow } from "./bon-lijn-row";
+import { BonStatusBadge } from "./bon-status-badge";
+import { AnnuleerBonDialog } from "./annuleer-bon-dialog";
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -26,6 +28,10 @@ function DetailField({ label, value }: { label: string; value: string }) {
 }
 
 export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnItem[] }) {
+  const heeftAfleveradres = Boolean(
+    bon.lnaam || bon.lnaam1 || bon.ladres || bon.lpostnr || bon.lstad
+  );
+
   return (
     <div>
       <Link
@@ -38,13 +44,19 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         Orders &amp; Productie
       </div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-[26px] font-bold text-foreground">Bon {bon.bonnr}</h1>
-        <div className="text-[13px] text-[#5e5e5e]">
-          Klant{" "}
-          <Link href={`/klanten/${bon.klnr}`} className="underline">
-            {bon.naam}
-          </Link>
+      <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-[26px] font-bold text-foreground">Bon {bon.bonnr}</h1>
+          <BonStatusBadge stempel={bon.stempel} />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-[13px] text-[#5e5e5e]">
+            Klant{" "}
+            <Link href={`/klanten/${bon.klnr}`} className="underline">
+              {bon.naam}
+            </Link>
+          </div>
+          <AnnuleerBonDialog bonnr={bon.bonnr} stempel={bon.stempel} />
         </div>
       </div>
 
@@ -55,6 +67,8 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
             <DetailField label="Type" value={bon.type} />
             <DetailField label="Datum" value={formatDatum(bon.datum)} />
             <DetailField label="Klant" value={bon.naam} />
+            {Boolean(bon.klnr2) && <DetailField label="Klnr2" value={String(bon.klnr2)} />}
+            {Boolean(bon.klnr3) && <DetailField label="Klnr3" value={String(bon.klnr3)} />}
             <DetailField label="Adres" value={bon.adres} />
             <DetailField label="Postnr" value={bon.postnr} />
             <DetailField label="Stad" value={bon.stad} />
@@ -68,6 +82,24 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
             <DetailField label="Verzonden" value={bon.verzonden ? "Ja" : "Nee"} />
             <DetailField label="Opmerking" value={bon.opm} />
           </div>
+
+          {heeftAfleveradres && (
+            <div className="mt-6 border-t pt-4">
+              <div className="mb-2 text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+                Afleveradres
+              </div>
+              <div className="text-sm text-foreground">
+                {bon.lnaam && <div>{bon.lnaam}</div>}
+                {bon.lnaam1 && <div>{bon.lnaam1}</div>}
+                {bon.ladres && <div>{bon.ladres}</div>}
+                {(bon.lpostnr || bon.lstad) && (
+                  <div>
+                    {bon.lpostnr} {bon.lstad}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -92,17 +124,7 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
           </TableHeader>
           <TableBody>
             {lijnen.map((lijn) => (
-              <TableRow key={lijn.lijnnr}>
-                <TableCell className="font-semibold">{lijn.lijnnr}</TableCell>
-                <TableCell>{lijn.artnr}</TableCell>
-                <TableCell className="whitespace-normal">{lijn.omschrijving}</TableCell>
-                <TableCell>{lijn.aantal}</TableCell>
-                <TableCell>{lijn.teLeveren}</TableCell>
-                <TableCell>{formatBedrag(lijn.vprijs)}</TableCell>
-                <TableCell>{lijn.korting}</TableCell>
-                <TableCell>{formatBedrag(lijn.bedrag)}</TableCell>
-                <TableCell>{formatDatum(lijn.levDatum)}</TableCell>
-              </TableRow>
+              <BonLijnRow key={lijn.lijnnr} lijn={lijn} />
             ))}
           </TableBody>
         </Table>

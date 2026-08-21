@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OrdersPage } from "../orders-page";
 import type { BonItem } from "@/lib/api-client";
@@ -16,13 +17,22 @@ const mockItems: BonItem[] = [
     stempel: "",
     datum: "2026-08-07",
     klnr: 14644,
+    klnr2: 0,
+    klnr3: 0,
     naam: "CONE LIGHTING BV",
     adres: "CATERSHOFLAAN 70-76",
     postnr: "2170",
     stad: "MERKSEM (ANTWERPEN)",
+    lnaam: "",
+    lnaam1: "",
+    ladres: "",
+    lpostnr: "",
+    lstad: "",
     munt: "EUR",
     bedrag: 624.49,
     btw: 108.38,
+    recupelBedrag: 0,
+    aBedrag: 0,
     uRef: "Test order",
     besteldatum: "2026-08-01",
     levDatum: "2026-08-20",
@@ -72,10 +82,11 @@ describe("OrdersPage", () => {
       vi.useRealTimers();
     });
 
-    it("renders the Bonnr and Klant filter inputs", () => {
+    it("renders the Bonnr, Klant and Geparkeerd filter controls", () => {
       render(<OrdersPage items={mockItems} page={1} hasMore={false} />);
       expect(screen.getByPlaceholderText("Bonnr.")).toBeInTheDocument();
       expect(screen.getByPlaceholderText("Klant")).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "Geparkeerd" })).toBeInTheDocument();
     });
 
     it("debounces typing in the Bonnr filter before navigating and resets to page 1", () => {
@@ -102,16 +113,38 @@ describe("OrdersPage", () => {
       expect(pushMock).toHaveBeenCalledWith("/orders/alle?page=1&naam=Cone");
     });
 
+    it("navigates with the geparkeerd filter when changed", async () => {
+      pushMock.mockClear();
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      render(<OrdersPage items={mockItems} page={1} hasMore={false} />);
+
+      await user.click(screen.getByRole("combobox", { name: "Geparkeerd" }));
+      await user.click(await screen.findByRole("option", { name: "Enkel geparkeerd" }));
+
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      expect(pushMock).toHaveBeenCalledWith("/orders/alle?page=1&geparkeerd=true");
+    }, 10000);
+
     it("preserves the current filters when navigating between pages", () => {
-      render(<OrdersPage items={mockItems} page={2} hasMore={true} bonnr="123" naam="Cone" />);
+      render(
+        <OrdersPage
+          items={mockItems}
+          page={2}
+          hasMore={true}
+          bonnr="123"
+          naam="Cone"
+          geparkeerd="true"
+        />
+      );
 
       expect(screen.getByRole("link", { name: /vorige/i })).toHaveAttribute(
         "href",
-        "/orders/alle?page=1&bonnr=123&naam=Cone"
+        "/orders/alle?page=1&bonnr=123&naam=Cone&geparkeerd=true"
       );
       expect(screen.getByRole("link", { name: /volgende/i })).toHaveAttribute(
         "href",
-        "/orders/alle?page=3&bonnr=123&naam=Cone"
+        "/orders/alle?page=3&bonnr=123&naam=Cone&geparkeerd=true"
       );
     });
   });

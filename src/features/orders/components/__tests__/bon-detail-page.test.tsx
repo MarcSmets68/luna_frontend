@@ -1,21 +1,34 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 const mockBon: BonItem = {
   bonnr: 1234567,
   type: "ORDERBEVESTIGING",
-  stempel: "",
+  stempel: "V",
   datum: "2026-08-07",
   klnr: 14644,
+  klnr2: 0,
+  klnr3: 0,
   naam: "CONE LIGHTING BV",
   adres: "CATERSHOFLAAN 70-76",
   postnr: "2170",
   stad: "MERKSEM (ANTWERPEN)",
+  lnaam: "",
+  lnaam1: "",
+  ladres: "",
+  lpostnr: "",
+  lstad: "",
   munt: "EUR",
   bedrag: 624.49,
   btw: 108.38,
+  recupelBedrag: 0,
+  aBedrag: 0,
   uRef: "Test order",
   besteldatum: "2026-08-01",
   levDatum: "2026-08-20",
@@ -88,5 +101,54 @@ describe("BonDetailPage", () => {
       "href",
       "/orders/alle"
     );
+  });
+
+  it("shows the status badge for the bon's stempel", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    expect(screen.getByText("In verwerking")).toBeInTheDocument();
+  });
+
+  it("shows the annuleer-actie button, enabled for a non-open stempel", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    expect(screen.getByRole("button", { name: "Annuleer order" })).toBeEnabled();
+  });
+
+  it("does not render Klnr2/Klnr3 when they are 0", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    expect(screen.queryByText("Klnr2")).not.toBeInTheDocument();
+    expect(screen.queryByText("Klnr3")).not.toBeInTheDocument();
+  });
+
+  it("renders Klnr2/Klnr3 when present", () => {
+    render(<BonDetailPage bon={{ ...mockBon, klnr2: 111, klnr3: 222 }} lijnen={mockLijnen} />);
+    expect(screen.getByText("Klnr2")).toBeInTheDocument();
+    expect(screen.getByText("111")).toBeInTheDocument();
+    expect(screen.getByText("Klnr3")).toBeInTheDocument();
+    expect(screen.getByText("222")).toBeInTheDocument();
+  });
+
+  it("does not render an afleveradres section when all its fields are empty", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    expect(screen.queryByText("Afleveradres")).not.toBeInTheDocument();
+  });
+
+  it("renders the afleveradres section when at least one field is present", () => {
+    render(
+      <BonDetailPage
+        bon={{
+          ...mockBon,
+          lnaam: "Magazijn West",
+          lnaam1: "",
+          ladres: "Havenlaan 1",
+          lpostnr: "2000",
+          lstad: "Antwerpen",
+        }}
+        lijnen={mockLijnen}
+      />
+    );
+    expect(screen.getByText("Afleveradres")).toBeInTheDocument();
+    expect(screen.getByText("Magazijn West")).toBeInTheDocument();
+    expect(screen.getByText("Havenlaan 1")).toBeInTheDocument();
+    expect(screen.getByText("2000 Antwerpen")).toBeInTheDocument();
   });
 });
