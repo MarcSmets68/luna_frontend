@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LeverancierCreatePage } from "../leverancier-create-page";
@@ -28,6 +28,11 @@ describe("LeverancierCreatePage", () => {
     expect(screen.getByRole("heading", { name: "Nieuwe leverancier" })).toBeInTheDocument();
   });
 
+  it("renders a BTW-regime input", () => {
+    render(<LeverancierCreatePage />);
+    expect(screen.getByRole("spinbutton", { name: "BTW-regime" })).toBeInTheDocument();
+  });
+
   it("does not render a Levnr input - it is generated server-side", () => {
     render(<LeverancierCreatePage />);
     expect(screen.queryByRole("spinbutton", { name: "Levnr" })).not.toBeInTheDocument();
@@ -41,13 +46,51 @@ describe("LeverancierCreatePage", () => {
     render(<LeverancierCreatePage />);
 
     await user.type(screen.getByRole("textbox", { name: "Naam" }), "Nieuwe Leverancier");
+    await user.type(screen.getByRole("spinbutton", { name: "BTW-regime" }), "3");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(createLeverancierMock).toHaveBeenCalledTimes(1));
     const payload = createLeverancierMock.mock.calls[0][0];
     expect(payload).not.toHaveProperty("levnr");
-    expect(payload).toEqual(expect.objectContaining({ naam: "Nieuwe Leverancier" }));
+    expect(payload).toEqual(
+      expect.objectContaining({ naam: "Nieuwe Leverancier", btwRegime: 3 })
+    );
     expect(pushMock).toHaveBeenCalledWith("/leveranciers/777");
+  });
+
+  it("defaults btwRegime to 0 when left blank", async () => {
+    const user = userEvent.setup();
+    createLeverancierMock.mockResolvedValue({ levnr: 778, naam: "Nieuwe Leverancier" });
+
+    render(<LeverancierCreatePage />);
+
+    await user.type(screen.getByRole("textbox", { name: "Naam" }), "Nieuwe Leverancier");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(createLeverancierMock).toHaveBeenCalledTimes(1));
+    const payload = createLeverancierMock.mock.calls[0][0];
+    expect(payload.btwRegime).toBe(0);
+  });
+
+  it("shows an error and does not call the API when BTW-regime is not a valid number", async () => {
+    const user = userEvent.setup();
+    render(<LeverancierCreatePage />);
+
+    const btwRegimeInput = screen.getByRole("spinbutton", { name: "BTW-regime" });
+    // type="number" inputs sanitize non-numeric keystrokes at the DOM level
+    // (like a real browser), so the invalid string is injected by switching
+    // to "text" first - this exercises the same onChange/state path with a
+    // value a browser autofill/paste could still deliver as a raw string.
+    btwRegimeInput.setAttribute("type", "text");
+    fireEvent.change(btwRegimeInput, { target: { value: "abc" } });
+
+    await user.type(screen.getByRole("textbox", { name: "Naam" }), "Nieuwe Leverancier");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("BTW-regime moet een geldig getal zijn.")
+    ).toBeInTheDocument();
+    expect(createLeverancierMock).not.toHaveBeenCalled();
   });
 
   it("shows the error thrown by the API", async () => {

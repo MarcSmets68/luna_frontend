@@ -78,6 +78,7 @@ type LeverancierFormState = {
   type: boolean;
   controle: boolean;
   minBestel: string;
+  btwRegime: string;
 };
 
 function toFormState(leverancier: LeverancierItem): LeverancierFormState {
@@ -100,6 +101,7 @@ function toFormState(leverancier: LeverancierItem): LeverancierFormState {
     type: leverancier.type,
     controle: leverancier.controle,
     minBestel: String(leverancier.minBestel),
+    btwRegime: String(leverancier.btwRegime),
   };
 }
 
@@ -141,10 +143,16 @@ export function LeverancierDetailPage({ leverancier }: { leverancier: Leverancie
       return;
     }
 
+    const btwRegime = Number(form.btwRegime);
+    if (Number.isNaN(btwRegime)) {
+      setError("BTW-regime moet een geldig getal zijn.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
-      const payload: UpdateLeverancierPayload = { ...form, saldo, minBestel };
+      const payload: UpdateLeverancierPayload = { ...form, saldo, minBestel, btwRegime };
       await updateLeverancier(leverancier.levnr, payload);
       setEditing(false);
       router.refresh();
@@ -233,6 +241,12 @@ export function LeverancierDetailPage({ leverancier }: { leverancier: Leverancie
                   onChange={(v) => setField("btwNr", v)}
                 />
                 <EditField
+                  label="BTW-regime"
+                  value={form.btwRegime}
+                  onChange={(v) => setField("btwRegime", v)}
+                  type="number"
+                />
+                <EditField
                   label="Saldo"
                   value={form.saldo}
                   onChange={(v) => setField("saldo", v)}
@@ -302,6 +316,7 @@ export function LeverancierDetailPage({ leverancier }: { leverancier: Leverancie
               <DetailField label="Taal" value={leverancier.taal} />
               <DetailField label="Munt" value={leverancier.munt} />
               <DetailField label="BTW-nr" value={leverancier.btwNr} />
+              <DetailField label="BTW-regime" value={String(leverancier.btwRegime)} />
               <DetailField label="Saldo" value={formatSaldo(leverancier.saldo)} />
               <DetailField label="Min. bestelling" value={String(leverancier.minBestel)} />
               <DetailField label="Type" value={leverancier.type ? "Ja" : "Nee"} />

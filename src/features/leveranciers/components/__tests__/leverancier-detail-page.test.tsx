@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { LeverancierDetailPage } from "../leverancier-detail-page";
@@ -41,6 +41,7 @@ const mockLeverancier: LeverancierItem = {
   type: false,
   controle: true,
   minBestel: 100,
+  btwRegime: 1,
 };
 
 beforeEach(() => {
@@ -57,6 +58,12 @@ describe("LeverancierDetailPage", () => {
     expect(screen.getByText("Levnr 501")).toBeInTheDocument();
   });
 
+  it("renders the BTW-regime field in view mode", () => {
+    render(<LeverancierDetailPage leverancier={mockLeverancier} />);
+    expect(screen.getByText("BTW-regime")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
   it("does not show editable fields until 'Verbeteren' is clicked", () => {
     render(<LeverancierDetailPage leverancier={mockLeverancier} />);
     expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
@@ -70,6 +77,7 @@ describe("LeverancierDetailPage", () => {
     await user.click(screen.getByRole("button", { name: "Verbeteren" }));
 
     expect(screen.getByRole("textbox", { name: "Naam" })).toHaveValue("COATING PARTNERS BV");
+    expect(screen.getByRole("spinbutton", { name: "BTW-regime" })).toHaveValue(1);
     expect(screen.getByText("Levnr")).toBeInTheDocument();
     expect(screen.getByText("501")).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Levnr" })).not.toBeInTheDocument();
@@ -89,12 +97,16 @@ describe("LeverancierDetailPage", () => {
     await user.clear(naamInput);
     await user.type(naamInput, "COATING PARTNERS NV");
 
+    const btwRegimeInput = screen.getByRole("spinbutton", { name: "BTW-regime" });
+    await user.clear(btwRegimeInput);
+    await user.type(btwRegimeInput, "2");
+
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(updateLeverancierMock).toHaveBeenCalledTimes(1));
     expect(updateLeverancierMock).toHaveBeenCalledWith(
       501,
-      expect.objectContaining({ naam: "COATING PARTNERS NV", saldo: 1234.56 })
+      expect.objectContaining({ naam: "COATING PARTNERS NV", saldo: 1234.56, btwRegime: 2 })
     );
     // levnr is the immutable primary key - it must never be part of the
     // update payload (the backend also excludes it, see UpdateLeverancierPayload).
@@ -148,6 +160,27 @@ describe("LeverancierDetailPage", () => {
 
     expect(await screen.findByText("Leverancier 501 not found")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("shows an error and does not call the API when BTW-regime is not a valid number", async () => {
+    const user = userEvent.setup();
+
+    render(<LeverancierDetailPage leverancier={mockLeverancier} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const btwRegimeInput = screen.getByRole("spinbutton", { name: "BTW-regime" });
+    // type="number" inputs sanitize non-numeric keystrokes at the DOM level
+    // (like a real browser), so the invalid string is injected by switching
+    // to "text" first - this exercises the same onChange/state path with a
+    // value a browser autofill/paste could still deliver as a raw string.
+    btwRegimeInput.setAttribute("type", "text");
+    fireEvent.change(btwRegimeInput, { target: { value: "abc" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("BTW-regime moet een geldig getal zijn.")
+    ).toBeInTheDocument();
+    expect(updateLeverancierMock).not.toHaveBeenCalled();
   });
 
   it("renders a back link to the leveranciers overview", () => {

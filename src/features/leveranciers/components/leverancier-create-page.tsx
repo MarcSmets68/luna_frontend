@@ -56,6 +56,7 @@ type LeverancierCreateFormState = {
   type: boolean;
   controle: boolean;
   minBestel: string;
+  btwRegime: string;
 };
 
 const EMPTY_FORM: LeverancierCreateFormState = {
@@ -77,6 +78,7 @@ const EMPTY_FORM: LeverancierCreateFormState = {
   type: false,
   controle: false,
   minBestel: "",
+  btwRegime: "",
 };
 
 export function LeverancierCreatePage() {
@@ -103,6 +105,12 @@ export function LeverancierCreatePage() {
       return;
     }
 
+    const btwRegime = form.btwRegime.trim() ? Number(form.btwRegime) : 0;
+    if (Number.isNaN(btwRegime)) {
+      setError("BTW-regime moet een geldig getal zijn.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -125,6 +133,7 @@ export function LeverancierCreatePage() {
         type: form.type,
         controle: form.controle,
         minBestel,
+        btwRegime,
       };
       const created = await createLeverancier(payload);
       router.push(`/leveranciers/${created.levnr}`);
@@ -182,6 +191,12 @@ export function LeverancierCreatePage() {
             <EditField label="Taal" value={form.taal} onChange={(v) => setField("taal", v)} />
             <EditField label="Munt" value={form.munt} onChange={(v) => setField("munt", v)} />
             <EditField label="BTW-nr" value={form.btwNr} onChange={(v) => setField("btwNr", v)} />
+            <EditField
+              label="BTW-regime"
+              value={form.btwRegime}
+              onChange={(v) => setField("btwRegime", v)}
+              type="number"
+            />
             <EditField
               label="Saldo"
               value={form.saldo}

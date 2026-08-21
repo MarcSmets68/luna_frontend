@@ -929,6 +929,7 @@ export type LeverancierItem = {
   type: boolean;
   controle: boolean;
   minBestel: number;
+  btwRegime: number;
 };
 
 type LeveranciersResponse = {

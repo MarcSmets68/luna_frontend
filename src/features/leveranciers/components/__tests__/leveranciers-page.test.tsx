@@ -41,6 +41,7 @@ const mockItems: LeverancierItem[] = [
     type: false,
     controle: false,
     minBestel: 0,
+    btwRegime: 0,
   },
 ];
 
