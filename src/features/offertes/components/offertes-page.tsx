@@ -100,7 +100,12 @@ export function OffertesPage({
       </div>
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-[26px] font-bold text-foreground">Alle offertes</h1>
-        <div className="text-[13px] text-[#5e5e5e]">Pagina {page}</div>
+        <div className="flex items-baseline gap-4">
+          <div className="text-[13px] text-[#5e5e5e]">Pagina {page}</div>
+          <Link href="/offertes/nieuw" className={cn(buttonVariants({ size: "sm" }))}>
+            Nieuwe offerte
+          </Link>
+        </div>
       </div>
 
       <OffertesFilters filters={filters} onFiltersChange={setFilters} />

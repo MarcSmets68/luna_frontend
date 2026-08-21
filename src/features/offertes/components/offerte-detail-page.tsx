@@ -48,10 +48,18 @@ export function OfferteDetailPage({
         <h1 className="text-[26px] font-bold text-foreground">
           Offerte {offerte.offnr}/{offerte.versie}
         </h1>
-        <div className="text-[13px] text-[#5e5e5e]">
-          Klant{" "}
-          <Link href={`/klanten/${offerte.klnr}`} className="underline">
-            {offerte.naam}
+        <div className="flex items-baseline gap-4">
+          <div className="text-[13px] text-[#5e5e5e]">
+            Klant{" "}
+            <Link href={`/klanten/${offerte.klnr}`} className="underline">
+              {offerte.naam}
+            </Link>
+          </div>
+          <Link
+            href={`/offertes/${offerte.offnr}/${offerte.versie}/bewerken`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          >
+            Bewerken
           </Link>
         </div>
       </div>

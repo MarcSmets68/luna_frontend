@@ -452,6 +452,124 @@ export async function getOfferteLijnen(offnr: number, versie: number): Promise<O
   return data.items;
 }
 
+export type CreateOffertePayload = Partial<Omit<OfferteItem, "offnr" | "versie">> & {
+  offnr?: number;
+  versie?: number;
+};
+
+/**
+ * Creates a new offerte. `offnr`/`versie` are deliberately optional here -
+ * per the Fase 1 create/edit design, the create UI never sends them and
+ * relies on the server to auto-allocate the next offnr/versie (see
+ * backend-coder's parallel contract change to OfferteBE for dual-mode
+ * create). If the live backend hasn't shipped that change yet, this call
+ * still matches the currently-documented contract when offnr/versie ARE
+ * supplied (see docs/backend/offerte.md).
+ * Backend: POST /web/offerte (Luna.Web.OfferteHandler).
+ */
+export async function createOfferte(payload: CreateOffertePayload): Promise<OfferteItem> {
+  return apiPost<OfferteItem>("/offerte", payload);
+}
+
+export type UpdateOffertePayload = Partial<Omit<OfferteItem, "offnr" | "versie">>;
+
+/**
+ * Updates an offerte. Only the fields present in `payload` are changed.
+ * Per the Fase 1 design, editing any field other than `verloren` itself
+ * auto-clears `verloren` server-side - the edit UI never sends `verloren`
+ * and shows it as a read-only note instead.
+ * Backend: PUT /web/offerte/{offnr}/{versie} (Luna.Web.OfferteHandler).
+ */
+export async function updateOfferte(
+  offnr: number,
+  versie: number,
+  payload: UpdateOffertePayload
+): Promise<OfferteItem> {
+  return apiPut<OfferteItem>(`/offerte/${offnr}/${versie}`, payload);
+}
+
+/**
+ * Deletes an offerte. Cascades to every offlijn row for this offnr+versie.
+ * Backend: DELETE /web/offerte/{offnr}/{versie} (Luna.Web.OfferteHandler).
+ */
+export async function deleteOfferte(
+  offnr: number,
+  versie: number
+): Promise<{ status: string; offnr: number; versie: number }> {
+  return apiDelete<{ status: string; offnr: number; versie: number }>(
+    `/offerte/${offnr}/${versie}`
+  );
+}
+
+export type CreateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">> & {
+  lijnnr?: number;
+};
+
+/**
+ * Creates a new offlijn (quote line) under an offerte. `lijnnr` is
+ * deliberately optional - the create UI never sends it and relies on the
+ * server to auto-allocate the next lijnnr (see backend-coder's parallel
+ * contract change to OfflijnBE for dual-mode create).
+ * Backend: POST /web/offerte/{offnr}/{versie}/lijn (Luna.Web.OfferteHandler).
+ */
+export async function createOfflijn(
+  offnr: number,
+  versie: number,
+  payload: CreateOfflijnPayload
+): Promise<OfflijnItem> {
+  return apiPost<OfflijnItem>(`/offerte/${offnr}/${versie}/lijn`, payload);
+}
+
+export type UpdateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
+
+/**
+ * Updates an offlijn. Only the fields present in `payload` are changed.
+ * Backend: PUT /web/offerte/{offnr}/{versie}/lijn/{lijnnr} (Luna.Web.OfferteHandler).
+ */
+export async function updateOfflijn(
+  offnr: number,
+  versie: number,
+  lijnnr: number,
+  payload: UpdateOfflijnPayload
+): Promise<OfflijnItem> {
+  return apiPut<OfflijnItem>(`/offerte/${offnr}/${versie}/lijn/${lijnnr}`, payload);
+}
+
+/**
+ * Deletes an offlijn.
+ * Backend: DELETE /web/offerte/{offnr}/{versie}/lijn/{lijnnr} (Luna.Web.OfferteHandler).
+ */
+export async function deleteOfflijn(
+  offnr: number,
+  versie: number,
+  lijnnr: number
+): Promise<{ status: string; offnr: number; versie: number; lijnnr: number }> {
+  return apiDelete<{ status: string; offnr: number; versie: number; lijnnr: number }>(
+    `/offerte/${offnr}/${versie}/lijn/${lijnnr}`
+  );
+}
+
+/**
+ * Moves a line up or down by one position among its siblings. Returns the
+ * full, freshly-reordered list of lines for this offerte so callers can
+ * replace their local `lines` state directly from the response instead of
+ * refetching the whole page.
+ * Backend: POST /web/offerte/{offnr}/{versie}/lijn/{lijnnr}/reorder
+ * (Luna.Web.OfferteHandler) - new endpoint, being added by backend-coder in
+ * parallel with this frontend work; not yet present on the currently
+ * shipped backend (see docs/backend/offerte.md).
+ */
+export async function reorderOfflijn(
+  offnr: number,
+  versie: number,
+  lijnnr: number,
+  direction: "up" | "down"
+): Promise<{ items: OfflijnItem[] }> {
+  return apiPost<{ items: OfflijnItem[] }>(`/offerte/${offnr}/${versie}/lijn/${lijnnr}/reorder`, {
+    direction,
+  });
+}
+
 export type BonItem = {
   bonnr: number;
   type: string;
