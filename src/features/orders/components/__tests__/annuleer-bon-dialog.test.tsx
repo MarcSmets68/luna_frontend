@@ -38,6 +38,16 @@ describe("AnnuleerBonDialog", () => {
     expect(screen.getByRole("button", { name: "Annuleer order" })).toBeEnabled();
   });
 
+  it("shows a disabled button for an empty/unknown stempel", () => {
+    render(<AnnuleerBonDialog bonnr={1234567} stempel="" />);
+    expect(screen.getByRole("button", { name: "Annuleer order" })).toBeDisabled();
+  });
+
+  it('shows a disabled button when stempel is "X" (unknown value)', () => {
+    render(<AnnuleerBonDialog bonnr={1234567} stempel="X" />);
+    expect(screen.getByRole("button", { name: "Annuleer order" })).toBeDisabled();
+  });
+
   it("opens a confirmation dialog when clicked", async () => {
     const user = userEvent.setup();
     render(<AnnuleerBonDialog bonnr={1234567} stempel="V" />);

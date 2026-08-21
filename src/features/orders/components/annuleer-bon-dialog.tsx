@@ -14,11 +14,11 @@ import { Button } from "@/components/ui/button";
 import { annuleerBon } from "@/lib/api-client";
 
 /**
- * Annuleer-actie voor een bon: enkel bruikbaar wanneer de order niet meer
- * "O" (open) is - dus bij stempel "V" of "B" ("in verwerking"). Bij
- * stempel "O" toont dit component enkel een disabled knop met uitleg
- * (de backend geeft in dat geval 409 terug, dus we voorkomen de aanroep
- * al client-side).
+ * Annuleer-actie voor een bon: enkel bruikbaar wanneer de order in stempel
+ * "V" of "B" staat. De backend (BonBE.AnnuleerBon) accepteert uitsluitend
+ * deze twee waarden en geeft 409 voor elke andere stempel (inclusief "O"
+ * en lege/onbekende waarden), dus we voorkomen de aanroep al client-side
+ * door de knop enkel klikbaar te tonen voor deze twee stempels.
  */
 export function AnnuleerBonDialog({ bonnr, stempel }: { bonnr: number; stempel: string }) {
   const router = useRouter();
@@ -26,7 +26,7 @@ export function AnnuleerBonDialog({ bonnr, stempel }: { bonnr: number; stempel: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const kanAnnuleren = stempel !== "O";
+  const kanAnnuleren = stempel === "V" || stempel === "B";
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
@@ -51,7 +51,7 @@ export function AnnuleerBonDialog({ bonnr, stempel }: { bonnr: number; stempel: 
 
   if (!kanAnnuleren) {
     return (
-      <Button type="button" variant="outline" disabled title="Order is al open">
+      <Button type="button" variant="outline" disabled title="Order kan niet geannuleerd worden">
         Annuleer order
       </Button>
     );

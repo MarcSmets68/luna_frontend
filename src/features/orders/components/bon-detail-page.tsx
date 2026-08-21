@@ -75,6 +75,8 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
             <DetailField label="Munt" value={bon.munt} />
             <DetailField label="Bedrag" value={formatBedrag(bon.bedrag)} />
             <DetailField label="Btw" value={formatBedrag(bon.btw)} />
+            <DetailField label="Recupel bedrag" value={formatBedrag(bon.recupelBedrag)} />
+            <DetailField label="A-bedrag" value={formatBedrag(bon.aBedrag)} />
             <DetailField label="Uw referentie" value={bon.uRef} />
             <DetailField label="Besteldatum" value={formatDatum(bon.besteldatum)} />
             <DetailField label="Leverdatum" value={formatDatum(bon.levDatum)} />

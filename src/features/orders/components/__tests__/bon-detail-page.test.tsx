@@ -81,6 +81,13 @@ describe("BonDetailPage", () => {
     expect(screen.getByText("MERKSEM (ANTWERPEN)")).toBeInTheDocument();
   });
 
+  it("renders recupelBedrag and aBedrag fields, even when zero", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    expect(screen.getByText("Recupel bedrag")).toBeInTheDocument();
+    expect(screen.getByText("A-bedrag")).toBeInTheDocument();
+    expect(screen.getAllByText("0,00")).toHaveLength(2);
+  });
+
   it("renders the lijnen section with every line's artnr and omschrijving", () => {
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
     expect(screen.getByRole("heading", { name: "Lijnen" })).toBeInTheDocument();
