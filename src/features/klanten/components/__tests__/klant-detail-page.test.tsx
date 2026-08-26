@@ -235,6 +235,130 @@ describe("KlantDetailPage", () => {
     expect(checkbox).toHaveAttribute("aria-checked", "false");
   });
 
+  it("renders the grouped section titles", () => {
+    render(
+      <KlantDetailPage
+        klant={mockKlant}
+        offertes={mockOffertes}
+        offertesPage={1}
+        offertesHasMore={false}
+        orders={mockOrders}
+        ordersPage={1}
+        ordersHasMore={false}
+      />
+    );
+    expect(screen.getByText("Identiteit & adres")).toBeInTheDocument();
+    expect(screen.getByText("Commercieel")).toBeInTheDocument();
+    // "Contact" also occurs as a field label, so assert the section-title
+    // rendering specifically (border-b uppercase group title styling).
+    const contactMatches = screen.getAllByText("Contact");
+    expect(contactMatches.some((el) => el.className.includes("border-b"))).toBe(true);
+    expect(screen.getByText("Boekhouding")).toBeInTheDocument();
+    expect(screen.getByText("Opmerking (intern)")).toBeInTheDocument();
+  });
+
+  it("renders opm as a textarea in edit mode and includes typed value in the save payload", async () => {
+    const user = userEvent.setup();
+    updateKlantMock.mockResolvedValue({ ...mockKlant, opm: "Belangrijke klant" });
+
+    render(
+      <KlantDetailPage
+        klant={mockKlant}
+        offertes={mockOffertes}
+        offertesPage={1}
+        offertesHasMore={false}
+        orders={mockOrders}
+        ordersPage={1}
+        ordersHasMore={false}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    const opmField = screen.getByRole("textbox", { name: "Opmerking" });
+    expect(opmField.tagName).toBe("TEXTAREA");
+
+    await user.type(opmField, "Belangrijke klant");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateKlantMock).toHaveBeenCalledTimes(1));
+    expect(updateKlantMock).toHaveBeenCalledWith(
+      14644,
+      expect.objectContaining({ opm: "Belangrijke klant" })
+    );
+  });
+
+  it("renders '—' fallback for an empty opm in view mode", () => {
+    render(
+      <KlantDetailPage
+        klant={mockKlant}
+        offertes={mockOffertes}
+        offertesPage={1}
+        offertesHasMore={false}
+        orders={mockOrders}
+        ordersPage={1}
+        ordersHasMore={false}
+      />
+    );
+    expect(screen.getByText("Opmerking")).toBeInTheDocument();
+    const label = screen.getByText("Opmerking");
+    const container = label.parentElement;
+    expect(container?.textContent).toContain("\u2014");
+  });
+
+  it("toggles Geblokkeerd in edit mode and includes the flipped value in the save payload", async () => {
+    const user = userEvent.setup();
+    updateKlantMock.mockResolvedValue({ ...mockKlant, geblokkeerd: true });
+
+    render(
+      <KlantDetailPage
+        klant={mockKlant}
+        offertes={mockOffertes}
+        offertesPage={1}
+        offertesHasMore={false}
+        orders={mockOrders}
+        ordersPage={1}
+        ordersHasMore={false}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    const checkbox = screen.getByRole("checkbox", { name: /Geblokkeerd/ });
+    expect(checkbox).toHaveAttribute("aria-checked", "false");
+
+    await user.click(checkbox);
+    expect(checkbox).toHaveAttribute("aria-checked", "true");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateKlantMock).toHaveBeenCalledTimes(1));
+    expect(updateKlantMock).toHaveBeenCalledWith(
+      14644,
+      expect.objectContaining({ geblokkeerd: true })
+    );
+  });
+
+  it("renders '—' fallback for empty optional fields in view mode", () => {
+    render(
+      <KlantDetailPage
+        klant={mockKlant}
+        offertes={mockOffertes}
+        offertesPage={1}
+        offertesHasMore={false}
+        orders={mockOrders}
+        ordersPage={1}
+        ordersHasMore={false}
+      />
+    );
+
+    for (const label of ["Naam 1", "Fax", "GSM"]) {
+      const labelEl = screen.getByText(label);
+      const container = labelEl.parentElement;
+      expect(container?.textContent).toContain("\u2014");
+    }
+  });
+
   it("renders a back link to the klanten overview", () => {
     render(
       <KlantDetailPage

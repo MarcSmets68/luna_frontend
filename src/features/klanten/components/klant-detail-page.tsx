@@ -353,16 +353,13 @@ export function KlantDetailPage({
                       onChange={() => setField("geblokkeerd", !form.geblokkeerd)}
                     />
                   </FieldGroup>
-                  <div className="space-y-4">
-                    <div className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase border-b border-border pb-1.5">
-                      Opmerking (intern)
-                    </div>
+                  <FieldGroup title="Opmerking (intern)">
                     <EditTextareaField
                       label="Opmerking"
                       value={form.opm}
                       onChange={(v) => setField("opm", v)}
                     />
-                  </div>
+                  </FieldGroup>
                 </div>
               </div>
 
@@ -407,12 +404,9 @@ export function KlantDetailPage({
                   <DetailField label="Saldo" value={formatSaldo(klant.saldo)} />
                   <GeblokkeerdField editing={false} checked={klant.geblokkeerd} />
                 </FieldGroup>
-                <div className="space-y-4">
-                  <div className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase border-b border-border pb-1.5">
-                    Opmerking (intern)
-                  </div>
+                <FieldGroup title="Opmerking (intern)">
                   <DetailField label="Opmerking" value={klant.opm} />
-                </div>
+                </FieldGroup>
               </div>
             </div>
           )}
