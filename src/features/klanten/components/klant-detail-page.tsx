@@ -354,11 +354,13 @@ export function KlantDetailPage({
                     />
                   </FieldGroup>
                   <FieldGroup title="Opmerking (intern)">
-                    <EditTextareaField
-                      label="Opmerking"
-                      value={form.opm}
-                      onChange={(v) => setField("opm", v)}
-                    />
+                    <div className="sm:col-span-2">
+                      <EditTextareaField
+                        label="Opmerking"
+                        value={form.opm}
+                        onChange={(v) => setField("opm", v)}
+                      />
+                    </div>
                   </FieldGroup>
                 </div>
               </div>
@@ -405,7 +407,9 @@ export function KlantDetailPage({
                   <GeblokkeerdField editing={false} checked={klant.geblokkeerd} />
                 </FieldGroup>
                 <FieldGroup title="Opmerking (intern)">
-                  <DetailField label="Opmerking" value={klant.opm} />
+                  <div className="sm:col-span-2">
+                    <DetailField label="Opmerking" value={klant.opm} />
+                  </div>
                 </FieldGroup>
               </div>
             </div>
