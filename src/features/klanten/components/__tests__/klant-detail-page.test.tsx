@@ -218,6 +218,23 @@ describe("KlantDetailPage", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
+  it("shows a disabled Geblokkeerd checkbox reflecting state in view mode", () => {
+    render(
+      <KlantDetailPage
+        klant={mockKlant}
+        offertes={mockOffertes}
+        offertesPage={1}
+        offertesHasMore={false}
+        orders={mockOrders}
+        ordersPage={1}
+        ordersHasMore={false}
+      />
+    );
+    const checkbox = screen.getByRole("checkbox", { name: "Geblokkeerd Nee" });
+    expect(checkbox).toHaveAttribute("aria-disabled", "true");
+    expect(checkbox).toHaveAttribute("aria-checked", "false");
+  });
+
   it("renders a back link to the klanten overview", () => {
     render(
       <KlantDetailPage
