@@ -197,9 +197,133 @@ describe("ArtikelDetailPage", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(updateArtikelMock).toHaveBeenCalledTimes(1));
-    const payload = updateArtikelMock.mock.calls[0][1];
+    const payload = updateArtikelMock.mock.calls[0][1] as Record<string, unknown>;
     expect(payload).not.toHaveProperty("aankoopprijs");
     expect(payload).not.toHaveProperty("verkoopprijs");
     expect(payload).not.toHaveProperty("verkoopprijsIncl");
+    // Sharper than the not.toHaveProperty checks above: assert the exact
+    // key-set sent to the API, so a future regression that silently
+    // re-adds a price key (e.g. as `undefined`, which toHaveProperty
+    // would still catch, but let's be explicit) or drops an expected
+    // non-price key is caught immediately.
+    expect(Object.keys(payload).sort()).toEqual(
+      [
+        "barcode",
+        "btwKode",
+        "geblokkeerd",
+        "gewicht",
+        "groep",
+        "leverancierNr",
+        "merk",
+        "munt",
+        "omschrijvingFr",
+        "omschrijvingNl",
+        "type",
+        "voorraadMax",
+        "voorraadMin",
+      ].sort()
+    );
+  });
+
+  it("still validates numeric fields (but not the disabled price fields) when isSamengesteld is true", async () => {
+    const user = userEvent.setup();
+    const samengesteldArtikel = { ...mockArtikel, isSamengesteld: true };
+
+    render(<ArtikelDetailPage artikel={samengesteldArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const gewichtInput = screen.getByRole("spinbutton", { name: "Gewicht" });
+    await user.clear(gewichtInput);
+    await user.type(gewichtInput, "-1");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Gewicht moet een geldig getal zijn.")).toBeInTheDocument();
+    expect(updateArtikelMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a negative aankoopprijs/verkoopprijs when the artikel is not samengesteld", async () => {
+    const user = userEvent.setup();
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const aankoopprijsInput = screen.getByRole("spinbutton", { name: "Aankoopprijs" });
+    await user.clear(aankoopprijsInput);
+    await user.type(aankoopprijsInput, "-10");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Aankoopprijs moet een geldig getal zijn.")).toBeInTheDocument();
+    expect(updateArtikelMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects voorraadMin greater than voorraadMax", async () => {
+    const user = userEvent.setup();
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const voorraadMinInput = screen.getByRole("spinbutton", { name: "Min. voorraad" });
+    await user.clear(voorraadMinInput);
+    await user.type(voorraadMinInput, "200");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Min. voorraad mag niet groter zijn dan max. voorraad.")
+    ).toBeInTheDocument();
+    expect(updateArtikelMock).not.toHaveBeenCalled();
+  });
+
+  // NOTE (frontend-tester finding, not a fix): Number("") === 0, not NaN, so
+  // clearing a numeric field to empty and saving silently submits 0 instead
+  // of surfacing a validation error - the Number.isNaN() guards in
+  // handleSave() never actually trigger for an empty string. This test
+  // documents that current (surprising) behavior rather than asserting a
+  // fix; see the test report for why this should go back to the coder.
+  it("treats an emptied numeric field as 0 rather than rejecting it (documents a validation gap)", async () => {
+    const user = userEvent.setup();
+    updateArtikelMock.mockResolvedValue(mockArtikel);
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const leverancierInput = screen.getByRole("spinbutton", { name: "Leverancier nr" });
+    await user.clear(leverancierInput);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateArtikelMock).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/moet een geldig getal zijn/)).not.toBeInTheDocument();
+    expect(updateArtikelMock).toHaveBeenCalledWith(
+      "AB123",
+      expect.objectContaining({ leverancierNr: 0 })
+    );
+  });
+
+  it("keeps the entered (unsaved) values visible in the form after a failed save", async () => {
+    const user = userEvent.setup();
+    updateArtikelMock.mockRejectedValue(new Error("Artikel AB123 not found"));
+
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const merkInput = screen.getByRole("textbox", { name: "Merk" });
+    await user.clear(merkInput);
+    await user.type(merkInput, "Nog niet opgeslagen merk");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Artikel AB123 not found")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Merk" })).toHaveValue("Nog niet opgeslagen merk");
+  });
+
+  it("never renders an Artikelnr input, even while editing a samengesteld artikel", async () => {
+    const user = userEvent.setup();
+    const samengesteldArtikel = { ...mockArtikel, isSamengesteld: true };
+    render(<ArtikelDetailPage artikel={samengesteldArtikel} />);
+
+    expect(screen.queryByRole("textbox", { name: "Artikelnr" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    expect(screen.queryByRole("textbox", { name: "Artikelnr" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: "Artikelnr" })).not.toBeInTheDocument();
   });
 });
