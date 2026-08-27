@@ -4,8 +4,8 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/web";
 
 // Optional extra headers merged into every request - added for auth-bearing
-// calls (e.g. logout()'s "Authorization: Bearer <token>") without changing
-// the signature of existing call sites that don't pass any.
+// calls (e.g. logout()'s "X-Auth-Token: <token>") without changing the
+// signature of existing call sites that don't pass any.
 type ExtraHeaders = Record<string, string>;
 
 async function apiGet<T>(path: string, extraHeaders: ExtraHeaders = {}): Promise<T> {
@@ -113,13 +113,16 @@ export async function login(payload: LoginRequest): Promise<LoginResult> {
  * features/auth/session.ts) regardless of whether this call succeeds -
  * see docs/architecture/login-auth-ontwerp.md §1.3/§4.2.
  * Backend: POST /web/logout (Luna.Web.LogoutHandler + AuthBE.Logout()),
- * auth via "Authorization: Bearer <token>" header (§1.4).
+ * auth via "X-Auth-Token: <token>" header (§1.4 - PASOE/Tomcat intercepts
+ * the standard "Authorization" header before it reaches the WebHandler,
+ * so a custom header is used instead; see the deviation note in
+ * docs/architecture/login-auth-ontwerp.md §1.4).
  */
 export async function logout(token: string): Promise<{ message: string }> {
   return apiPost<{ message: string }>(
     "/logout",
     {},
-    { Authorization: `Bearer ${token}` }
+    { "X-Auth-Token": token }
   );
 }
 
