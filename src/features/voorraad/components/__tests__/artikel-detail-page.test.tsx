@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ArtikelDetailPage } from "../artikel-detail-page";
@@ -282,6 +282,77 @@ describe("ArtikelDetailPage", () => {
     await user.click(screen.getByRole("button", { name: "Verbeteren" }));
     const leverancierInput = screen.getByRole("spinbutton", { name: "Leverancier nr" });
     await user.clear(leverancierInput);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Leverancier nr moet een geldig getal zijn.")
+    ).toBeInTheDocument();
+    expect(updateArtikelMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an emptied gewicht field instead of silently saving it as 0", async () => {
+    const user = userEvent.setup();
+    updateArtikelMock.mockResolvedValue(mockArtikel);
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const gewichtInput = screen.getByRole("spinbutton", { name: "Gewicht" });
+    await user.clear(gewichtInput);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Gewicht moet een geldig getal zijn.")).toBeInTheDocument();
+    expect(updateArtikelMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an emptied voorraadMin field instead of silently saving it as 0", async () => {
+    const user = userEvent.setup();
+    updateArtikelMock.mockResolvedValue(mockArtikel);
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const voorraadMinInput = screen.getByRole("spinbutton", { name: "Min. voorraad" });
+    await user.clear(voorraadMinInput);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Min. voorraad moet een geldig getal zijn.")
+    ).toBeInTheDocument();
+    expect(updateArtikelMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an emptied verkoopprijs field (non-samengesteld) instead of silently saving it as 0", async () => {
+    const user = userEvent.setup();
+    updateArtikelMock.mockResolvedValue(mockArtikel);
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const verkoopprijsInput = screen.getByRole("spinbutton", { name: "Verkoopprijs" });
+    await user.clear(verkoopprijsInput);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Verkoopprijs moet een geldig getal zijn.")
+    ).toBeInTheDocument();
+    expect(updateArtikelMock).not.toHaveBeenCalled();
+  });
+
+  it("treats a whitespace-only leverancierNr as empty rather than as a valid number", async () => {
+    const user = userEvent.setup();
+    updateArtikelMock.mockResolvedValue(mockArtikel);
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const leverancierInput = screen.getByRole("spinbutton", { name: "Leverancier nr" });
+    // A real <input type="number"> rejects whitespace-only keystrokes, so
+    // this simulates the underlying form state directly (e.g. as if the
+    // field had been cleared via backspace-then-space, or the state were
+    // set programmatically) to pin down the `.trim() === ""` behaviour
+    // itself rather than the browser's number-input character filtering.
+    fireEvent.change(leverancierInput, { target: { value: "   " } });
 
     await user.click(screen.getByRole("button", { name: "Save" }));
 
