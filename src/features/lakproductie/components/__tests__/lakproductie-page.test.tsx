@@ -568,6 +568,44 @@ describe("LakproductiePage", () => {
     expect(screen.queryByText("SAPA.RAE.77778.AT")).not.toBeInTheDocument();
   });
 
+  it("filters order lines by kleur/techniek combinatie", async () => {
+    const user = userEvent.setup();
+    render(<LakproductiePage items={mockItems} />);
+    await user.click(screen.getByRole("combobox", { name: "Kleur/techniek" }));
+    await user.click(await screen.findByRole("option", { name: "LAK · RAL 9005 · Structuurlak" }));
+
+    expect(screen.getByText("2177999")).toBeInTheDocument();
+    expect(screen.queryByText("2177435")).not.toBeInTheDocument();
+    expect(screen.queryByText("2177500")).not.toBeInTheDocument();
+    expect(screen.queryByText("2178050")).not.toBeInTheDocument();
+  });
+
+  it("lists distinct kleur/techniek combinaties (groepeerKleur, falling back to behandeling) as filter options", async () => {
+    const user = userEvent.setup();
+    render(<LakproductiePage items={mockItems} />);
+    await user.click(screen.getByRole("combobox", { name: "Kleur/techniek" }));
+
+    expect(await screen.findByRole("option", { name: "Alle kleur/techniek combinaties" })).toBeInTheDocument();
+    // "ANO · TITANIUM" appears once even though two order lines share it.
+    expect(screen.getAllByRole("option", { name: "ANO · TITANIUM" })).toHaveLength(1);
+    expect(screen.getByRole("option", { name: "LAK · RAL 9005 · Structuurlak" })).toBeInTheDocument();
+    // Fallback to the raw behandeling code when nothing could be derived.
+    expect(screen.getByRole("option", { name: "WIL.101270.9016.COATEX" })).toBeInTheDocument();
+  });
+
+  it("defaults to showing all kleur/techniek combinaties", async () => {
+    const user = userEvent.setup();
+    render(<LakproductiePage items={mockItems} />);
+    // No kleur/techniek filter applied yet, so every order line is shown.
+    for (const item of mockItems) {
+      expect(screen.getByText(String(item.bonnr))).toBeInTheDocument();
+    }
+    await user.click(screen.getByRole("combobox", { name: "Kleur/techniek" }));
+    expect(
+      await screen.findByRole("option", { name: "Alle kleur/techniek combinaties" })
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
   it("disables the button for the 'Geen leverancier' subgroup", () => {
     const noSupplierItem: LakproductieItem = {
       ...baseFields,

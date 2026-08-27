@@ -16,22 +16,26 @@ const BRON_FILTER_LABELS: Record<LakproductieBron, string> = {
 
 export const ALLE_BRONNEN = "alle-bronnen";
 export const ALLE_LEVERANCIERS = "alle-leveranciers";
+export const ALLE_KLEUR_TECHNIEKEN = "alle-kleur-technieken";
 
 export type LakproductieFiltersState = {
   bron: LakproductieBron | typeof ALLE_BRONNEN;
   order: string;
   leverancier: string;
+  kleurTechniek: string;
 };
 
 export const DEFAULT_LAKPRODUCTIE_FILTERS: LakproductieFiltersState = {
   bron: ALLE_BRONNEN,
   order: "",
   leverancier: ALLE_LEVERANCIERS,
+  kleurTechniek: ALLE_KLEUR_TECHNIEKEN,
 };
 
 /**
- * Filterbalk boven de lakproductie-lijst: filtert op bron, order en
- * leverancier. `leveranciers` is de lijst van distincte leveranciers over
+ * Filterbalk boven de lakproductie-lijst: filtert op bron, order,
+ * leverancier en kleur/techniek. `leveranciers` en `kleurTechnieken` zijn
+ * de lijsten van distincte leveranciers/kleur-techniek-combinaties over
  * alle (ongefilterde) orderregels, zodat de opties stabiel blijven ook als
  * een andere filter de zichtbare rijen al beperkt.
  */
@@ -39,10 +43,12 @@ export function LakproductieFilters({
   filters,
   onFiltersChange,
   leveranciers,
+  kleurTechnieken,
 }: {
   filters: LakproductieFiltersState;
   onFiltersChange: (filters: LakproductieFiltersState) => void;
   leveranciers: string[];
+  kleurTechnieken: string[];
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-end gap-3">
@@ -107,6 +113,33 @@ export function LakproductieFilters({
             {leveranciers.map((leverancier) => (
               <SelectItem key={leverancier} value={leverancier}>
                 {leverancier}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label
+          htmlFor="lakproductie-filter-kleur-techniek"
+          className="text-[12px] text-muted-foreground"
+        >
+          Kleur/techniek
+        </label>
+        <Select
+          value={filters.kleurTechniek}
+          onValueChange={(value) =>
+            onFiltersChange({ ...filters, kleurTechniek: value ?? ALLE_KLEUR_TECHNIEKEN })
+          }
+        >
+          <SelectTrigger id="lakproductie-filter-kleur-techniek" className="w-[220px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALLE_KLEUR_TECHNIEKEN}>Alle kleur/techniek combinaties</SelectItem>
+            {kleurTechnieken.map((kleurTechniek) => (
+              <SelectItem key={kleurTechniek} value={kleurTechniek}>
+                {kleurTechniek}
               </SelectItem>
             ))}
           </SelectContent>
