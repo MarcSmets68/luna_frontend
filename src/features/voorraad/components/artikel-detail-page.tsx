@@ -137,6 +137,23 @@ export function ArtikelDetailPage({ artikel }: { artikel: ArtikelItem }) {
   }
 
   async function handleSave() {
+    if (form.leverancierNr.trim() === "") {
+      setError("Leverancier nr moet een geldig getal zijn.");
+      return;
+    }
+    if (form.gewicht.trim() === "") {
+      setError("Gewicht moet een geldig getal zijn.");
+      return;
+    }
+    if (form.voorraadMin.trim() === "") {
+      setError("Min. voorraad moet een geldig getal zijn.");
+      return;
+    }
+    if (form.voorraadMax.trim() === "") {
+      setError("Max. voorraad moet een geldig getal zijn.");
+      return;
+    }
+
     const leverancierNr = Number(form.leverancierNr);
     const gewicht = Number(form.gewicht);
     const voorraadMin = Number(form.voorraadMin);
@@ -167,6 +184,19 @@ export function ArtikelDetailPage({ artikel }: { artikel: ArtikelItem }) {
     let verkoopprijs = 0;
     let verkoopprijsIncl = 0;
     if (!artikel.isSamengesteld) {
+      if (form.aankoopprijs.trim() === "") {
+        setError("Aankoopprijs moet een geldig getal zijn.");
+        return;
+      }
+      if (form.verkoopprijs.trim() === "") {
+        setError("Verkoopprijs moet een geldig getal zijn.");
+        return;
+      }
+      if (form.verkoopprijsIncl.trim() === "") {
+        setError("Verkoopprijs incl. moet een geldig getal zijn.");
+        return;
+      }
+
       aankoopprijs = Number(form.aankoopprijs);
       verkoopprijs = Number(form.verkoopprijs);
       verkoopprijsIncl = Number(form.verkoopprijsIncl);

@@ -274,13 +274,7 @@ describe("ArtikelDetailPage", () => {
     expect(updateArtikelMock).not.toHaveBeenCalled();
   });
 
-  // NOTE (frontend-tester finding, not a fix): Number("") === 0, not NaN, so
-  // clearing a numeric field to empty and saving silently submits 0 instead
-  // of surfacing a validation error - the Number.isNaN() guards in
-  // handleSave() never actually trigger for an empty string. This test
-  // documents that current (surprising) behavior rather than asserting a
-  // fix; see the test report for why this should go back to the coder.
-  it("treats an emptied numeric field as 0 rather than rejecting it (documents a validation gap)", async () => {
+  it("rejects an emptied numeric field instead of silently saving it as 0", async () => {
     const user = userEvent.setup();
     updateArtikelMock.mockResolvedValue(mockArtikel);
     render(<ArtikelDetailPage artikel={mockArtikel} />);
@@ -291,12 +285,10 @@ describe("ArtikelDetailPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(updateArtikelMock).toHaveBeenCalledTimes(1));
-    expect(screen.queryByText(/moet een geldig getal zijn/)).not.toBeInTheDocument();
-    expect(updateArtikelMock).toHaveBeenCalledWith(
-      "AB123",
-      expect.objectContaining({ leverancierNr: 0 })
-    );
+    expect(
+      await screen.findByText("Leverancier nr moet een geldig getal zijn.")
+    ).toBeInTheDocument();
+    expect(updateArtikelMock).not.toHaveBeenCalled();
   });
 
   it("keeps the entered (unsaved) values visible in the form after a failed save", async () => {
