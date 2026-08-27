@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
@@ -40,89 +41,91 @@ export function KlantOrdersList({
   }
 
   return (
-    <div>
-      <h2 className="mb-3 text-[16px] font-semibold text-foreground">Orders</h2>
+    <Card className="border-t-4 border-chart-2 bg-chart-2/8">
+      <CardContent>
+        <h2 className="mb-3 text-[16px] font-semibold text-foreground">Orders</h2>
 
-      {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Geen orders gevonden voor deze klant.</p>
-      ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Bonnr</TableHead>
-                <TableHead>Datum</TableHead>
-                <TableHead>Bedrag</TableHead>
-                <TableHead>Munt</TableHead>
-                <TableHead>Besteldatum</TableHead>
-                <TableHead>Leverdatum</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow
-                  key={item.bonnr}
-                  tabIndex={0}
-                  role="link"
-                  aria-label={`Open bon ${item.bonnr}`}
-                  className="cursor-pointer focus:bg-muted/50 focus:outline-none"
-                  onClick={() => goToBon(item.bonnr)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      goToBon(item.bonnr);
-                    }
-                  }}
-                >
-                  <TableCell className="font-semibold">{item.bonnr}</TableCell>
-                  <TableCell>{formatDatum(item.datum)}</TableCell>
-                  <TableCell>{formatBedrag(item.bedrag)}</TableCell>
-                  <TableCell>{item.munt}</TableCell>
-                  <TableCell>{formatDatum(item.besteldatum)}</TableCell>
-                  <TableCell>{formatDatum(item.levDatum)}</TableCell>
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Geen orders gevonden voor deze klant.</p>
+        ) : (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bonnr</TableHead>
+                  <TableHead>Datum</TableHead>
+                  <TableHead>Bedrag</TableHead>
+                  <TableHead>Munt</TableHead>
+                  <TableHead>Besteldatum</TableHead>
+                  <TableHead>Leverdatum</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow
+                    key={item.bonnr}
+                    tabIndex={0}
+                    role="link"
+                    aria-label={`Open bon ${item.bonnr}`}
+                    className="cursor-pointer focus:bg-muted/50 focus:outline-none"
+                    onClick={() => goToBon(item.bonnr)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        goToBon(item.bonnr);
+                      }
+                    }}
+                  >
+                    <TableCell className="font-semibold">{item.bonnr}</TableCell>
+                    <TableCell>{formatDatum(item.datum)}</TableCell>
+                    <TableCell>{formatBedrag(item.bedrag)}</TableCell>
+                    <TableCell>{item.munt}</TableCell>
+                    <TableCell>{formatDatum(item.besteldatum)}</TableCell>
+                    <TableCell>{formatDatum(item.levDatum)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
-          <div className="mt-4 flex items-center justify-end gap-2">
-            {page > 1 ? (
-              <Link
-                href={pageHref(page - 1)}
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              >
-                <ChevronLeft />
-                Vorige
-              </Link>
-            ) : (
-              <span
-                aria-disabled
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "pointer-events-none opacity-50")}
-              >
-                <ChevronLeft />
-                Vorige
-              </span>
-            )}
-            {hasMore ? (
-              <Link
-                href={pageHref(page + 1)}
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              >
-                Volgende
-                <ChevronRight />
-              </Link>
-            ) : (
-              <span
-                aria-disabled
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "pointer-events-none opacity-50")}
-              >
-                Volgende
-                <ChevronRight />
-              </span>
-            )}
-          </div>
-        </>
-      )}
-    </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              {page > 1 ? (
+                <Link
+                  href={pageHref(page - 1)}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                >
+                  <ChevronLeft />
+                  Vorige
+                </Link>
+              ) : (
+                <span
+                  aria-disabled
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "pointer-events-none opacity-50")}
+                >
+                  <ChevronLeft />
+                  Vorige
+                </span>
+              )}
+              {hasMore ? (
+                <Link
+                  href={pageHref(page + 1)}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                >
+                  Volgende
+                  <ChevronRight />
+                </Link>
+              ) : (
+                <span
+                  aria-disabled
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "pointer-events-none opacity-50")}
+                >
+                  Volgende
+                  <ChevronRight />
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
