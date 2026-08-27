@@ -18,7 +18,7 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardResponse }) {
       </div>
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-[26px] font-bold text-foreground">Dashboard</h1>
-        <div className="text-[13px] text-[#5e5e5e] capitalize">{today}</div>
+        <div className="text-[13px] text-muted-foreground capitalize">{today}</div>
       </div>
 
       <StatCards statCards={dashboard.statCards} />

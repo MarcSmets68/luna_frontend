@@ -30,9 +30,9 @@ export function ProductionCard({ items }: { items: DashboardProductionItem[] }) 
               <span>{order.bonnr}</span>
               <span className="font-normal text-muted-foreground">{formatDatum(order.leverdatum)}</span>
             </div>
-            <div className="mt-0.5 text-[12px] text-[#5e5e5e]">{order.klant}</div>
-            <div className="mt-0.5 text-[12px] text-[#5e5e5e]">€ {formatBedrag(order.bedrag)}</div>
-            <Badge className="mt-1.5 rounded-none border-none bg-secondary px-1.75 py-0.5 text-[10.5px] font-bold tracking-[0.03em] text-[#5e5e5e]">
+            <div className="mt-0.5 text-[12px] text-muted-foreground">{order.klant}</div>
+            <div className="mt-0.5 text-[12px] text-muted-foreground">€ {formatBedrag(order.bedrag)}</div>
+            <Badge className="mt-1.5 rounded-none border-none bg-secondary px-1.75 py-0.5 text-[10.5px] font-bold tracking-[0.03em] text-muted-foreground">
               Openstaand
             </Badge>
           </div>

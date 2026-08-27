@@ -20,7 +20,7 @@ export function RecentActivityCard({ items }: { items: DashboardActivityItem[] }
               (i < items.length - 1 ? "border-b border-muted" : "")
             }
           >
-            <span className="text-[#444444]">{item.text}</span>
+            <span className="text-foreground">{item.text}</span>
             <span className="ml-3 shrink-0 text-muted-foreground">{formatDatum(item.datum)}</span>
           </div>
         ))}

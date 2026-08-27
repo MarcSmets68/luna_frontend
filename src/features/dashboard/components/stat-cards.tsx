@@ -13,9 +13,9 @@ type StatCard = {
 };
 
 const hintColorClass: Record<HintColor, string> = {
-  default: "text-[#5e5e5e]",
+  default: "text-muted-foreground",
   positive: "text-primary",
-  warning: "text-[#8a6820]",
+  warning: "text-warning-700",
 };
 
 function buildStatCards(statCards: DashboardStatCards): StatCard[] {
@@ -60,13 +60,13 @@ export function StatCards({ statCards }: { statCards: DashboardStatCards }) {
       {cards.map((stat) => (
         <Card key={stat.label} className="rounded-none border-border shadow-none">
           <CardContent className="px-5 py-1">
-            <div className="mb-2 text-[11px] font-semibold tracking-[0.05em] text-[#787878] uppercase">
+            <div className="mb-2 text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
               {stat.label}
             </div>
             <div
               className={cn(
                 "text-[22px] font-bold whitespace-nowrap",
-                stat.hintColor === "warning" ? "text-[#8a6820]" : "text-foreground"
+                stat.hintColor === "warning" ? "text-warning-700" : "text-foreground"
               )}
             >
               {stat.value}

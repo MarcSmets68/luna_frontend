@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
-import { Source_Sans_3, EB_Garamond } from "next/font/google";
+import { Questrial } from "next/font/google";
 import "./globals.css";
 
-const sourceSans = Source_Sans_3({
-  variable: "--font-source-sans",
+const questrial = Questrial({
+  variable: "--font-questrial",
   subsets: ["latin"],
-});
-
-const ebGaramond = EB_Garamond({
-  variable: "--font-eb-garamond",
-  subsets: ["latin"],
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -21,7 +17,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="nl"
-      className={`${sourceSans.variable} ${ebGaramond.variable} h-full antialiased`}
+      className={`${questrial.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
