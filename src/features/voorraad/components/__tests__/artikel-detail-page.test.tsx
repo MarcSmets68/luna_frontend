@@ -1,7 +1,22 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ArtikelDetailPage } from "../artikel-detail-page";
 import type { ArtikelItem } from "@/lib/api-client";
+
+const refreshMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: refreshMock }),
+}));
+
+const updateArtikelMock = vi.fn();
+vi.mock("@/lib/api-client", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
+  return {
+    ...actual,
+    updateArtikel: (...args: unknown[]) => updateArtikelMock(...args),
+  };
+});
 
 const mockArtikel: ArtikelItem = {
   artnr: "AB123",
@@ -24,7 +39,13 @@ const mockArtikel: ArtikelItem = {
   gewicht: 1.2,
   type: "STD",
   datum: "2026-01-01",
+  isSamengesteld: false,
 };
+
+beforeEach(() => {
+  updateArtikelMock.mockReset();
+  refreshMock.mockReset();
+});
 
 describe("ArtikelDetailPage", () => {
   it("renders the omschrijving as heading and the artnr", () => {
@@ -64,5 +85,121 @@ describe("ArtikelDetailPage", () => {
       "href",
       "/voorraad"
     );
+  });
+
+  it("does not show editable fields until 'Verbeteren' is clicked", () => {
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+    expect(screen.queryByRole("textbox", { name: "Merk" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
+  });
+
+  it("switches to editable fields after clicking 'Verbeteren', with artnr staying read-only", async () => {
+    const user = userEvent.setup();
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    expect(screen.getByRole("textbox", { name: "Merk" })).toHaveValue("MERK");
+    expect(screen.getByText("Artikelnr")).toBeInTheDocument();
+    expect(screen.getByText("AB123")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Artikelnr" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("reverts changes and does not call the API on cancel", async () => {
+    const user = userEvent.setup();
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const merkInput = screen.getByRole("textbox", { name: "Merk" });
+    await user.clear(merkInput);
+    await user.type(merkInput, "Foutief merk");
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(updateArtikelMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "Merk" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Testartikel" })).toBeInTheDocument();
+  });
+
+  it("saves the edited fields and refreshes on success", async () => {
+    const user = userEvent.setup();
+    updateArtikelMock.mockResolvedValue({ ...mockArtikel, merk: "NIEUW MERK" });
+
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    const merkInput = screen.getByRole("textbox", { name: "Merk" });
+    await user.clear(merkInput);
+    await user.type(merkInput, "NIEUW MERK");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateArtikelMock).toHaveBeenCalledTimes(1));
+    expect(updateArtikelMock).toHaveBeenCalledWith(
+      "AB123",
+      expect.objectContaining({
+        merk: "NIEUW MERK",
+        aankoopprijs: 10,
+        verkoopprijs: 15.5,
+        verkoopprijsIncl: 18.76,
+        voorraadMin: 5,
+        voorraadMax: 100,
+      })
+    );
+    expect(refreshMock).toHaveBeenCalled();
+  });
+
+  it("shows an error and does not call the API when a numeric field is invalid", async () => {
+    const user = userEvent.setup();
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    const gewichtInput = screen.getByRole("spinbutton", { name: "Gewicht" });
+    await user.clear(gewichtInput);
+    await user.type(gewichtInput, "-5");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Gewicht moet een geldig getal zijn.")).toBeInTheDocument();
+    expect(updateArtikelMock).not.toHaveBeenCalled();
+  });
+
+  it("shows an error and stays in edit mode when the API call fails", async () => {
+    const user = userEvent.setup();
+    updateArtikelMock.mockRejectedValue(new Error("Artikel AB123 not found"));
+
+    render(<ArtikelDetailPage artikel={mockArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Artikel AB123 not found")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("disables the price fields and omits them from the payload when isSamengesteld is true", async () => {
+    const user = userEvent.setup();
+    const samengesteldArtikel = { ...mockArtikel, isSamengesteld: true };
+    updateArtikelMock.mockResolvedValue(samengesteldArtikel);
+
+    render(<ArtikelDetailPage artikel={samengesteldArtikel} />);
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    expect(screen.getByRole("spinbutton", { name: "Aankoopprijs" })).toBeDisabled();
+    expect(screen.getByRole("spinbutton", { name: "Verkoopprijs" })).toBeDisabled();
+    expect(screen.getByRole("spinbutton", { name: "Verkoopprijs incl." })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateArtikelMock).toHaveBeenCalledTimes(1));
+    const payload = updateArtikelMock.mock.calls[0][1];
+    expect(payload).not.toHaveProperty("aankoopprijs");
+    expect(payload).not.toHaveProperty("verkoopprijs");
+    expect(payload).not.toHaveProperty("verkoopprijsIncl");
   });
 });

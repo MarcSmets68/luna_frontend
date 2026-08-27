@@ -225,6 +225,7 @@ export type ArtikelItem = {
   gewicht: number;
   type: string;
   datum: string | null;
+  isSamengesteld: boolean;
 };
 
 type ArtikelenResponse = {
@@ -272,6 +273,54 @@ export async function getArtikel(artnr: string): Promise<ArtikelItem | null> {
   const data = await apiGet<ArtikelenResponse>(`/artikel?${query}`);
   const match = data.items.find((item) => item.artnr.toUpperCase() === target.toUpperCase());
   return match ?? null;
+}
+
+/**
+ * Partial update payload for an artikel - every field is optional (only
+ * fields present are changed). `artnr` (immutable primary key), `voorraad`
+ * (aantal), `stock` and `datum` are deliberately excluded - not editable
+ * through this endpoint.
+ */
+export type UpdateArtikelPayload = Partial<
+  Pick<
+    ArtikelItem,
+    | "omschrijvingNl"
+    | "omschrijvingFr"
+    | "merk"
+    | "groep"
+    | "type"
+    | "barcode"
+    | "leverancierNr"
+    | "gewicht"
+    | "munt"
+    | "btwKode"
+    | "aankoopprijs"
+    | "verkoopprijs"
+    | "verkoopprijsIncl"
+    | "voorraadMin"
+    | "voorraadMax"
+    | "geblokkeerd"
+  >
+>;
+
+/**
+ * Updates an artikel. Only fields present in `payload` change (partial update).
+ * artnr values with a literal "%" can't round-trip through the path form
+ * (PUT /web/artikel/{artnr}) - same PASOE/Tomcat path-normalization issue as
+ * getArtikel() - so this function switches to the query form
+ * (PUT /web/artikel?artnr=...) whenever the artnr contains "%".
+ * Backend: PUT /web/artikel/{artnr} or PUT /web/artikel?artnr=... (Luna.Web.ArtikelHandler).
+ */
+export async function updateArtikel(
+  artnr: string,
+  payload: UpdateArtikelPayload
+): Promise<ArtikelItem> {
+  const target = artnr.trim();
+  if (target.includes("%")) {
+    const query = `artnr=${encodeURIComponent(target)}`;
+    return apiPut<ArtikelItem>(`/artikel?${query}`, payload);
+  }
+  return apiPut<ArtikelItem>(`/artikel/${encodeURIComponent(target)}`, payload);
 }
 
 export type KlantItem = {
