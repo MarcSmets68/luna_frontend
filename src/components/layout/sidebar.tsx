@@ -24,9 +24,9 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <aside className={cn("flex h-full w-58 shrink-0 flex-col bg-sidebar", className)}>
       <div className="px-5 pt-6 pb-4.5">
-        <div className="font-serif text-[26px] leading-none text-white">
+        <div className="text-[26px] leading-none text-white">
           <span className="font-normal">Noma</span>
-          <em className="font-bold not-italic text-primary italic">led</em>
+          <em className="font-bold not-italic text-primary">led</em>
         </div>
         <div className="mt-1.5 text-[9px] font-semibold tracking-[0.16em] text-sidebar-foreground/70 uppercase">
           ERP &amp; CRM · Intern

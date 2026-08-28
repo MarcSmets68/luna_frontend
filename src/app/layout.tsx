@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
-import { Source_Sans_3, EB_Garamond } from "next/font/google";
+import { Questrial } from "next/font/google";
 import "./globals.css";
 
-const sourceSans = Source_Sans_3({
-  variable: "--font-source-sans",
-  subsets: ["latin"],
-});
-
-const ebGaramond = EB_Garamond({
-  variable: "--font-eb-garamond",
+// Century Gothic itself is a Monotype-licensed font with no free web
+// distribution - Questrial is loaded as the geometric-sans fallback for
+// non-Windows/Office environments (see docs/design-system.md §3).
+const questrial = Questrial({
+  variable: "--font-questrial",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -19,10 +18,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="nl"
-      className={`${sourceSans.variable} ${ebGaramond.variable} h-full antialiased`}
-    >
+    <html lang="nl" className={`${questrial.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
