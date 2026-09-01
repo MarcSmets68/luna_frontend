@@ -3,10 +3,15 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/web";
 
-async function apiGet<T>(path: string): Promise<T> {
+// Optional extra headers merged into every request - added for auth-bearing
+// calls (e.g. logout()'s "X-Auth-Token: <token>") without changing the
+// signature of existing call sites that don't pass any.
+type ExtraHeaders = Record<string, string>;
+
+async function apiGet<T>(path: string, extraHeaders: ExtraHeaders = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "GET",
-    headers: { Accept: "application/json" },
+    headers: { Accept: "application/json", ...extraHeaders },
     cache: "no-store",
   });
 
@@ -17,10 +22,14 @@ async function apiGet<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function apiPost<T>(path: string, body: unknown): Promise<T> {
+async function apiPost<T>(
+  path: string,
+  body: unknown,
+  extraHeaders: ExtraHeaders = {}
+): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    headers: { Accept: "application/json", "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(body),
   });
 
@@ -36,10 +45,14 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function apiPut<T>(path: string, body: unknown): Promise<T> {
+async function apiPut<T>(
+  path: string,
+  body: unknown,
+  extraHeaders: ExtraHeaders = {}
+): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "PUT",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    headers: { Accept: "application/json", "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(body),
   });
 
@@ -55,10 +68,10 @@ async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function apiDelete<T>(path: string): Promise<T> {
+async function apiDelete<T>(path: string, extraHeaders: ExtraHeaders = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "DELETE",
-    headers: { Accept: "application/json" },
+    headers: { Accept: "application/json", ...extraHeaders },
   });
 
   if (!response.ok) {
@@ -71,6 +84,46 @@ async function apiDelete<T>(path: string): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+export type LoginRequest = { kode: string; password: string };
+
+export type LoginResult = {
+  token: string;
+  kode: string;
+  naam: string;
+  niveau: number;
+  everyoneAdminActive: boolean;
+  expiresAt: string;
+};
+
+/**
+ * Authenticates a gebruiker. See docs/architecture/login-auth-ontwerp.md
+ * §1.2 for the exact request/response contract (incl. the 400/401/403
+ * error messages, surfaced verbatim by apiPost's error handling above).
+ * Backend: POST /web/login (Luna.Web.LoginHandler + AuthBE.Login()).
+ */
+export async function login(payload: LoginRequest): Promise<LoginResult> {
+  return apiPost<LoginResult>("/login", payload);
+}
+
+/**
+ * Ends the session server-side (deletes the authenticationToken record).
+ * Callers are expected to clear the local session (see
+ * features/auth/session.ts) regardless of whether this call succeeds -
+ * see docs/architecture/login-auth-ontwerp.md §1.3/§4.2.
+ * Backend: POST /web/logout (Luna.Web.LogoutHandler + AuthBE.Logout()),
+ * auth via "X-Auth-Token: <token>" header (§1.4 - PASOE/Tomcat intercepts
+ * the standard "Authorization" header before it reaches the WebHandler,
+ * so a custom header is used instead; see the deviation note in
+ * docs/architecture/login-auth-ontwerp.md §1.4).
+ */
+export async function logout(token: string): Promise<{ message: string }> {
+  return apiPost<{ message: string }>(
+    "/logout",
+    {},
+    { "X-Auth-Token": token }
+  );
 }
 
 export type LakproductieBron = "lopende-orders" | "lopende-productielijnen" | "min-max-voorraad";
@@ -884,6 +937,53 @@ export async function getDashboard(): Promise<DashboardResponse> {
   }
 
   return response.json() as Promise<DashboardResponse>;
+}
+
+export type AiSearchFilter = {
+  field: string;
+  operator: "eq" | "prefix" | "contains" | "range";
+  value: unknown;
+};
+
+export type AiSearchIntent = {
+  entity: string;
+  filters: AiSearchFilter[];
+  aggregation: { type: "sum" | "avg" | "min" | "max" | "count"; field: string } | null;
+  confidence: number;
+} | null;
+
+export type AiSearchResultType = "results" | "no_results" | "clarification";
+
+/**
+ * `items` is deliberately `Record<string, unknown>[]` rather than a typed
+ * entity (BonItem/KlantItem/...) - the shape of each row depends on
+ * `entity`, which is only known at runtime from the AI-derived intent.
+ * Callers/components render columns dynamically from `Object.keys(item)`
+ * instead of assuming a fixed shape.
+ */
+export type AiSearchResponse = {
+  queryText: string;
+  resultType: AiSearchResultType;
+  entity: string | null;
+  intent: AiSearchIntent;
+  items: Record<string, unknown>[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  summary: string | null;
+  clarificationQuestion: string | null;
+};
+
+/**
+ * Sends a free-text prompt to the AI search endpoint, which interprets it
+ * into a query intent (entity + filters/aggregation) and returns either a
+ * page of results, a "no_results" summary, or a clarification question
+ * when the prompt is too ambiguous to resolve. Errors (502/500/network)
+ * surface via `apiPost`'s standard `{"error":{"message"}}` handling above.
+ * Backend: POST /web/ai-search (Luna.Web.AiSearchHandler).
+ */
+export async function searchDashboardAi(prompt: string): Promise<AiSearchResponse> {
+  return apiPost<AiSearchResponse>("/ai-search", { prompt });
 }
 
 export type DevUserItem = {

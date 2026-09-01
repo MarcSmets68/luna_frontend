@@ -27,6 +27,7 @@ import { LakproductieDetailDialog } from "./lakproductie-detail-dialog";
 import { BestellingPreviewDialog } from "./bestelling-preview-dialog";
 import {
   ALLE_BRONNEN,
+  ALLE_KLEUR_TECHNIEKEN,
   ALLE_LEVERANCIERS,
   DEFAULT_LAKPRODUCTIE_FILTERS,
   LakproductieFilters,
@@ -128,6 +129,12 @@ function matchesFilters(item: LakproductieItem, filters: LakproductieFiltersStat
   if (filters.leverancier !== ALLE_LEVERANCIERS && item.lakNaam !== filters.leverancier) {
     return false;
   }
+  if (
+    filters.kleurTechniek !== ALLE_KLEUR_TECHNIEKEN &&
+    (item.groepeerKleur || item.behandeling) !== filters.kleurTechniek
+  ) {
+    return false;
+  }
   if (filters.order.trim() !== "") {
     if (!item.bonnr || !String(item.bonnr).includes(filters.order.trim())) return false;
   }
@@ -176,6 +183,9 @@ export function LakproductiePage({ items }: { items: LakproductieItem[] }) {
   const leveranciers = [...new Set(items.map((item) => item.lakNaam).filter(Boolean))].sort(
     (a, b) => a.localeCompare(b)
   );
+  const kleurTechnieken = [
+    ...new Set(items.map((item) => item.groepeerKleur || item.behandeling).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b));
   // Overrides eerst toepassen, zodat filteren/groeperen/renderen overal
   // consistent met de (eventueel lokaal aangepaste) waarden gebeurt - een
   // lijn verhuist dus meteen naar de juiste leverancier-subgroep zodra je
@@ -213,6 +223,7 @@ export function LakproductiePage({ items }: { items: LakproductieItem[] }) {
         filters={filters}
         onFiltersChange={setFilters}
         leveranciers={leveranciers}
+        kleurTechnieken={kleurTechnieken}
       />
 
       {filteredItems.length === 0 ? (
