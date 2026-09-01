@@ -41,6 +41,51 @@ describe("AiSearchCard", () => {
     expect(screen.getByRole("button", { name: "Zoeken" })).toBeInTheDocument();
   });
 
+  it("keeps the submit button disabled for empty/whitespace-only input and never calls the API", async () => {
+    const user = userEvent.setup();
+    render(<AiSearchCard />);
+    const submitButton = screen.getByRole("button", { name: "Zoeken" });
+    const textbox = screen.getByRole("textbox", { name: "AI-zoekopdracht" });
+
+    expect(submitButton).toBeDisabled();
+
+    await user.type(textbox, "   ");
+    expect(submitButton).toBeDisabled();
+
+    // Clicking a disabled button is a no-op in the DOM, but also guard the
+    // handler itself in case the disabled attribute is ever dropped.
+    await user.click(submitButton);
+    expect(searchDashboardAiMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores a second rapid submit while the first request is still pending", async () => {
+    let resolveSearch: (value: AiSearchResponse) => void = () => {};
+    searchDashboardAiMock.mockImplementation(
+      () =>
+        new Promise<AiSearchResponse>((resolve) => {
+          resolveSearch = resolve;
+        })
+    );
+
+    const user = userEvent.setup();
+    render(<AiSearchCard />);
+    await user.type(screen.getByRole("textbox", { name: "AI-zoekopdracht" }), "open offertes");
+
+    const submitButton = screen.getByRole("button", { name: "Zoeken" });
+    await user.click(submitButton);
+    // Button is now disabled/relabeled, but fire the submit event again to
+    // confirm the handler's own isLoading guard also blocks a re-entrant call.
+    const form = screen.getByRole("textbox", { name: "AI-zoekopdracht" }).closest("form")!;
+    form.requestSubmit();
+
+    expect(searchDashboardAiMock).toHaveBeenCalledTimes(1);
+
+    resolveSearch({ ...baseResponse, resultType: "no_results", summary: "Geen resultaten." });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Zoeken" })).not.toBeDisabled()
+    );
+  });
+
   it("shows the loading state while the request is pending and does not fetch on page load", async () => {
     expect(searchDashboardAiMock).not.toHaveBeenCalled();
 
