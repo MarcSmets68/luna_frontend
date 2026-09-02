@@ -939,6 +939,53 @@ export async function getDashboard(): Promise<DashboardResponse> {
   return response.json() as Promise<DashboardResponse>;
 }
 
+export type AiSearchFilter = {
+  field: string;
+  operator: "eq" | "prefix" | "contains" | "range";
+  value: unknown;
+};
+
+export type AiSearchIntent = {
+  entity: string;
+  filters: AiSearchFilter[];
+  aggregation: { type: "sum" | "avg" | "min" | "max" | "count"; field: string } | null;
+  confidence: number;
+} | null;
+
+export type AiSearchResultType = "results" | "no_results" | "clarification";
+
+/**
+ * `items` is deliberately `Record<string, unknown>[]` rather than a typed
+ * entity (BonItem/KlantItem/...) - the shape of each row depends on
+ * `entity`, which is only known at runtime from the AI-derived intent.
+ * Callers/components render columns dynamically from `Object.keys(item)`
+ * instead of assuming a fixed shape.
+ */
+export type AiSearchResponse = {
+  queryText: string;
+  resultType: AiSearchResultType;
+  entity: string | null;
+  intent: AiSearchIntent;
+  items: Record<string, unknown>[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  summary: string | null;
+  clarificationQuestion: string | null;
+};
+
+/**
+ * Sends a free-text prompt to the AI search endpoint, which interprets it
+ * into a query intent (entity + filters/aggregation) and returns either a
+ * page of results, a "no_results" summary, or a clarification question
+ * when the prompt is too ambiguous to resolve. Errors (502/500/network)
+ * surface via `apiPost`'s standard `{"error":{"message"}}` handling above.
+ * Backend: POST /web/ai-search (Luna.Web.AiSearchHandler).
+ */
+export async function searchDashboardAi(prompt: string): Promise<AiSearchResponse> {
+  return apiPost<AiSearchResponse>("/ai-search", { prompt });
+}
+
 export type DevUserItem = {
   kode: string;
   naam: string;

@@ -2,6 +2,7 @@ import type { DashboardResponse } from "@/lib/api-client";
 import { StatCards } from "./stat-cards";
 import { RecentActivityCard } from "./recent-activity-card";
 import { ProductionCard } from "./production-card";
+import { AiSearchCard } from "./ai-search-card";
 
 const today = new Date().toLocaleDateString("nl-BE", {
   weekday: "long",
@@ -27,6 +28,8 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardResponse }) {
         <RecentActivityCard items={dashboard.recentActivity} />
         <ProductionCard items={dashboard.productionThisWeek} />
       </div>
+
+      <AiSearchCard />
     </div>
   );
 }
