@@ -93,6 +93,51 @@ describe("buildCsvContent", () => {
     expect(csv).toContain('"FOO; BAR BV"');
   });
 
+  it("preserves accented characters and emits the exact UTF-8 BOM byte sequence (EF BB BF)", () => {
+    const csv = buildCsvContent(
+      [
+        {
+          klnr: 2001,
+          naam: "Café Lumière BVBA",
+          aantalFurOrders: 2,
+          totaalAantalStuks: 15,
+          laatsteBesteldatum: "2026-02-10",
+        },
+      ],
+      "2025-08-20",
+      "2026-08-20"
+    );
+
+    expect(csv).toContain("Café Lumière BVBA");
+
+    const bytes = new TextEncoder().encode(csv);
+    expect(Array.from(bytes.slice(0, 3))).toEqual([0xef, 0xbb, 0xbf]);
+
+    // After stripping the BOM, the accented name round-trips through UTF-8
+    // encoding/decoding unchanged (byte-level check, not just JS string
+    // equality, since that's what Excel will actually read from disk).
+    const decoded = new TextDecoder("utf-8").decode(bytes.slice(3));
+    expect(decoded).toContain("Café Lumière BVBA");
+  });
+
+  it("escapes a naam field containing a double quote in a full buildCsvContent fixture", () => {
+    const csv = buildCsvContent(
+      [
+        {
+          klnr: 3001,
+          naam: 'Say "Hi" Lighting BVBA',
+          aantalFurOrders: 1,
+          totaalAantalStuks: 1,
+          laatsteBesteldatum: "2026-01-01",
+        },
+      ],
+      "2025-08-20",
+      "2026-08-20"
+    );
+
+    expect(csv).toContain('3001;"Say ""Hi"" Lighting BVBA";1;1;2026-01-01');
+  });
+
   it("renders an empty field for a null laatsteBesteldatum, not an em dash", () => {
     const csv = buildCsvContent(
       [
