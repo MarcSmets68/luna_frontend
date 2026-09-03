@@ -52,4 +52,55 @@ describe("VerkoopFurPage", () => {
     expect(screen.getByText("Geen dealers gevonden in deze periode")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
+
+  it("renders rows in the exact order given by the backend, without re-sorting client-side", () => {
+    // Deliberately NOT sorted descending by totaalAantalStuks (6 before 42)
+    // - the backend is the sole source of sort order (Marc-confirmed,
+    // descending totaalAantalStuks, see verkoop-fur-ontwerp.md Open flags
+    // #3). The frontend must render whatever order it receives, never
+    // re-sort locally.
+    const unsortedItems: VerkoopFurItem[] = [
+      {
+        klnr: 10165,
+        naam: "STUDIO ARTLIGHT BV",
+        aantalFurOrders: 1,
+        totaalAantalStuks: 6,
+        laatsteBesteldatum: "2026-03-02",
+      },
+      {
+        klnr: 14644,
+        naam: "CONE LIGHTING BV",
+        aantalFurOrders: 3,
+        totaalAantalStuks: 42,
+        laatsteBesteldatum: "2026-07-15",
+      },
+    ];
+
+    render(
+      <VerkoopFurPage items={unsortedItems} periodeVan="2025-08-20" periodeTot="2026-08-20" />
+    );
+
+    const rows = screen.getAllByRole("row").slice(1); // drop header row
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("10165");
+    expect(rows[0]).toHaveTextContent("STUDIO ARTLIGHT BV");
+    expect(rows[1]).toHaveTextContent("14644");
+    expect(rows[1]).toHaveTextContent("CONE LIGHTING BV");
+  });
+
+  it("formats totaalAantalStuks with nl-BE thousands separators", () => {
+    const items: VerkoopFurItem[] = [
+      {
+        klnr: 20001,
+        naam: "GROOTAFNEMER BV",
+        aantalFurOrders: 12,
+        totaalAantalStuks: 12345,
+        laatsteBesteldatum: "2026-01-10",
+      },
+    ];
+
+    render(<VerkoopFurPage items={items} periodeVan="2025-08-20" periodeTot="2026-08-20" />);
+
+    expect(screen.getByText("12.345")).toBeInTheDocument();
+  });
 });
