@@ -81,6 +81,53 @@ describe("KlantDetailPage", () => {
     expect(screen.getByText("Nee")).toBeInTheDocument();
   });
 
+  it("groups the fields into the 'Algemeen' and 'Contact & Financieel' sections", () => {
+    render(
+      <KlantDetailPage
+        klant={mockKlant}
+        offertes={mockOffertes}
+        offertesPage={1}
+        offertesHasMore={false}
+        orders={mockOrders}
+        ordersPage={1}
+        ordersHasMore={false}
+      />
+    );
+    expect(screen.getByText("Algemeen")).toBeInTheDocument();
+    expect(screen.getByText("Contact & Financieel")).toBeInTheDocument();
+  });
+
+  it("toggles the 'Geblokkeerd' checkbox in edit mode and includes it in the saved payload", async () => {
+    const user = userEvent.setup();
+    updateKlantMock.mockResolvedValue({ ...mockKlant, geblokkeerd: true });
+
+    render(
+      <KlantDetailPage
+        klant={mockKlant}
+        offertes={mockOffertes}
+        offertesPage={1}
+        offertesHasMore={false}
+        orders={mockOrders}
+        ordersPage={1}
+        ordersHasMore={false}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    expect(screen.getByText("Nee")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox"));
+    expect(screen.getByText("Ja")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateKlantMock).toHaveBeenCalledTimes(1));
+    expect(updateKlantMock).toHaveBeenCalledWith(
+      14644,
+      expect.objectContaining({ geblokkeerd: true })
+    );
+  });
+
   it("renders both the offertes and orders sections", () => {
     render(
       <KlantDetailPage

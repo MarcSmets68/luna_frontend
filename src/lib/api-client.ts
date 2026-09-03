@@ -1,7 +1,8 @@
 // Single typed client for all PASOE WebHandler calls - components must not
 // call fetch() directly (see root AGENTS.md, frontend constraints).
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/web";
+// Use server-side env var (not NEXT_PUBLIC_) to keep API URL private
+const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:8080/web";
 
 // Optional extra headers merged into every request - added for auth-bearing
 // calls (e.g. logout()'s "X-Auth-Token: <token>") without changing the
@@ -626,6 +627,33 @@ export async function getBonnen(
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
   return apiGet<BonnenResponse>(`/bon?${query.toString()}`);
+}
+
+export type VerkoopFurItem = {
+  klnr: number;
+  naam: string;
+  aantalFurOrders: number;
+  totaalAantalStuks: number;
+  laatsteBesteldatum: string; // ISO date "YYYY-MM-DD"
+};
+
+export type VerkoopFurResponse = {
+  items: VerkoopFurItem[];
+  periodeVan: string; // ISO date
+  periodeTot: string; // ISO date
+  generatedAt: string; // ISO datetime
+};
+
+/**
+ * Rolling-12-months overzicht van dealers met NOMALED.FUR*-orderregels,
+ * gesorteerd server-side descending op totaalAantalStuks (Marc-bevestigd,
+ * zie docs/architecture/verkoop-fur-ontwerp.md Open flags #3) - geen
+ * query-params, geen paginatie (dealer-lijst is klein).
+ * Backend: GET /web/rapportage/verkoop-fur (Luna.Web.RapportageHandler +
+ * Luna.BusinessLogic.VerkoopFurBE).
+ */
+export async function getVerkoopFurOverzicht(): Promise<VerkoopFurResponse> {
+  return apiGet<VerkoopFurResponse>("/rapportage/verkoop-fur");
 }
 
 export type BestelorderItem = {

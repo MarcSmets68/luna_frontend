@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/section-label";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import type { BonItem } from "@/lib/api-client";
@@ -41,7 +42,9 @@ export function KlantOrdersList({
 
   return (
     <div>
-      <h2 className="mb-3 text-[16px] font-semibold text-foreground">Orders</h2>
+      <h2 className="mb-3">
+        <SectionLabel>Orders</SectionLabel>
+      </h2>
 
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Geen orders gevonden voor deze klant.</p>
