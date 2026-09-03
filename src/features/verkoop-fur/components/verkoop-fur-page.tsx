@@ -7,21 +7,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { VerkoopFurItem } from "@/lib/api-client";
-
-const DASH = "\u2014";
-
-function formatDate(iso: string | null): string {
-  if (!iso) return DASH;
-  return new Date(iso).toLocaleDateString("nl-BE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-function formatStuks(value: number): string {
-  return value.toLocaleString("nl-BE", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
+import { VerkoopFurExportToolbar } from "./verkoop-fur-export-toolbar";
+import { formatDate, formatStuks } from "../lib/verkoop-fur-format";
 
 export function VerkoopFurPage({
   items,
@@ -39,8 +26,11 @@ export function VerkoopFurPage({
       </div>
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-[26px] font-bold text-foreground">Verkoop FUR</h1>
-        <div className="text-[13px] text-muted-foreground">
-          Periode: {formatDate(periodeVan)} t/m {formatDate(periodeTot)}
+        <div className="flex items-center gap-4">
+          <div className="text-[13px] text-muted-foreground">
+            Periode: {formatDate(periodeVan)} t/m {formatDate(periodeTot)}
+          </div>
+          <VerkoopFurExportToolbar items={items} periodeVan={periodeVan} periodeTot={periodeTot} />
         </div>
       </div>
 

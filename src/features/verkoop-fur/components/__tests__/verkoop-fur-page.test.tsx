@@ -103,4 +103,13 @@ describe("VerkoopFurPage", () => {
 
     expect(screen.getByText("12.345")).toBeInTheDocument();
   });
+
+  it("renders the export toolbar with a PDF and a CSV button", () => {
+    render(
+      <VerkoopFurPage items={mockItems} periodeVan="2025-08-20" periodeTot="2026-08-20" />
+    );
+
+    expect(screen.getByRole("button", { name: /PDF/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /CSV/ })).toBeInTheDocument();
+  });
 });
