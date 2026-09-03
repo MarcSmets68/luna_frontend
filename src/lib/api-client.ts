@@ -823,6 +823,82 @@ export async function updateKlant(
   return apiPut<KlantItem>(`/klant/${klnr}`, payload);
 }
 
+export type KlantAdresItem = {
+  klnr: number;
+  lijnnr: number;
+  naam: string;
+  naam1: string;
+  adres: string;
+  postnr: string;
+  stad: string;
+  standaard: boolean;
+};
+
+type KlantAdressenResponse = {
+  items: KlantAdresItem[];
+};
+
+/**
+ * Adressen (delivery/billing addresses) for a klant. No pagination -
+ * the backend returns every address for the klnr in one response.
+ * Backend: GET /web/klant/{klnr}/adres (Luna.Web.KlantHandler, read-only).
+ */
+export async function getKlantAdressen(klnr: number): Promise<KlantAdresItem[]> {
+  const data = await apiGet<KlantAdressenResponse>(`/klant/${klnr}/adres`);
+  return data.items;
+}
+
+export type KlantContactItem = {
+  klnr: number;
+  lijnnr: number;
+  naam: string;
+  voornaam: string;
+  aanspreking: string;
+  netTel: string;
+  tel: string;
+  gsm: string;
+  email: string;
+  standaard: boolean;
+  opm: string;
+  soort: string;
+};
+
+type KlantContactenResponse = {
+  items: KlantContactItem[];
+};
+
+/**
+ * Contactpersonen for a klant. No pagination - the backend returns every
+ * contact for the klnr in one response.
+ * Backend: GET /web/klant/{klnr}/contact (Luna.Web.KlantHandler, read-only).
+ */
+export async function getKlantContacten(klnr: number): Promise<KlantContactItem[]> {
+  const data = await apiGet<KlantContactenResponse>(`/klant/${klnr}/contact`);
+  return data.items;
+}
+
+export type KlantKortingItem = {
+  klnr: number;
+  artnr: string;
+  korting: number;
+  naam: string;
+};
+
+type KlantKortingenResponse = {
+  items: KlantKortingItem[];
+};
+
+/**
+ * Klant-specifieke kortingen (per-artikel discounts) for a klant. No
+ * pagination - the backend returns every korting row for the klnr in one
+ * response. `naam` is server-derived (the artikel's naam) and read-only.
+ * Backend: GET /web/klant/{klnr}/korting (Luna.Web.KlantHandler, read-only).
+ */
+export async function getKlantKortingen(klnr: number): Promise<KlantKortingItem[]> {
+  const data = await apiGet<KlantKortingenResponse>(`/klant/${klnr}/korting`);
+  return data.items;
+}
+
 export type FactuurItem = {
   facnr: number;
   type: boolean;
