@@ -3,6 +3,9 @@ import { RequireSessionBoundary } from "@/features/auth/components/require-sessi
 import { DashboardPage } from "@/features/dashboard/components/dashboard-page";
 import { getDashboard } from "@/lib/api-client";
 
+// Force dynamic rendering to prevent build-time API calls
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const dashboard = await getDashboard();
 

@@ -43,3 +43,5 @@ next-env.d.ts
 # logs
 *.log
 !package-lock.json
+
+.vercel
