@@ -1,7 +1,8 @@
 // Single typed client for all PASOE WebHandler calls - components must not
 // call fetch() directly (see root AGENTS.md, frontend constraints).
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/web";
+// Use server-side env var (not NEXT_PUBLIC_) to keep API URL private
+const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:8080/web";
 
 // Optional extra headers merged into every request - added for auth-bearing
 // calls (e.g. logout()'s "X-Auth-Token: <token>") without changing the
