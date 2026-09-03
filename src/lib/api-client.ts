@@ -629,6 +629,33 @@ export async function getBonnen(
   return apiGet<BonnenResponse>(`/bon?${query.toString()}`);
 }
 
+export type VerkoopFurItem = {
+  klnr: number;
+  naam: string;
+  aantalFurOrders: number;
+  totaalAantalStuks: number;
+  laatsteBesteldatum: string; // ISO date "YYYY-MM-DD"
+};
+
+export type VerkoopFurResponse = {
+  items: VerkoopFurItem[];
+  periodeVan: string; // ISO date
+  periodeTot: string; // ISO date
+  generatedAt: string; // ISO datetime
+};
+
+/**
+ * Rolling-12-months overzicht van dealers met NOMALED.FUR*-orderregels,
+ * gesorteerd server-side descending op totaalAantalStuks (Marc-bevestigd,
+ * zie docs/architecture/verkoop-fur-ontwerp.md Open flags #3) - geen
+ * query-params, geen paginatie (dealer-lijst is klein).
+ * Backend: GET /web/rapportage/verkoop-fur (Luna.Web.RapportageHandler +
+ * Luna.BusinessLogic.VerkoopFurBE).
+ */
+export async function getVerkoopFurOverzicht(): Promise<VerkoopFurResponse> {
+  return apiGet<VerkoopFurResponse>("/rapportage/verkoop-fur");
+}
+
 export type BestelorderItem = {
   ordnr: number;
   stempel: string;
