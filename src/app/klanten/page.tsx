@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/layout/app-shell";
+import { ApiErrorMessage } from "@/components/error/api-error-message";
 import { KlantenPage } from "@/features/klanten/components/klanten-page";
 import { getKlanten } from "@/lib/api-client";
 
@@ -11,7 +12,13 @@ export default async function Klanten({
 }) {
   const { page: pageParam, naam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const { items, hasMore } = await getKlanten({ naam, page, pageSize: PAGE_SIZE });
+  
+  let items, hasMore;
+  try {
+    ({ items, hasMore } = await getKlanten({ naam, page, pageSize: PAGE_SIZE }));
+  } catch (error) {
+    return <ApiErrorMessage error={error} pageName="klanten" />;
+  }
 
   return (
     <AppShell>
