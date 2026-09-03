@@ -1,21 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { FieldGroup } from "@/components/ui/field-group";
+import { EntityDetailHeader } from "@/components/ui/entity-detail-header";
+import { FlagGrid } from "@/components/ui/flag-grid";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { KlantOffertesList } from "./klant-offertes-list";
 import { KlantOrdersList } from "./klant-orders-list";
+import { KlantAdressenList } from "./klant-adressen-list";
+import { KlantContactenList } from "./klant-contacten-list";
+import { KlantFacturenList } from "./klant-facturen-list";
+import { KlantKortingenList } from "./klant-kortingen-list";
 import {
   updateKlant,
   type BonItem,
+  type FactuurItem,
+  type KlantAdresItem,
+  type KlantContactItem,
   type KlantItem,
+  type KlantKortingItem,
   type OfferteItem,
   type UpdateKlantPayload,
 } from "@/lib/api-client";
@@ -114,6 +124,12 @@ export function KlantDetailPage({
   orders,
   ordersPage,
   ordersHasMore,
+  adressen,
+  contacten,
+  kortingen,
+  facturen,
+  facturenPage,
+  facturenHasMore,
 }: {
   klant: KlantItem;
   offertes: OfferteItem[];
@@ -122,12 +138,26 @@ export function KlantDetailPage({
   orders: BonItem[];
   ordersPage: number;
   ordersHasMore: boolean;
+  adressen: KlantAdresItem[];
+  contacten: KlantContactItem[];
+  kortingen: KlantKortingItem[];
+  facturen: FactuurItem[];
+  facturenPage: number;
+  facturenHasMore: boolean;
 }) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("algemeen");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<KlantFormState>(() => toFormState(klant));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isDirty = useMemo(() => {
+    const original = toFormState(klant);
+    return (Object.keys(original) as (keyof KlantFormState)[]).some(
+      (key) => original[key] !== form[key]
+    );
+  }, [klant, form]);
 
   const setField = <K extends keyof KlantFormState>(key: K, value: KlantFormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -167,6 +197,21 @@ export function KlantDetailPage({
     }
   }
 
+  const headerActions = editing ? (
+    <>
+      <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
+        Cancel
+      </Button>
+      <Button type="button" onClick={handleSave} disabled={saving}>
+        {saving ? "Bezig..." : "Save"}
+      </Button>
+    </>
+  ) : (
+    <Button type="button" size="sm" onClick={startEditing}>
+      Verbeteren
+    </Button>
+  );
+
   return (
     <div>
       <Link
@@ -179,157 +224,217 @@ export function KlantDetailPage({
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         Klanten
       </div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-[26px] font-bold text-foreground">{klant.naam}</h1>
-        <div className="flex items-center gap-3">
-          <div className="text-[13px] text-muted-foreground">Klantnr {klant.klnr}</div>
-          {!editing && (
-            <Button type="button" size="sm" onClick={startEditing}>
-              Verbeteren
-            </Button>
-          )}
-        </div>
-      </div>
 
-      <Card className="mb-6">
-        <CardContent>
-          {editing ? (
-            <>
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <FieldGroup title="Algemeen">
-                  <DetailField label="Klantnr" value={String(klant.klnr)} />
-                  <EditField label="Naam" value={form.naam} onChange={(v) => setField("naam", v)} />
-                  <EditField
-                    label="Naam 1"
-                    value={form.naam1}
-                    onChange={(v) => setField("naam1", v)}
-                  />
-                  <EditField
-                    label="Contact"
-                    value={form.contact}
-                    onChange={(v) => setField("contact", v)}
-                  />
-                  <EditField
-                    label="Adres"
-                    value={form.adres}
-                    onChange={(v) => setField("adres", v)}
-                  />
-                  <EditField
-                    label="Postnr"
-                    value={form.postnr}
-                    onChange={(v) => setField("postnr", v)}
-                  />
-                  <EditField label="Stad" value={form.stad} onChange={(v) => setField("stad", v)} />
-                  <EditField label="Land" value={form.land} onChange={(v) => setField("land", v)} />
-                </FieldGroup>
+      <EntityDetailHeader
+        title={klant.naam}
+        subtitle={`Klantnr ${klant.klnr}`}
+        dirty={editing && isDirty}
+        actions={headerActions}
+      />
 
-                <FieldGroup title="Contact & Financieel">
-                  <EditField
-                    label="Telefoon"
-                    value={form.tel}
-                    onChange={(v) => setField("tel", v)}
-                  />
-                  <EditField label="Fax" value={form.fax} onChange={(v) => setField("fax", v)} />
-                  <EditField label="GSM" value={form.gsm} onChange={(v) => setField("gsm", v)} />
-                  <EditField
-                    label="E-mail"
-                    value={form.email}
-                    onChange={(v) => setField("email", v)}
-                    type="email"
-                  />
-                  <EditField label="Taal" value={form.taal} onChange={(v) => setField("taal", v)} />
-                  <EditField label="Munt" value={form.munt} onChange={(v) => setField("munt", v)} />
-                  <EditField
-                    label="BTW-nr"
-                    value={form.btwNr}
-                    onChange={(v) => setField("btwNr", v)}
-                  />
-                  <EditField
-                    label="Saldo"
-                    value={form.saldo}
-                    onChange={(v) => setField("saldo", v)}
-                    type="number"
-                  />
-                  <div className="grid grid-cols-[140px_1fr] items-center gap-3">
-                    <div className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
-                      Geblokkeerd
-                    </div>
-                    <label className="flex h-8 items-center gap-2">
-                      <Checkbox
-                        checked={form.geblokkeerd}
-                        onCheckedChange={() => setField("geblokkeerd", !form.geblokkeerd)}
-                        aria-label="Geblokkeerd"
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(String(value))}>
+        <TabsList>
+          <TabsTrigger value="algemeen">Algemeen</TabsTrigger>
+          <TabsTrigger value="adressen">Adressen</TabsTrigger>
+          <TabsTrigger value="contactpersonen">Contactpersonen</TabsTrigger>
+          <TabsTrigger value="offertes">Offertes</TabsTrigger>
+          <TabsTrigger value="orders">Orders</TabsTrigger>
+          <TabsTrigger value="financieel">Financieel</TabsTrigger>
+          <TabsTrigger value="kortingen">Kortingen</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="algemeen">
+          <Card>
+            <CardContent>
+              {editing ? (
+                <>
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <FieldGroup title="Algemeen">
+                      <DetailField label="Klantnr" value={String(klant.klnr)} />
+                      <EditField
+                        label="Naam"
+                        value={form.naam}
+                        onChange={(v) => setField("naam", v)}
                       />
-                      <span className="text-sm text-foreground">
-                        {form.geblokkeerd ? "Ja" : "Nee"}
-                      </span>
-                    </label>
+                      <EditField
+                        label="Naam 1"
+                        value={form.naam1}
+                        onChange={(v) => setField("naam1", v)}
+                      />
+                      <EditField
+                        label="Contact"
+                        value={form.contact}
+                        onChange={(v) => setField("contact", v)}
+                      />
+                      <EditField
+                        label="Adres"
+                        value={form.adres}
+                        onChange={(v) => setField("adres", v)}
+                      />
+                      <EditField
+                        label="Postnr"
+                        value={form.postnr}
+                        onChange={(v) => setField("postnr", v)}
+                      />
+                      <EditField
+                        label="Stad"
+                        value={form.stad}
+                        onChange={(v) => setField("stad", v)}
+                      />
+                      <EditField
+                        label="Land"
+                        value={form.land}
+                        onChange={(v) => setField("land", v)}
+                      />
+                    </FieldGroup>
+
+                    <FieldGroup title="Contact & Financieel">
+                      <EditField
+                        label="Telefoon"
+                        value={form.tel}
+                        onChange={(v) => setField("tel", v)}
+                      />
+                      <EditField label="Fax" value={form.fax} onChange={(v) => setField("fax", v)} />
+                      <EditField label="GSM" value={form.gsm} onChange={(v) => setField("gsm", v)} />
+                      <EditField
+                        label="E-mail"
+                        value={form.email}
+                        onChange={(v) => setField("email", v)}
+                        type="email"
+                      />
+                      <EditField
+                        label="Taal"
+                        value={form.taal}
+                        onChange={(v) => setField("taal", v)}
+                      />
+                      <EditField
+                        label="Munt"
+                        value={form.munt}
+                        onChange={(v) => setField("munt", v)}
+                      />
+                      <EditField
+                        label="BTW-nr"
+                        value={form.btwNr}
+                        onChange={(v) => setField("btwNr", v)}
+                      />
+                      <EditField
+                        label="Saldo"
+                        value={form.saldo}
+                        onChange={(v) => setField("saldo", v)}
+                        type="number"
+                      />
+                      <EditField
+                        label="Opmerking"
+                        value={form.opm}
+                        onChange={(v) => setField("opm", v)}
+                      />
+                    </FieldGroup>
                   </div>
-                  <EditField
-                    label="Opmerking"
-                    value={form.opm}
-                    onChange={(v) => setField("opm", v)}
-                  />
-                </FieldGroup>
-              </div>
 
-              {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+                  <div className="mt-6">
+                    <FlagGrid
+                      title="Kenmerken"
+                      items={[
+                        {
+                          key: "geblokkeerd",
+                          label: "Geblokkeerd",
+                          checked: form.geblokkeerd,
+                          onToggle: () => setField("geblokkeerd", !form.geblokkeerd),
+                        },
+                      ]}
+                    />
+                  </div>
 
-              <div className="mt-6 flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
-                  Cancel
-                </Button>
-                <Button type="button" onClick={handleSave} disabled={saving}>
-                  {saving ? "Bezig..." : "Save"}
-                </Button>
-              </div>
-            </>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <FieldGroup title="Algemeen">
-                <DetailField label="Klantnr" value={String(klant.klnr)} />
-                <DetailField label="Naam" value={klant.naam} />
-                <DetailField label="Naam 1" value={klant.naam1} />
-                <DetailField label="Contact" value={klant.contact} />
-                <DetailField label="Adres" value={klant.adres} />
-                <DetailField label="Postnr" value={klant.postnr} />
-                <DetailField label="Stad" value={klant.stad} />
-                <DetailField label="Land" value={klant.land} />
-              </FieldGroup>
+                  {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <FieldGroup title="Algemeen">
+                      <DetailField label="Klantnr" value={String(klant.klnr)} />
+                      <DetailField label="Naam" value={klant.naam} />
+                      <DetailField label="Naam 1" value={klant.naam1} />
+                      <DetailField label="Contact" value={klant.contact} />
+                      <DetailField label="Adres" value={klant.adres} />
+                      <DetailField label="Postnr" value={klant.postnr} />
+                      <DetailField label="Stad" value={klant.stad} />
+                      <DetailField label="Land" value={klant.land} />
+                    </FieldGroup>
 
-              <FieldGroup title="Contact & Financieel">
-                <DetailField label="Telefoon" value={klant.tel} />
-                <DetailField label="Fax" value={klant.fax} />
-                <DetailField label="GSM" value={klant.gsm} />
-                <DetailField label="E-mail" value={klant.email} />
-                <DetailField label="Taal" value={klant.taal} />
-                <DetailField label="Munt" value={klant.munt} />
-                <DetailField label="BTW-nr" value={klant.btwNr} />
-                <DetailField label="Saldo" value={formatSaldo(klant.saldo)} />
-                <DetailField label="Geblokkeerd" value={klant.geblokkeerd ? "Ja" : "Nee"} />
-                <DetailField label="Opmerking" value={klant.opm} />
-              </FieldGroup>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    <FieldGroup title="Contact & Financieel">
+                      <DetailField label="Telefoon" value={klant.tel} />
+                      <DetailField label="Fax" value={klant.fax} />
+                      <DetailField label="GSM" value={klant.gsm} />
+                      <DetailField label="E-mail" value={klant.email} />
+                      <DetailField label="Taal" value={klant.taal} />
+                      <DetailField label="Munt" value={klant.munt} />
+                      <DetailField label="BTW-nr" value={klant.btwNr} />
+                      <DetailField label="Saldo" value={formatSaldo(klant.saldo)} />
+                      <DetailField label="Opmerking" value={klant.opm} />
+                    </FieldGroup>
+                  </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <KlantOffertesList
-          klnr={klant.klnr}
-          items={offertes}
-          page={offertesPage}
-          hasMore={offertesHasMore}
-          ordersPage={ordersPage}
-        />
-        <KlantOrdersList
-          klnr={klant.klnr}
-          items={orders}
-          page={ordersPage}
-          hasMore={ordersHasMore}
-          offertesPage={offertesPage}
-        />
-      </div>
+                  <div className="mt-6">
+                    <FlagGrid
+                      title="Kenmerken"
+                      items={[
+                        {
+                          key: "geblokkeerd",
+                          label: "Geblokkeerd",
+                          checked: klant.geblokkeerd,
+                          onToggle: () => {},
+                          disabled: true,
+                        },
+                      ]}
+                    />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="adressen">
+          <KlantAdressenList items={adressen} />
+        </TabsContent>
+
+        <TabsContent value="contactpersonen">
+          <KlantContactenList items={contacten} />
+        </TabsContent>
+
+        <TabsContent value="offertes">
+          <KlantOffertesList
+            klnr={klant.klnr}
+            items={offertes}
+            page={offertesPage}
+            hasMore={offertesHasMore}
+            ordersPage={ordersPage}
+          />
+        </TabsContent>
+
+        <TabsContent value="orders">
+          <KlantOrdersList
+            klnr={klant.klnr}
+            items={orders}
+            page={ordersPage}
+            hasMore={ordersHasMore}
+            offertesPage={offertesPage}
+          />
+        </TabsContent>
+
+        <TabsContent value="financieel">
+          <KlantFacturenList
+            klnr={klant.klnr}
+            items={facturen}
+            page={facturenPage}
+            hasMore={facturenHasMore}
+          />
+        </TabsContent>
+
+        <TabsContent value="kortingen">
+          <KlantKortingenList items={kortingen} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
