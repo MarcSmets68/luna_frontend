@@ -46,8 +46,8 @@ describe("VerkoopFurExportToolbar", () => {
   beforeEach(() => {
     createObjectURLSpy = vi.fn(() => "blob:mock-url");
     revokeObjectURLSpy = vi.fn();
-    URL.createObjectURL = createObjectURLSpy;
-    URL.revokeObjectURL = revokeObjectURLSpy;
+    URL.createObjectURL = createObjectURLSpy as unknown as (obj: Blob | MediaSource) => string;
+    URL.revokeObjectURL = revokeObjectURLSpy as unknown as (url: string) => void;
     clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   });
 
