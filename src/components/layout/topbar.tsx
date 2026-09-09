@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,10 +23,13 @@ function initialsFor(session: Session): string {
 
 export function Topbar({ className }: { className?: string }) {
   const router = useRouter();
-  // Lazy initial state (not an effect) - getSession() itself guards for a
-  // browser environment, so this is safe during SSR (returns null there)
-  // and reads the real session synchronously on client render/hydration.
-  const [session, setSession] = useState<Session | null>(() => getSession());
+  // Start with null on both server and client, then load session after
+  // hydration to avoid mismatch (server has no localStorage access).
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    setSession(getSession());
+  }, []);
 
   async function handleLogout() {
     try {
