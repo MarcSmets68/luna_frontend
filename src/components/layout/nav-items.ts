@@ -29,6 +29,7 @@ export const navItems: NavItem[] = [
     children: [
       { key: "orders-all", label: "Alle orders", href: "/orders/alle", available: true },
       { key: "lakproductie", label: "Lakproduktie", href: "/lakproduktie", available: true },
+      { key: "pakbonnen", label: "Pakbonnen", href: "/pakbonnen", available: true },
     ],
   },
   { key: "bestellingen", label: "Bestellingen", href: "/bestellingen", available: true },
