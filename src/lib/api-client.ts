@@ -584,6 +584,10 @@ export type BonLijnItem = {
   subtotaal: boolean;
   kolomtitel: boolean;
   infolijn: boolean;
+  // Voorraadreservering (added fase2) - always present on GET responses.
+  gereserv: number;
+  effectiefGereserv: number;
+  swEffectief: boolean;
 };
 
 type BonLijnenResponse = {
@@ -598,6 +602,433 @@ type BonLijnenResponse = {
 export async function getBonLijnen(bonnr: number): Promise<BonLijnItem[]> {
   const data = await apiGet<BonLijnenResponse>(`/bon/${bonnr}/lijn`);
   return data.items;
+}
+
+/**
+ * Reserves (positive delta) or releases (negative delta) stock against a
+ * bonlijn. Returns the full, updated bonlijn - callers should use the
+ * response directly to refresh the UI instead of re-fetching
+ * `getBonLijnen`. Client-side callers should hint the valid range
+ * `[0, teLeveren - gereserv]` for UX, but the server remains the source of
+ * truth for the 400 validation error.
+ * Backend: POST /web/bon/{bonnr}/lijn/{lijnnr}/reservering (Luna.Web.BonHandler).
+ */
+export async function reserveerBonLijn(
+  bonnr: number,
+  lijnnr: number,
+  delta: number
+): Promise<BonLijnItem> {
+  return apiPost<BonLijnItem>(`/bon/${bonnr}/lijn/${lijnnr}/reservering`, { delta });
+}
+
+export type BonLijnProductieItem = {
+  bonnr: number;
+  blijnnr: number;
+  lijnnr: number;
+  artnr: string;
+  aantal: number;
+  gereserv: number;
+  effectiefGereserv: number;
+  swEffectief: boolean;
+  besteld: number;
+  omschr: string;
+};
+
+type BonLijnProductieResponse = {
+  items: BonLijnProductieItem[];
+};
+
+/**
+ * Productie-sublijnen (bonlijn_productie) for a single bonlijn - the
+ * production breakdown of one order line.
+ * Backend: GET /web/bon/{bonnr}/lijn/{blijnnr}/productie (Luna.Web.BonHandler).
+ */
+export async function getBonLijnProductie(
+  bonnr: number,
+  blijnnr: number
+): Promise<BonLijnProductieItem[]> {
+  const data = await apiGet<BonLijnProductieResponse>(`/bon/${bonnr}/lijn/${blijnnr}/productie`);
+  return data.items;
+}
+
+/**
+ * Creation payload for a productie-sublijn - `bonnr`/`blijnnr` come from
+ * the URL, `lijnnr` is server-assigned.
+ */
+export type CreateBonLijnProductiePayload = Omit<
+  BonLijnProductieItem,
+  "bonnr" | "blijnnr" | "lijnnr"
+>;
+
+/**
+ * Backend: POST /web/bon/{bonnr}/lijn/{blijnnr}/productie (Luna.Web.BonHandler).
+ */
+export async function createBonLijnProductie(
+  bonnr: number,
+  blijnnr: number,
+  payload: CreateBonLijnProductiePayload
+): Promise<BonLijnProductieItem> {
+  return apiPost<BonLijnProductieItem>(`/bon/${bonnr}/lijn/${blijnnr}/productie`, payload);
+}
+
+/**
+ * Partial update payload for a productie-sublijn.
+ */
+export type UpdateBonLijnProductiePayload = Partial<
+  Omit<BonLijnProductieItem, "bonnr" | "blijnnr" | "lijnnr">
+>;
+
+/**
+ * Backend: PUT /web/bon/{bonnr}/lijn/{blijnnr}/productie/{lijnnr} (Luna.Web.BonHandler).
+ */
+export async function updateBonLijnProductie(
+  bonnr: number,
+  blijnnr: number,
+  lijnnr: number,
+  payload: UpdateBonLijnProductiePayload
+): Promise<BonLijnProductieItem> {
+  return apiPut<BonLijnProductieItem>(
+    `/bon/${bonnr}/lijn/${blijnnr}/productie/${lijnnr}`,
+    payload
+  );
+}
+
+/**
+ * Deletes a productie-sublijn. Can respond with 409 when the sublijn is
+ * already besteld (besteld <> 0) - surfaces the server's exact message via
+ * `apiDelete`'s standard error handling, no client-side prediction of that
+ * rule.
+ * Backend: DELETE /web/bon/{bonnr}/lijn/{blijnnr}/productie/{lijnnr} (Luna.Web.BonHandler).
+ */
+export async function deleteBonLijnProductie(
+  bonnr: number,
+  blijnnr: number,
+  lijnnr: number
+): Promise<{ status: string; lijnnr: number }> {
+  return apiDelete<{ status: string; lijnnr: number }>(
+    `/bon/${bonnr}/lijn/${blijnnr}/productie/${lijnnr}`
+  );
+}
+
+/**
+ * Which pakbon(nen) a bonlijn is (partially) included in - shown as a
+ * small reference block on the bon detail page. Shape not yet confirmed
+ * against the live backend - verify field names once the pakbon endpoints
+ * are deployed (see handoff note).
+ * Backend: GET /web/bon/{bonnr}/lijn/{lijnnr}/pakbonnen (Luna.Web.BonHandler).
+ */
+export type BonLijnPakbonRef = {
+  paknr: number;
+  stempel: string;
+  datum: string | null;
+  afgehaald: boolean;
+};
+
+type BonLijnPakbonnenResponse = {
+  items: BonLijnPakbonRef[];
+};
+
+export async function getBonLijnPakbonnen(
+  bonnr: number,
+  lijnnr: number
+): Promise<BonLijnPakbonRef[]> {
+  const data = await apiGet<BonLijnPakbonnenResponse>(`/bon/${bonnr}/lijn/${lijnnr}/pakbonnen`);
+  return data.items;
+}
+
+export type BonLedItem = {
+  bonnr: number;
+  groepnr: number;
+  ledLijn: number;
+  lijnnr: number;
+  docLijnnr: number;
+  soort: string;
+  kode: string;
+  artnr: string;
+  aantal: number;
+  lengte: number;
+  lMaat: number;
+  rMaat: number;
+  switch1: string;
+  switch2: string;
+  reflector: string;
+  prijs: number;
+  montagePrijs: number;
+  circuit: string;
+  comp: string;
+  sturing: string;
+  opm: string;
+  // Verplicht op index 1 - server valideert dit met een 400 als het
+  // ontbreekt (zie Backend-contract).
+  siktaKleurKodes: string[];
+  // Read-only, server-berekend:
+  teLeveren: number;
+  gereserv: number;
+  effectiefGereserv: number;
+  swEffectief: boolean;
+  besteld: number;
+  prebesteld: number;
+  voorraad: number;
+  levDatum: string | null;
+  bestelDatum: string | null;
+  montageDatum: string | null;
+  controle: boolean;
+};
+
+type BonLedResponse = {
+  items: BonLedItem[];
+};
+
+/**
+ * LED-configuratielijnen voor een bon.
+ * Backend: GET /web/bon/{bonnr}/led (Luna.Web.BonHandler).
+ */
+export async function getBonLedLijnen(bonnr: number): Promise<BonLedItem[]> {
+  const data = await apiGet<BonLedResponse>(`/bon/${bonnr}/led`);
+  return data.items;
+}
+
+/**
+ * Creation payload for a LED-configuratielijn - `bonnr`/`lijnnr` are
+ * server-assigned (path param + generated), the read-only server-derived
+ * fields are omitted. `siktaKleurKodes[1]` is required by the backend
+ * (400 if missing) - enforced client-side too for immediate UX feedback,
+ * but the server's exact error message is always surfaced if it still
+ * occurs.
+ */
+export type CreateBonLedPayload = Omit<
+  BonLedItem,
+  | "bonnr"
+  | "lijnnr"
+  | "teLeveren"
+  | "gereserv"
+  | "effectiefGereserv"
+  | "swEffectief"
+  | "besteld"
+  | "prebesteld"
+  | "voorraad"
+  | "levDatum"
+  | "bestelDatum"
+  | "montageDatum"
+  | "controle"
+>;
+
+/**
+ * Backend: POST /web/bon/{bonnr}/led (Luna.Web.BonHandler). 409 if the
+ * gekoppelde bonlijn heeft stempel "D" - surfaced verbatim via apiPost.
+ */
+export async function createBonLedLijn(
+  bonnr: number,
+  payload: CreateBonLedPayload
+): Promise<BonLedItem> {
+  return apiPost<BonLedItem>(`/bon/${bonnr}/led`, payload);
+}
+
+export type UpdateBonLedPayload = Partial<CreateBonLedPayload>;
+
+/**
+ * Backend: PUT /web/bon/{bonnr}/led/{groepnr}/{ledLijn}/{lijnnr} (Luna.Web.BonHandler).
+ * Same 400 (siktaKleurKodes[1]) / 409 (stempel "D") rules as create.
+ */
+export async function updateBonLedLijn(
+  bonnr: number,
+  groepnr: number,
+  ledLijn: number,
+  lijnnr: number,
+  payload: UpdateBonLedPayload
+): Promise<BonLedItem> {
+  return apiPut<BonLedItem>(`/bon/${bonnr}/led/${groepnr}/${ledLijn}/${lijnnr}`, payload);
+}
+
+/**
+ * Backend: DELETE /web/bon/{bonnr}/led/{groepnr}/{ledLijn}/{lijnnr} (Luna.Web.BonHandler).
+ */
+export async function deleteBonLedLijn(
+  bonnr: number,
+  groepnr: number,
+  ledLijn: number,
+  lijnnr: number
+): Promise<{ status: string; lijnnr: number }> {
+  return apiDelete<{ status: string; lijnnr: number }>(
+    `/bon/${bonnr}/led/${groepnr}/${ledLijn}/${lijnnr}`
+  );
+}
+
+export type BonLedQcItem = {
+  bonnr: number;
+  groepnr: number;
+  datum: string | null;
+  volgnr: number;
+  lijnnr: number;
+  omschr: string;
+  controle: boolean;
+  id: string;
+  info: string;
+  swInfo: boolean;
+};
+
+type BonLedQcResponse = {
+  items: BonLedQcItem[];
+};
+
+/**
+ * QC-registraties voor de LED-configuratie van een bon.
+ * Backend: GET /web/bon/{bonnr}/led-qc (Luna.Web.BonHandler).
+ */
+export async function getBonLedQc(bonnr: number): Promise<BonLedQcItem[]> {
+  const data = await apiGet<BonLedQcResponse>(`/bon/${bonnr}/led-qc`);
+  return data.items;
+}
+
+export type CreateBonLedQcPayload = Omit<BonLedQcItem, "bonnr" | "volgnr">;
+
+/**
+ * Backend: POST /web/bon/{bonnr}/led-qc (Luna.Web.BonHandler).
+ */
+export async function createBonLedQc(
+  bonnr: number,
+  payload: CreateBonLedQcPayload
+): Promise<BonLedQcItem> {
+  return apiPost<BonLedQcItem>(`/bon/${bonnr}/led-qc`, payload);
+}
+
+export type UpdateBonLedQcPayload = Partial<CreateBonLedQcPayload>;
+
+/**
+ * Backend: PUT /web/bon/{bonnr}/led-qc/{groepnr}/{volgnr}/{lijnnr} (Luna.Web.BonHandler).
+ */
+export async function updateBonLedQc(
+  bonnr: number,
+  groepnr: number,
+  volgnr: number,
+  lijnnr: number,
+  payload: UpdateBonLedQcPayload
+): Promise<BonLedQcItem> {
+  return apiPut<BonLedQcItem>(`/bon/${bonnr}/led-qc/${groepnr}/${volgnr}/${lijnnr}`, payload);
+}
+
+/**
+ * Backend: DELETE /web/bon/{bonnr}/led-qc/{groepnr}/{volgnr}/{lijnnr} (Luna.Web.BonHandler).
+ */
+export async function deleteBonLedQc(
+  bonnr: number,
+  groepnr: number,
+  volgnr: number,
+  lijnnr: number
+): Promise<{ status: string; volgnr: number }> {
+  return apiDelete<{ status: string; volgnr: number }>(
+    `/bon/${bonnr}/led-qc/${groepnr}/${volgnr}/${lijnnr}`
+  );
+}
+
+export type HerstelStempel =
+  | "ONTVANGST"
+  | "DIAGNOSE"
+  | "OND.BESTELD"
+  | "IN HERSTELLING"
+  | "HERSTELD";
+
+export type BonHerstelItem = {
+  bonnr: number;
+  artnr: string;
+  omschr: string;
+  probleem: string;
+  facnr: number;
+  facDatum: string | null;
+  ordnr: number;
+  levDatum: string | null;
+  bestek: string;
+  bestekKosten: number;
+  stempel: HerstelStempel;
+  herstelling: string;
+  datum: string | null;
+  refLev: string;
+  rapnr: string;
+  levnr: number;
+  locatie: string;
+  herstelDatum: string | null;
+  herstelLocatieDatum: string | null;
+  technieker: string;
+  maxKosten: number;
+  garantie: boolean;
+  prior: number;
+  opmTechn: string;
+};
+
+/**
+ * Herstel-dossier voor een bon van type "HERSTELLING". Returns `null` when
+ * the backend responds with 404 (nog geen herstel-dossier aangemaakt),
+ * mirroring the not-found pattern used elsewhere in this client.
+ * Backend: GET /web/bon/{bonnr}/herstel (Luna.Web.BonHandler). 409 if
+ * bon.type is not "HERSTELLING".
+ */
+export async function getBonHerstel(bonnr: number): Promise<BonHerstelItem | null> {
+  const path = `/bon/${bonnr}/herstel`;
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const error = (await response.json().catch(() => null)) as {
+      error?: { message?: string };
+    } | null;
+    throw new Error(
+      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+    );
+  }
+
+  return response.json() as Promise<BonHerstelItem>;
+}
+
+export type CreateBonHerstelPayload = Omit<BonHerstelItem, "bonnr">;
+
+/**
+ * Backend: POST /web/bon/{bonnr}/herstel (Luna.Web.BonHandler). 409 if
+ * bon.type is not "HERSTELLING".
+ */
+export async function createBonHerstel(
+  bonnr: number,
+  payload: CreateBonHerstelPayload
+): Promise<BonHerstelItem> {
+  return apiPost<BonHerstelItem>(`/bon/${bonnr}/herstel`, payload);
+}
+
+export type UpdateBonHerstelPayload = Partial<CreateBonHerstelPayload>;
+
+/**
+ * Backend: PUT /web/bon/{bonnr}/herstel (Luna.Web.BonHandler).
+ */
+export async function updateBonHerstel(
+  bonnr: number,
+  payload: UpdateBonHerstelPayload
+): Promise<BonHerstelItem> {
+  return apiPut<BonHerstelItem>(`/bon/${bonnr}/herstel`, payload);
+}
+
+/**
+ * Herstel-workflow transitie-endpoints - geen body nodig, response is het
+ * volledige bijgewerkte bon_herstel-record (nieuwe `stempel` + eventuele
+ * server-gezette datums). OND.BESTELD -> IN HERSTELLING gebeurt
+ * automatisch server-side (geen eigen transitie-knop hiervoor).
+ * Backend: POST /web/bon/{bonnr}/herstel/diagnose|bestellen|hersteld
+ * (Luna.Web.BonHandler).
+ */
+export async function bonHerstelNaarDiagnose(bonnr: number): Promise<BonHerstelItem> {
+  return apiPost<BonHerstelItem>(`/bon/${bonnr}/herstel/diagnose`, {});
+}
+
+export async function bonHerstelOnderdelenBestellen(bonnr: number): Promise<BonHerstelItem> {
+  return apiPost<BonHerstelItem>(`/bon/${bonnr}/herstel/bestellen`, {});
+}
+
+export async function bonHerstelHersteld(bonnr: number): Promise<BonHerstelItem> {
+  return apiPost<BonHerstelItem>(`/bon/${bonnr}/herstel/hersteld`, {});
 }
 
 /**
@@ -1239,4 +1670,222 @@ export async function deleteLeverancier(
   levnr: number
 ): Promise<{ status: string; levnr: number }> {
   return apiDelete<{ status: string; levnr: number }>(`/leverancier/${levnr}`);
+}
+
+export type PakbonItem = {
+  paknr: number;
+  stempel: string;
+  datum: string | null;
+  klnr: number;
+  naam: string;
+  naam1: string;
+  adres: string;
+  postnr: string;
+  stad: string;
+  lnaam: string;
+  ladres: string;
+  lpostnr: string;
+  lstad: string;
+  munt: string;
+  nBedrag: number;
+  bBedrag: number;
+  totBtw: number;
+  uRef: string;
+  opm: string;
+  swProforma: boolean;
+  facnr: number;
+  batchnr: number;
+  validatie: boolean;
+  afgedrukt: boolean;
+  afgehaald: boolean;
+  afgehaaldId: string;
+  afgehaaldDatum: string | null;
+  afgehaaldUur: string;
+  compleet: boolean;
+  tracknr: string;
+  verzending: string;
+  projectnr: number;
+};
+
+type PakbonnenResponse = {
+  items: PakbonItem[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+};
+
+/**
+ * Paged list of pakbonnen (packing slips). No exact total count is
+ * available (same reasoning as getArtikelen/getBonnen) - so pagination
+ * relies on `hasMore` rather than a page count.
+ * Backend: GET /web/pakbon (Luna.Web.PakbonHandler).
+ */
+export async function getPakbonnen(
+  params: {
+    klnr?: number;
+    stempel?: string;
+    paknr?: string;
+    naam?: string;
+    projectnr?: number;
+    page?: number;
+    pageSize?: number;
+  } = {}
+): Promise<PakbonnenResponse> {
+  const { klnr, stempel, paknr, naam, projectnr, page = 1, pageSize = 25 } = params;
+  const query = new URLSearchParams();
+  if (klnr !== undefined) query.set("klnr", String(klnr));
+  if (stempel) query.set("stempel", stempel);
+  if (paknr) query.set("paknr", paknr);
+  if (naam) query.set("naam", naam);
+  if (projectnr !== undefined) query.set("projectnr", String(projectnr));
+  query.set("page", String(page));
+  query.set("pageSize", String(pageSize));
+  return apiGet<PakbonnenResponse>(`/pakbon?${query.toString()}`);
+}
+
+/**
+ * Single pakbon lookup by paknr. Returns `null` when the backend responds
+ * with 404 (pakbon not found/removed) instead of throwing, so callers can
+ * render a not-found state. Any other non-OK status still throws,
+ * mirroring `apiGet`'s error format.
+ * Backend: GET /web/pakbon/{paknr} (Luna.Web.PakbonHandler).
+ */
+export async function getPakbon(paknr: number): Promise<PakbonItem | null> {
+  const path = `/pakbon/${paknr}`;
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`API request to ${path} failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<PakbonItem>;
+}
+
+/**
+ * Creation payload for a pakbon - `paknr` is required (chosen by the
+ * caller, matching the leverancier CRUD convention in this client) and
+ * every other field is optional.
+ */
+export type CreatePakbonPayload = Partial<Omit<PakbonItem, "paknr">> & {
+  paknr: number;
+};
+
+/**
+ * Backend: POST /web/pakbon (Luna.Web.PakbonHandler).
+ */
+export async function createPakbon(payload: CreatePakbonPayload): Promise<PakbonItem> {
+  return apiPost<PakbonItem>("/pakbon", payload);
+}
+
+export type UpdatePakbonPayload = Partial<Omit<PakbonItem, "paknr">>;
+
+/**
+ * Backend: PUT /web/pakbon/{paknr} (Luna.Web.PakbonHandler).
+ */
+export async function updatePakbon(
+  paknr: number,
+  payload: UpdatePakbonPayload
+): Promise<PakbonItem> {
+  return apiPut<PakbonItem>(`/pakbon/${paknr}`, payload);
+}
+
+/**
+ * Backend: DELETE /web/pakbon/{paknr} (Luna.Web.PakbonHandler).
+ */
+export async function deletePakbon(paknr: number): Promise<{ status: string; paknr: number }> {
+  return apiDelete<{ status: string; paknr: number }>(`/pakbon/${paknr}`);
+}
+
+/**
+ * Marks a pakbon as afgehaald (picked up) by a given identification.
+ * Returns the full, updated pakbon.
+ * Backend: POST /web/pakbon/{paknr}/afhalen (Luna.Web.PakbonHandler).
+ */
+export async function afhalenPakbon(paknr: number, afgehaaldId: string): Promise<PakbonItem> {
+  return apiPost<PakbonItem>(`/pakbon/${paknr}/afhalen`, { afgehaaldId });
+}
+
+export type PaklijnItem = {
+  paknr: number;
+  lijnnr: number;
+  groepnr: number;
+  subgroepnr: number;
+  artnr: string;
+  omschr: string;
+  aantal: number;
+  teLeveren: number;
+  afgehaald: number;
+  vprijs: number;
+  aprijs: number;
+  korting: number;
+  btwKode: string;
+  bedrag: number;
+  stempel: string;
+  klnr: number;
+  bonnr: number;
+  blijnnr: number;
+  hold: boolean;
+  swLed: boolean;
+  swSikta: boolean;
+  subtotaal: boolean;
+  kolomtitel: boolean;
+  infolijn: boolean;
+  opm: string;
+};
+
+type PaklijnenResponse = {
+  items: PaklijnItem[];
+};
+
+/**
+ * Paklijnen (packing slip lines) for a single pakbon - no paging, a
+ * pakbon typically has a bounded number of lines.
+ * Backend: GET /web/pakbon/{paknr}/lijn (Luna.Web.PakbonHandler).
+ */
+export async function getPaklijnen(paknr: number): Promise<PaklijnItem[]> {
+  const data = await apiGet<PaklijnenResponse>(`/pakbon/${paknr}/lijn`);
+  return data.items;
+}
+
+export type CreatePaklijnPayload = Omit<PaklijnItem, "paknr" | "lijnnr">;
+
+/**
+ * Backend: POST /web/pakbon/{paknr}/lijn (Luna.Web.PakbonHandler).
+ */
+export async function createPaklijn(
+  paknr: number,
+  payload: CreatePaklijnPayload
+): Promise<PaklijnItem> {
+  return apiPost<PaklijnItem>(`/pakbon/${paknr}/lijn`, payload);
+}
+
+export type UpdatePaklijnPayload = Partial<CreatePaklijnPayload>;
+
+/**
+ * Backend: PUT /web/pakbon/{paknr}/lijn/{lijnnr} (Luna.Web.PakbonHandler).
+ */
+export async function updatePaklijn(
+  paknr: number,
+  lijnnr: number,
+  payload: UpdatePaklijnPayload
+): Promise<PaklijnItem> {
+  return apiPut<PaklijnItem>(`/pakbon/${paknr}/lijn/${lijnnr}`, payload);
+}
+
+/**
+ * Backend: DELETE /web/pakbon/{paknr}/lijn/{lijnnr} (Luna.Web.PakbonHandler).
+ */
+export async function deletePaklijn(
+  paknr: number,
+  lijnnr: number
+): Promise<{ status: string; lijnnr: number }> {
+  return apiDelete<{ status: string; lijnnr: number }>(`/pakbon/${paknr}/lijn/${lijnnr}`);
 }
