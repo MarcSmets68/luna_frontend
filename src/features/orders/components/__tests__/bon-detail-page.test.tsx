@@ -1,8 +1,25 @@
 import { act } from "react";
-import { render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
+import { formatBedrag } from "@/lib/format";
+
+const pushMock = vi.fn();
+const refreshMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
+}));
+
+const updateBonMock = vi.fn();
+vi.mock("@/lib/api-client", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
+  return {
+    ...actual,
+    updateBon: (...args: unknown[]) => updateBonMock(...args),
+  };
+});
 
 // Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
 // its resulting setState) settles before assertions run - avoids the
@@ -42,6 +59,15 @@ const mockBon: BonItem = {
   geparkeerd: false,
   verzonden: false,
   opm: "",
+  klnr2: 0,
+  klnr3: 0,
+  lnaam: "",
+  lnaam1: "",
+  ladres: "",
+  lpostnr: "",
+  lstad: "",
+  recupelBedrag: 0,
+  aBedrag: 0,
 };
 
 const mockLijnen: BonLijnItem[] = [
@@ -76,6 +102,12 @@ const mockLijnen: BonLijnItem[] = [
 ];
 
 describe("BonDetailPage", () => {
+  beforeEach(() => {
+    pushMock.mockReset();
+    refreshMock.mockReset();
+    updateBonMock.mockReset();
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -144,5 +176,95 @@ describe("BonDetailPage", () => {
     await flush();
     expect(screen.getByRole("button", { name: "Reserveren" })).toBeInTheDocument();
     expect(screen.getAllByText("5").length).toBeGreaterThan(0);
+  });
+
+  it("hides Extra klantnummers when klnr2 and klnr3 are both zero", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+    expect(screen.queryByText("Extra klantnummers")).not.toBeInTheDocument();
+  });
+
+  it("shows Extra klantnummers with only the non-zero field when one of klnr2/klnr3 is set", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={{ ...mockBon, klnr2: 999 }} lijnen={mockLijnen} />);
+    await flush();
+    expect(screen.getByText("Extra klantnummers")).toBeInTheDocument();
+    expect(screen.getByText("Klnr2")).toBeInTheDocument();
+    expect(screen.getByText("999")).toBeInTheDocument();
+    expect(screen.queryByText("Klnr3")).not.toBeInTheDocument();
+  });
+
+  it("hides Afleveradres when all afleveradres fields are empty", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+    expect(screen.queryByText("Afleveradres")).not.toBeInTheDocument();
+  });
+
+  it("shows Afleveradres with postnr+stad combined on one line when set", async () => {
+    stubFetch();
+    render(
+      <BonDetailPage
+        bon={{
+          ...mockBon,
+          lnaam: "Aflever BV",
+          lpostnr: "9000",
+          lstad: "Gent",
+        }}
+        lijnen={mockLijnen}
+      />
+    );
+    await flush();
+    expect(screen.getByText("Afleveradres")).toBeInTheDocument();
+    expect(screen.getByText("Aflever BV")).toBeInTheDocument();
+    expect(screen.getByText("9000 Gent")).toBeInTheDocument();
+  });
+
+  it("always shows Bedragen (extra) with formatted amounts", async () => {
+    stubFetch();
+    render(
+      <BonDetailPage
+        bon={{ ...mockBon, recupelBedrag: 12.5, aBedrag: 3.4 }}
+        lijnen={mockLijnen}
+      />
+    );
+    await flush();
+    expect(screen.getByText("Bedragen (extra)")).toBeInTheDocument();
+    expect(screen.getByText(formatBedrag(12.5))).toBeInTheDocument();
+    expect(screen.getByText(formatBedrag(3.4))).toBeInTheDocument();
+  });
+
+  it("opens the edit dialog when 'Bewerken' is clicked", async () => {
+    const user = userEvent.setup();
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
+
+    expect(screen.getByRole("heading", { name: "Ordergegevens bewerken" })).toBeInTheDocument();
+  });
+
+  it("saves via the edit dialog and updates the displayed values without a page reload", async () => {
+    const user = userEvent.setup();
+    stubFetch();
+    const updatedBon: BonItem = {
+      ...mockBon,
+      klnr2: 42,
+      recupelBedrag: 7.5,
+    };
+    updateBonMock.mockResolvedValue(updatedBon);
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
+
+    await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByText("Extra klantnummers")).toBeInTheDocument();
+    expect(screen.getByText("42")).toBeInTheDocument();
+    expect(screen.getByText(formatBedrag(7.5))).toBeInTheDocument();
   });
 });

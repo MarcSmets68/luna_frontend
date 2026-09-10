@@ -525,6 +525,17 @@ export type BonItem = {
   geparkeerd: boolean;
   verzonden: boolean;
   opm: string;
+  // Extra klantnummers / afleveradres / extra bedragen (fase2) - always
+  // present on GET responses.
+  klnr2: number;
+  klnr3: number;
+  lnaam: string;
+  lnaam1: string;
+  ladres: string;
+  lpostnr: string;
+  lstad: string;
+  recupelBedrag: number;
+  aBedrag: number;
 };
 
 type BonnenResponse = {
@@ -558,6 +569,31 @@ export async function getBon(bonnr: number): Promise<BonItem | null> {
   }
 
   return response.json() as Promise<BonItem>;
+}
+
+export type UpdateBonPayload = Partial<
+  Pick<
+    BonItem,
+    | "klnr2"
+    | "klnr3"
+    | "lnaam"
+    | "lnaam1"
+    | "ladres"
+    | "lpostnr"
+    | "lstad"
+    | "recupelBedrag"
+    | "aBedrag"
+  >
+>;
+
+/**
+ * Partial update of a bon's afleveradres/multi-klant/extra-bedrag fields.
+ * Backend: PUT /web/bon/{bonnr} (Luna.Web.BonHandler / BonBE.UpdateBon).
+ * Only send the keys you intend to change - the backend applies a true
+ * partial update (JsonObject:Has(...) per field).
+ */
+export async function updateBon(bonnr: number, payload: UpdateBonPayload): Promise<BonItem> {
+  return apiPut<BonItem>(`/bon/${bonnr}`, payload);
 }
 
 export type BonLijnItem = {
