@@ -87,7 +87,7 @@ export function KlantenPage({
       </div>
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-[26px] font-bold text-foreground">Klanten</h1>
-        <div className="text-[13px] text-[#5e5e5e]">Pagina {page}</div>
+        <div className="text-[13px] text-muted-foreground">Pagina {page}</div>
       </div>
 
       <div className="mb-6 flex flex-col gap-1">

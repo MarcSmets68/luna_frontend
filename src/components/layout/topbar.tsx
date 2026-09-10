@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/api-client";
-import { clearSession, getSession, type Session } from "@/features/auth/session";
+import { clearSession, useSession, type Session } from "@/features/auth/session";
 
 const LOGIN_PATH = "/login";
 
@@ -23,13 +22,10 @@ function initialsFor(session: Session): string {
 
 export function Topbar({ className }: { className?: string }) {
   const router = useRouter();
-  // Start with null on both server and client, then load session after
-  // hydration to avoid mismatch (server has no localStorage access).
-  const [session, setSession] = useState<Session | null>(null);
-
-  useEffect(() => {
-    setSession(getSession());
-  }, []);
+  // useSession() (see features/auth/session.ts) keeps the SSR render and
+  // the client's hydration render in sync (both see null), then picks up
+  // the real session right after mount - avoiding a hydration mismatch.
+  const session = useSession();
 
   async function handleLogout() {
     try {
@@ -41,7 +37,6 @@ export function Topbar({ className }: { className?: string }) {
       // see docs/architecture/login-auth-ontwerp.md §4.2.
     } finally {
       clearSession();
-      setSession(null);
       router.push(LOGIN_PATH);
     }
   }
