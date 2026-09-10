@@ -1,5 +1,8 @@
+"use client";
+
+import { Fragment, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -9,10 +12,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
+import { BonlijnProductieTable } from "./bonlijn-productie-table";
+import { BonlijnReserveringDialog } from "./bonlijn-reservering-dialog";
+import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
+import { LedConfigTable } from "./led-config-table";
+import { LedQcTable } from "./led-qc-table";
+import { HerstelDetailPanel } from "./herstel-detail-panel";
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -26,6 +37,17 @@ function DetailField({ label, value }: { label: string; value: string }) {
 }
 
 export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnItem[] }) {
+  // Local copy of the server state so a reservering-call's response can
+  // refresh a single row without a full page re-fetch.
+  const [rows, setRows] = useState<BonLijnItem[]>(lijnen);
+  const [expandedLijnnr, setExpandedLijnnr] = useState<number | null>(null);
+  const [reserveringTarget, setReserveringTarget] = useState<BonLijnItem | null>(null);
+  const isHerstelling = bon.type === "HERSTELLING";
+
+  function handleReserved(updated: BonLijnItem) {
+    setRows((prev) => prev.map((row) => (row.lijnnr === updated.lijnnr ? updated : row)));
+  }
+
   return (
     <div>
       <Link
@@ -71,41 +93,127 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
         </CardContent>
       </Card>
 
-      <h2 className="mb-3 text-[16px] font-semibold text-foreground">Lijnen</h2>
+      <Tabs defaultValue="lijnen">
+        <TabsList>
+          <TabsTrigger value="lijnen">Lijnen</TabsTrigger>
+          <TabsTrigger value="led">LED-configuratie</TabsTrigger>
+          {isHerstelling && <TabsTrigger value="herstel">Herstel</TabsTrigger>}
+        </TabsList>
 
-      {lijnen.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Geen lijnen gevonden voor deze order.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Lijnnr</TableHead>
-              <TableHead>Artnr</TableHead>
-              <TableHead>Omschrijving</TableHead>
-              <TableHead>Aantal</TableHead>
-              <TableHead>Te leveren</TableHead>
-              <TableHead>Vprijs</TableHead>
-              <TableHead>Korting</TableHead>
-              <TableHead>Bedrag</TableHead>
-              <TableHead>Leverdatum</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lijnen.map((lijn) => (
-              <TableRow key={lijn.lijnnr}>
-                <TableCell className="font-semibold">{lijn.lijnnr}</TableCell>
-                <TableCell>{lijn.artnr}</TableCell>
-                <TableCell className="whitespace-normal">{lijn.omschrijving}</TableCell>
-                <TableCell>{lijn.aantal}</TableCell>
-                <TableCell>{lijn.teLeveren}</TableCell>
-                <TableCell>{formatBedrag(lijn.vprijs)}</TableCell>
-                <TableCell>{lijn.korting}</TableCell>
-                <TableCell>{formatBedrag(lijn.bedrag)}</TableCell>
-                <TableCell>{formatDatum(lijn.levDatum)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <TabsContent value="lijnen">
+          <h2 className="mb-3 text-[16px] font-semibold text-foreground">Lijnen</h2>
+
+          {rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Geen lijnen gevonden voor deze order.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8" />
+                  <TableHead>Lijnnr</TableHead>
+                  <TableHead>Artnr</TableHead>
+                  <TableHead>Omschrijving</TableHead>
+                  <TableHead>Aantal</TableHead>
+                  <TableHead>Te leveren</TableHead>
+                  <TableHead>Gereserv</TableHead>
+                  <TableHead>Effectief</TableHead>
+                  <TableHead>Vprijs</TableHead>
+                  <TableHead>Korting</TableHead>
+                  <TableHead>Bedrag</TableHead>
+                  <TableHead>Leverdatum</TableHead>
+                  <TableHead className="w-28" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((lijn) => {
+                  const isExpanded = expandedLijnnr === lijn.lijnnr;
+                  return (
+                    <Fragment key={lijn.lijnnr}>
+                      <TableRow>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={
+                              isExpanded
+                                ? `Verberg productie-sublijnen van lijn ${lijn.lijnnr}`
+                                : `Toon productie-sublijnen van lijn ${lijn.lijnnr}`
+                            }
+                            onClick={() => setExpandedLijnnr(isExpanded ? null : lijn.lijnnr)}
+                          >
+                            {isExpanded ? <ChevronDown /> : <ChevronRight />}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="font-semibold">{lijn.lijnnr}</TableCell>
+                        <TableCell>{lijn.artnr}</TableCell>
+                        <TableCell className="whitespace-normal">
+                          {lijn.omschrijving}
+                          <BonlijnPakbonBadge bonnr={bon.bonnr} lijnnr={lijn.lijnnr} />
+                        </TableCell>
+                        <TableCell>{lijn.aantal}</TableCell>
+                        <TableCell>{lijn.teLeveren}</TableCell>
+                        <TableCell>{lijn.gereserv}</TableCell>
+                        <TableCell>
+                          <Badge variant={lijn.swEffectief ? "default" : "outline"}>
+                            {lijn.effectiefGereserv}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatBedrag(lijn.vprijs)}</TableCell>
+                        <TableCell>{lijn.korting}</TableCell>
+                        <TableCell>{formatBedrag(lijn.bedrag)}</TableCell>
+                        <TableCell>{formatDatum(lijn.levDatum)}</TableCell>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setReserveringTarget(lijn)}
+                          >
+                            Reserveren
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow>
+                          <TableCell colSpan={12} className="bg-muted/20">
+                            <BonlijnProductieTable bonnr={bon.bonnr} blijnnr={lijn.lijnnr} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
+
+        <TabsContent value="led">
+          <LedConfigTable bonnr={bon.bonnr} />
+          <LedQcTable bonnr={bon.bonnr} />
+        </TabsContent>
+
+        {isHerstelling && (
+          <TabsContent value="herstel">
+            <HerstelDetailPanel bonnr={bon.bonnr} />
+          </TabsContent>
+        )}
+      </Tabs>
+
+      {reserveringTarget && (
+        <BonlijnReserveringDialog
+          bonnr={bon.bonnr}
+          lijn={reserveringTarget}
+          open={reserveringTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setReserveringTarget(null);
+          }}
+          onReserved={(updated) => {
+            handleReserved(updated);
+            setReserveringTarget(null);
+          }}
+        />
       )}
     </div>
   );
