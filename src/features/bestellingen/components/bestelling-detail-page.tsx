@@ -89,7 +89,7 @@ export function BestellingDetailPage({
         </CardContent>
       </Card>
 
-      <div className="mb-3 text-[15px] font-semibold text-foreground">Orderlijnen</div>
+      <h2 className="mb-3 text-[16px] font-semibold text-foreground">Orderlijnen</h2>
 
       {lijnen.length === 0 ? (
         <p className="text-sm text-muted-foreground">Geen orderlijnen gevonden.</p>
