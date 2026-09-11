@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { TestModeBanner } from "@/features/auth/components/test-mode-banner";
-import { getSession } from "@/features/auth/session";
+import { useSession } from "@/features/auth/session";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  // Lazy initial state (not an effect) - getSession() itself guards for a
-  // browser environment, so this is safe during SSR (returns false there)
-  // and reads the real flag synchronously on client render/hydration.
-  const [everyoneAdminActive] = useState(() => getSession()?.everyoneAdminActive ?? false);
+  // useSession() keeps the SSR render and the client's hydration render in
+  // sync (both see no session, so the banner starts hidden) - a lazy
+  // useState(() => getSession()...) initializer would instead re-read the
+  // real flag during the hydration render itself, mismatching the server.
+  const everyoneAdminActive = useSession()?.everyoneAdminActive ?? false;
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground print:h-auto print:overflow-visible">

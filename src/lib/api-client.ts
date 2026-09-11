@@ -1,7 +1,8 @@
 // Single typed client for all PASOE WebHandler calls - components must not
 // call fetch() directly (see root AGENTS.md, frontend constraints).
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/web";
+// Use server-side env var (not NEXT_PUBLIC_) to keep API URL private
+const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:8080/web";
 
 // Optional extra headers merged into every request - added for auth-bearing
 // calls (e.g. logout()'s "X-Auth-Token: <token>") without changing the
@@ -628,6 +629,33 @@ export async function getBonnen(
   return apiGet<BonnenResponse>(`/bon?${query.toString()}`);
 }
 
+export type VerkoopFurItem = {
+  klnr: number;
+  naam: string;
+  aantalFurOrders: number;
+  totaalAantalStuks: number;
+  laatsteBesteldatum: string; // ISO date "YYYY-MM-DD"
+};
+
+export type VerkoopFurResponse = {
+  items: VerkoopFurItem[];
+  periodeVan: string; // ISO date
+  periodeTot: string; // ISO date
+  generatedAt: string; // ISO datetime
+};
+
+/**
+ * Rolling-12-months overzicht van dealers met NOMALED.FUR*-orderregels,
+ * gesorteerd server-side descending op totaalAantalStuks (Marc-bevestigd,
+ * zie docs/architecture/verkoop-fur-ontwerp.md Open flags #3) - geen
+ * query-params, geen paginatie (dealer-lijst is klein).
+ * Backend: GET /web/rapportage/verkoop-fur (Luna.Web.RapportageHandler +
+ * Luna.BusinessLogic.VerkoopFurBE).
+ */
+export async function getVerkoopFurOverzicht(): Promise<VerkoopFurResponse> {
+  return apiGet<VerkoopFurResponse>("/rapportage/verkoop-fur");
+}
+
 export type BestelorderItem = {
   ordnr: number;
   stempel: string;
@@ -793,6 +821,82 @@ export async function updateKlant(
   payload: UpdateKlantPayload
 ): Promise<KlantItem> {
   return apiPut<KlantItem>(`/klant/${klnr}`, payload);
+}
+
+export type KlantAdresItem = {
+  klnr: number;
+  lijnnr: number;
+  naam: string;
+  naam1: string;
+  adres: string;
+  postnr: string;
+  stad: string;
+  standaard: boolean;
+};
+
+type KlantAdressenResponse = {
+  items: KlantAdresItem[];
+};
+
+/**
+ * Adressen (delivery/billing addresses) for a klant. No pagination -
+ * the backend returns every address for the klnr in one response.
+ * Backend: GET /web/klant/{klnr}/adres (Luna.Web.KlantHandler, read-only).
+ */
+export async function getKlantAdressen(klnr: number): Promise<KlantAdresItem[]> {
+  const data = await apiGet<KlantAdressenResponse>(`/klant/${klnr}/adres`);
+  return data.items;
+}
+
+export type KlantContactItem = {
+  klnr: number;
+  lijnnr: number;
+  naam: string;
+  voornaam: string;
+  aanspreking: string;
+  netTel: string;
+  tel: string;
+  gsm: string;
+  email: string;
+  standaard: boolean;
+  opm: string;
+  soort: string;
+};
+
+type KlantContactenResponse = {
+  items: KlantContactItem[];
+};
+
+/**
+ * Contactpersonen for a klant. No pagination - the backend returns every
+ * contact for the klnr in one response.
+ * Backend: GET /web/klant/{klnr}/contact (Luna.Web.KlantHandler, read-only).
+ */
+export async function getKlantContacten(klnr: number): Promise<KlantContactItem[]> {
+  const data = await apiGet<KlantContactenResponse>(`/klant/${klnr}/contact`);
+  return data.items;
+}
+
+export type KlantKortingItem = {
+  klnr: number;
+  artnr: string;
+  korting: number;
+  naam: string;
+};
+
+type KlantKortingenResponse = {
+  items: KlantKortingItem[];
+};
+
+/**
+ * Klant-specifieke kortingen (per-artikel discounts) for a klant. No
+ * pagination - the backend returns every korting row for the klnr in one
+ * response. `naam` is server-derived (the artikel's naam) and read-only.
+ * Backend: GET /web/klant/{klnr}/korting (Luna.Web.KlantHandler, read-only).
+ */
+export async function getKlantKortingen(klnr: number): Promise<KlantKortingItem[]> {
+  const data = await apiGet<KlantKortingenResponse>(`/klant/${klnr}/korting`);
+  return data.items;
 }
 
 export type FactuurItem = {

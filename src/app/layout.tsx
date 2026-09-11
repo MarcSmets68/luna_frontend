@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   description: "Nomaled ERP & CRM — intern dashboard",
 };
 
+// Force all pages to be dynamic to prevent build-time API calls to localhost
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="nl" className={`${questrial.variable} h-full antialiased`}>
