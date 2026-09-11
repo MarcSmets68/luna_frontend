@@ -584,6 +584,9 @@ export type BonLijnItem = {
   subtotaal: boolean;
   kolomtitel: boolean;
   infolijn: boolean;
+  gereserv: number;
+  effectiefGereserv: number;
+  swEffectief: boolean;
 };
 
 type BonLijnenResponse = {

@@ -84,6 +84,8 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
               <TableHead>Omschrijving</TableHead>
               <TableHead>Aantal</TableHead>
               <TableHead>Te leveren</TableHead>
+              <TableHead>Gereserveerd</TableHead>
+              <TableHead>Eff. gereserveerd</TableHead>
               <TableHead>Vprijs</TableHead>
               <TableHead>Korting</TableHead>
               <TableHead>Bedrag</TableHead>
@@ -98,6 +100,16 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
                 <TableCell className="whitespace-normal">{lijn.omschrijving}</TableCell>
                 <TableCell>{lijn.aantal}</TableCell>
                 <TableCell>{lijn.teLeveren}</TableCell>
+                <TableCell
+                  className={cn(
+                    lijn.swEffectief &&
+                      lijn.teLeveren > lijn.gereserv &&
+                      "bg-amber-100 font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                  )}
+                >
+                  {lijn.gereserv}
+                </TableCell>
+                <TableCell>{lijn.effectiefGereserv}</TableCell>
                 <TableCell>{formatBedrag(lijn.vprijs)}</TableCell>
                 <TableCell>{lijn.korting}</TableCell>
                 <TableCell>{formatBedrag(lijn.bedrag)}</TableCell>
