@@ -87,6 +87,13 @@ const mockZeroNegativeLijn: BonLijnItem = {
   swEffectief: false,
 };
 
+const mockTitleLijn: BonLijnItem = {
+  ...mockLijnen[0],
+  lijnnr: 5,
+  artnr: " k00 ",
+  omschrijving: "SECTIE TITEL",
+};
+
 describe("BonDetailPage", () => {
   it("renders the bon heading and klant link", () => {
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
@@ -151,5 +158,20 @@ describe("BonDetailPage", () => {
     render(<BonDetailPage bon={mockBon} lijnen={[mockZeroNegativeLijn]} />);
     expect(screen.getByText("-1")).toBeInTheDocument();
     expect(screen.getAllByText("0").length).toBeGreaterThan(0);
+  });
+
+  it("renders a K00 line's cells in the primary-600 title-line color", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={[mockTitleLijn]} />);
+    expect(screen.getByText("5").className).toContain("text-primary-600");
+    expect(screen.getByText("k00", { exact: false }).className).toContain("text-primary-600");
+    expect(screen.getByText("SECTIE TITEL").className).toContain("text-primary-600");
+  });
+
+  it("does not apply the title-line color to a normal article row", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    expect(screen.getByText(mockLijnen[0].artnr).className).not.toContain("text-primary-600");
+    expect(screen.getByText(mockLijnen[0].omschrijving).className).not.toContain(
+      "text-primary-600"
+    );
   });
 });

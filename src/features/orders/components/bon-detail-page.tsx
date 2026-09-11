@@ -12,6 +12,7 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
+import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -93,29 +94,59 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
             </TableRow>
           </TableHeader>
           <TableBody>
-            {lijnen.map((lijn) => (
-              <TableRow key={lijn.lijnnr}>
-                <TableCell className="font-semibold">{lijn.lijnnr}</TableCell>
-                <TableCell>{lijn.artnr}</TableCell>
-                <TableCell className="whitespace-normal">{lijn.omschrijving}</TableCell>
-                <TableCell>{lijn.aantal}</TableCell>
-                <TableCell>{lijn.teLeveren}</TableCell>
-                <TableCell
-                  className={cn(
-                    lijn.swEffectief &&
-                      lijn.teLeveren > lijn.gereserv &&
-                      "bg-amber-100 font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-                  )}
-                >
-                  {lijn.gereserv}
-                </TableCell>
-                <TableCell>{lijn.effectiefGereserv}</TableCell>
-                <TableCell>{formatBedrag(lijn.vprijs)}</TableCell>
-                <TableCell>{lijn.korting}</TableCell>
-                <TableCell>{formatBedrag(lijn.bedrag)}</TableCell>
-                <TableCell>{formatDatum(lijn.levDatum)}</TableCell>
-              </TableRow>
-            ))}
+            {/*
+              NOTE: this table has no client-side totals/footer row today. If
+              one is ever added, it must aggregate over
+              `excludeTitleLines(lijnen)`, not raw `lijnen` - K00 rows are
+              section-title placeholders, not real articles with real amounts.
+            */}
+            {lijnen.map((lijn) => {
+              const isTitle = isTitleLine(lijn.artnr);
+              return (
+                <TableRow key={lijn.lijnnr}>
+                  <TableCell className={cn("font-semibold", isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.lijnnr}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.artnr}
+                  </TableCell>
+                  <TableCell className={cn("whitespace-normal", isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.omschrijving}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.aantal}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.teLeveren}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      lijn.swEffectief &&
+                        lijn.teLeveren > lijn.gereserv &&
+                        "bg-amber-100 font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+                      isTitle && TITLE_LINE_TEXT_CLASS
+                    )}
+                  >
+                    {lijn.gereserv}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.effectiefGereserv}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {formatBedrag(lijn.vprijs)}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.korting}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {formatBedrag(lijn.bedrag)}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {formatDatum(lijn.levDatum)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}

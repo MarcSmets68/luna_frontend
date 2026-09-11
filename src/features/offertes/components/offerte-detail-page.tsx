@@ -12,6 +12,7 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum, statusLabel } from "@/lib/format";
+import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
 import type { OfferteItem, OfflijnItem } from "@/lib/api-client";
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -104,21 +105,46 @@ export function OfferteDetailPage({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {lijnen.map((lijn) => (
-              <TableRow key={lijn.lijnnr}>
-                <TableCell className="font-semibold">{lijn.lijnnr}</TableCell>
-                <TableCell>{lijn.artnr}</TableCell>
-                <TableCell className="whitespace-normal">
-                  {lijn.omschrijvingOfferte || lijn.omschrijving}
-                </TableCell>
-                <TableCell>{lijn.aantal}</TableCell>
-                <TableCell>{lijn.teLeveren}</TableCell>
-                <TableCell>{formatBedrag(lijn.verkoopprijs)}</TableCell>
-                <TableCell>{lijn.korting}</TableCell>
-                <TableCell>{formatBedrag(lijn.bedrag)}</TableCell>
-                <TableCell>{formatBedrag(lijn.aankoopprijs)}</TableCell>
-              </TableRow>
-            ))}
+            {/*
+              NOTE: this table has no client-side totals/footer row today. If
+              one is ever added, it must aggregate over
+              `excludeTitleLines(lijnen)`, not raw `lijnen` - K00 rows are
+              section-title placeholders, not real articles with real amounts.
+            */}
+            {lijnen.map((lijn) => {
+              const isTitle = isTitleLine(lijn.artnr);
+              return (
+                <TableRow key={lijn.lijnnr}>
+                  <TableCell className={cn("font-semibold", isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.lijnnr}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.artnr}
+                  </TableCell>
+                  <TableCell className={cn("whitespace-normal", isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.omschrijvingOfferte || lijn.omschrijving}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.aantal}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.teLeveren}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {formatBedrag(lijn.verkoopprijs)}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.korting}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {formatBedrag(lijn.bedrag)}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {formatBedrag(lijn.aankoopprijs)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}

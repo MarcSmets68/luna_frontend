@@ -55,6 +55,14 @@ const mockLijnen: OfflijnItem[] = [
   },
 ];
 
+const mockTitleLijn: OfflijnItem = {
+  ...mockLijnen[0],
+  lijnnr: 2,
+  artnr: "K00",
+  omschrijving: "SECTIE TITEL",
+  omschrijvingOfferte: "SECTIE TITEL",
+};
+
 describe("OfferteDetailPage", () => {
   it("renders the offerte heading and klant link", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
@@ -99,6 +107,21 @@ describe("OfferteDetailPage", () => {
     expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute(
       "href",
       "/offertes/alle"
+    );
+  });
+
+  it("renders a K00 line's cells in the primary-600 title-line color", () => {
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={[mockTitleLijn]} />);
+    expect(screen.getByText("2").className).toContain("text-primary-600");
+    expect(screen.getByText("K00").className).toContain("text-primary-600");
+    expect(screen.getByText("SECTIE TITEL").className).toContain("text-primary-600");
+  });
+
+  it("does not apply the title-line color to a normal article row", () => {
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
+    expect(screen.getByText(mockLijnen[0].artnr).className).not.toContain("text-primary-600");
+    expect(screen.getByText(mockLijnen[0].omschrijvingOfferte).className).not.toContain(
+      "text-primary-600"
     );
   });
 });
