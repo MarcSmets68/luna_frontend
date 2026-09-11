@@ -66,6 +66,16 @@ const mockUnderReservedLijn: BonLijnItem = {
   swEffectief: true,
 };
 
+const mockNotUnderReservedLijn: BonLijnItem = {
+  ...mockLijnen[0],
+  lijnnr: 4,
+  artnr: "ART-004",
+  omschrijving: "LED profiel 4m",
+  gereserv: 12,
+  effectiefGereserv: 6,
+  swEffectief: true,
+};
+
 const mockZeroNegativeLijn: BonLijnItem = {
   ...mockLijnen[0],
   lijnnr: 3,
@@ -132,8 +142,8 @@ describe("BonDetailPage", () => {
   });
 
   it("does not highlight the Gereserveerd cell when the line is not under-reserved", () => {
-    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
-    const cell = screen.getAllByText("10")[0];
+    render(<BonDetailPage bon={mockBon} lijnen={[mockNotUnderReservedLijn]} />);
+    const cell = screen.getByText("12");
     expect(cell.className).not.toContain("bg-amber-100");
   });
 
