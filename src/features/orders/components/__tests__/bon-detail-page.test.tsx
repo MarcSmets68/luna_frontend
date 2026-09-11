@@ -160,11 +160,14 @@ describe("BonDetailPage", () => {
     expect(screen.getAllByText("0").length).toBeGreaterThan(0);
   });
 
-  it("renders a K00 line's cells in the primary-600 title-line color", () => {
+  it("collapses a K00 line to a single merged cell in the primary-600 title-line color", () => {
     render(<BonDetailPage bon={mockBon} lijnen={[mockTitleLijn]} />);
-    expect(screen.getByText("5").className).toContain("text-primary-600");
-    expect(screen.getByText("k00", { exact: false }).className).toContain("text-primary-600");
-    expect(screen.getByText("SECTIE TITEL").className).toContain("text-primary-600");
+    const cell = screen.getByText("SECTIE TITEL");
+    expect(cell.className).toContain("text-primary-600");
+    expect(cell.tagName).toBe("TD");
+    expect(cell).toHaveAttribute("colspan", "11");
+    expect(screen.queryByText("5")).not.toBeInTheDocument();
+    expect(screen.queryByText("k00", { exact: false })).not.toBeInTheDocument();
   });
 
   it("does not apply the title-line color to a normal article row", () => {

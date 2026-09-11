@@ -102,6 +102,18 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
             */}
             {lijnen.map((lijn) => {
               const isTitle = isTitleLine(lijn.artnr);
+              if (isTitle) {
+                return (
+                  <TableRow key={lijn.lijnnr}>
+                    <TableCell
+                      colSpan={11}
+                      className={cn("whitespace-normal", TITLE_LINE_TEXT_CLASS)}
+                    >
+                      {lijn.omschrijving}
+                    </TableCell>
+                  </TableRow>
+                );
+              }
               return (
                 <TableRow key={lijn.lijnnr}>
                   <TableCell className={cn("font-semibold", isTitle && TITLE_LINE_TEXT_CLASS)}>

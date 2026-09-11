@@ -110,11 +110,14 @@ describe("OfferteDetailPage", () => {
     );
   });
 
-  it("renders a K00 line's cells in the primary-600 title-line color", () => {
+  it("collapses a K00 line to a single merged cell in the primary-600 title-line color", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={[mockTitleLijn]} />);
-    expect(screen.getByText("2").className).toContain("text-primary-600");
-    expect(screen.getByText("K00").className).toContain("text-primary-600");
-    expect(screen.getByText("SECTIE TITEL").className).toContain("text-primary-600");
+    const cell = screen.getByText("SECTIE TITEL");
+    expect(cell.className).toContain("text-primary-600");
+    expect(cell.tagName).toBe("TD");
+    expect(cell).toHaveAttribute("colspan", "9");
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
+    expect(screen.queryByText("K00")).not.toBeInTheDocument();
   });
 
   it("does not apply the title-line color to a normal article row", () => {

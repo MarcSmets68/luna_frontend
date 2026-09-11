@@ -113,6 +113,18 @@ export function OfferteDetailPage({
             */}
             {lijnen.map((lijn) => {
               const isTitle = isTitleLine(lijn.artnr);
+              if (isTitle) {
+                return (
+                  <TableRow key={lijn.lijnnr}>
+                    <TableCell
+                      colSpan={9}
+                      className={cn("whitespace-normal", TITLE_LINE_TEXT_CLASS)}
+                    >
+                      {lijn.omschrijvingOfferte || lijn.omschrijving}
+                    </TableCell>
+                  </TableRow>
+                );
+              }
               return (
                 <TableRow key={lijn.lijnnr}>
                   <TableCell className={cn("font-semibold", isTitle && TITLE_LINE_TEXT_CLASS)}>
