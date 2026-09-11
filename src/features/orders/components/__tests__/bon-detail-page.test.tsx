@@ -49,8 +49,33 @@ const mockLijnen: BonLijnItem[] = [
     subtotaal: false,
     kolomtitel: false,
     infolijn: false,
+    gereserv: 10,
+    effectiefGereserv: 10,
+    swEffectief: false,
   },
 ];
+
+const mockUnderReservedLijn: BonLijnItem = {
+  ...mockLijnen[0],
+  lijnnr: 2,
+  artnr: "ART-002",
+  omschrijving: "LED profiel 3m",
+  teLeveren: 8,
+  gereserv: 3,
+  effectiefGereserv: 0,
+  swEffectief: true,
+};
+
+const mockZeroNegativeLijn: BonLijnItem = {
+  ...mockLijnen[0],
+  lijnnr: 3,
+  artnr: "ART-003",
+  omschrijving: "LED profiel 1m",
+  teLeveren: 0,
+  gereserv: 0,
+  effectiefGereserv: -1,
+  swEffectief: false,
+};
 
 describe("BonDetailPage", () => {
   it("renders the bon heading and klant link", () => {
@@ -88,5 +113,33 @@ describe("BonDetailPage", () => {
       "href",
       "/orders/alle"
     );
+  });
+
+  it("renders the Gereserveerd and Eff. gereserveerd headers between Te leveren and Vprijs", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    const headers = screen.getAllByRole("columnheader").map((el) => el.textContent);
+    const teLeverenIndex = headers.indexOf("Te leveren");
+    const vprijsIndex = headers.indexOf("Vprijs");
+    expect(headers[teLeverenIndex + 1]).toBe("Gereserveerd");
+    expect(headers[teLeverenIndex + 2]).toBe("Eff. gereserveerd");
+    expect(vprijsIndex).toBe(teLeverenIndex + 3);
+  });
+
+  it("highlights the Gereserveerd cell when effectively reserved and under-reserved", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={[mockUnderReservedLijn]} />);
+    const cell = screen.getByText("3");
+    expect(cell.className).toContain("bg-amber-100");
+  });
+
+  it("does not highlight the Gereserveerd cell when the line is not under-reserved", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    const cell = screen.getAllByText("10")[0];
+    expect(cell.className).not.toContain("bg-amber-100");
+  });
+
+  it("renders zero and negative reservation values as plain numbers", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={[mockZeroNegativeLijn]} />);
+    expect(screen.getByText("-1")).toBeInTheDocument();
+    expect(screen.getAllByText("0").length).toBeGreaterThan(0);
   });
 });
