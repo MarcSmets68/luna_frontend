@@ -65,6 +65,37 @@ describe("VoorraadPage", () => {
     expect(screen.queryByRole("link", { name: /volgende/i })).not.toBeInTheDocument();
   });
 
+  it("renders the plain heading and no 'Filter wissen' link when lageVoorraad is omitted", () => {
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
+    expect(screen.getByRole("heading", { name: "Artikelen" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /filter wissen/i })).not.toBeInTheDocument();
+  });
+
+  it("renders the filtered heading and a 'Filter wissen' link when lageVoorraad is true", () => {
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} lageVoorraad={true} />);
+    expect(screen.getByRole("heading", { name: "Artikelen — Lage voorraad" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /filter wissen/i })).toHaveAttribute("href", "/voorraad");
+  });
+
+  it("preserves the lageVoorraad filter in the Vorige/Volgende hrefs", () => {
+    render(<VoorraadPage items={mockItems} page={2} hasMore={true} lageVoorraad={true} />);
+    expect(screen.getByRole("link", { name: /vorige/i })).toHaveAttribute(
+      "href",
+      "/voorraad?page=1&lageVoorraad=true"
+    );
+    expect(screen.getByRole("link", { name: /volgende/i })).toHaveAttribute(
+      "href",
+      "/voorraad?page=3&lageVoorraad=true"
+    );
+  });
+
+  it("shows both the empty state and the filtered heading/clear link when items is empty and lageVoorraad is true", () => {
+    render(<VoorraadPage items={[]} page={1} hasMore={false} lageVoorraad={true} />);
+    expect(screen.getByText("Geen artikelen gevonden.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Artikelen — Lage voorraad" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /filter wissen/i })).toHaveAttribute("href", "/voorraad");
+  });
+
   it("navigates to the artikel detail page when a row is clicked", () => {
     pushMock.mockClear();
     render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
