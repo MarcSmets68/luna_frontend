@@ -26,7 +26,7 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardResponse }) {
       <StatCards statCards={dashboard.statCards} />
 
       <div className="mb-7">
-        <OmzetTrendCard items={dashboard.omzetTrend} />
+        <OmzetTrendCard items={dashboard.omzetTrend ?? []} />
       </div>
 
       <div className="grid grid-cols-[2fr_1fr] gap-4">
