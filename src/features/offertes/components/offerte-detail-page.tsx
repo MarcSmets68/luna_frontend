@@ -120,7 +120,7 @@ export function OfferteDetailPage({
                       colSpan={9}
                       className={cn("whitespace-normal", TITLE_LINE_TEXT_CLASS)}
                     >
-                      {lijn.omschrijvingOfferte || lijn.omschrijving}
+                      {lijn.omschrijvingOfferte.trim() || lijn.omschrijving}
                     </TableCell>
                   </TableRow>
                 );
@@ -134,7 +134,7 @@ export function OfferteDetailPage({
                     {lijn.artnr}
                   </TableCell>
                   <TableCell className={cn("whitespace-normal", isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {lijn.omschrijvingOfferte || lijn.omschrijving}
+                    {lijn.omschrijvingOfferte.trim() || lijn.omschrijving}
                   </TableCell>
                   <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
                     {lijn.aantal}

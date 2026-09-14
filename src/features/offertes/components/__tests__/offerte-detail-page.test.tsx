@@ -60,7 +60,10 @@ const mockTitleLijn: OfflijnItem = {
   lijnnr: 2,
   artnr: "K00",
   omschrijving: "SECTIE TITEL",
-  omschrijvingOfferte: "SECTIE TITEL",
+  // Real K00 lines come back from the backend with a whitespace-only
+  // omschrijvingOfferte (e.g. "\n"), not an empty string. Reproduce that here
+  // so the merged-cell test actually covers the reported bug scenario.
+  omschrijvingOfferte: "\n",
 };
 
 describe("OfferteDetailPage", () => {
@@ -94,6 +97,14 @@ describe("OfferteDetailPage", () => {
       { ...mockLijnen[0], omschrijvingOfferte: "" },
     ];
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={lijnenZonderOfferteTekst} />);
+    expect(screen.getByText("LED profiel 2m")).toBeInTheDocument();
+  });
+
+  it("falls back to omschrijving when omschrijvingOfferte is whitespace-only", () => {
+    const lijnenMetWhitespaceOfferteTekst: OfflijnItem[] = [
+      { ...mockLijnen[0], omschrijvingOfferte: "\n" },
+    ];
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={lijnenMetWhitespaceOfferteTekst} />);
     expect(screen.getByText("LED profiel 2m")).toBeInTheDocument();
   });
 
