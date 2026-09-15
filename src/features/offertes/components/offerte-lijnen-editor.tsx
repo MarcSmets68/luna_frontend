@@ -109,6 +109,147 @@ function KindBadge({ kind }: { kind: LineKind }) {
   );
 }
 
+/**
+ * Text/number input for a *persisted* offlijn field. Keeps its own local,
+ * uncommitted value while the user is typing (no API call per keystroke -
+ * see the "commit on blur" fix for the flicker/data-loss race described in
+ * the frontend-tester report) and only calls `onCommit` on blur (or Enter)
+ * when the value actually changed. While the user is focused on the field,
+ * or while a commit is still pending/failed (unsaved local change), an
+ * external `value` prop update (e.g. a server round-trip for another field
+ * on the same row, or a reorder replacing the whole list) is NOT applied
+ * on top of the local value - avoids clobbering what the user just typed
+ * or silently discarding an edit whose save failed. Once not focused and
+ * there is no pending/failed edit, the local value re-syncs to `value`.
+ */
+function PersistedFieldInput({
+  value,
+  onCommit,
+  numeric = false,
+  disabled,
+  className,
+  ariaLabel,
+}: {
+  value: string | number;
+  onCommit: (value: string | number) => Promise<boolean>;
+  numeric?: boolean;
+  disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const [localValue, setLocalValue] = useState<string | number>(value);
+  const [focused, setFocused] = useState(false);
+  // True while there is a local edit that hasn't been successfully
+  // committed yet (either the commit is in flight, or it failed and the
+  // user's change is still only held locally).
+  const [pendingEdit, setPendingEdit] = useState(false);
+  // Tracks the last `value` we've synced `localValue` from, so an external
+  // prop update can be picked up (adjusted during render, per
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+  // without a setState-in-effect cascade, and only while the user isn't
+  // actively editing/has no unsaved change pending. Deliberately a second
+  // piece of state rather than a ref - this project's lint config
+  // (react-hooks/refs) forbids reading/writing ref.current during render.
+  const [lastSyncedValue, setLastSyncedValue] = useState(value);
+  if (!focused && !pendingEdit && lastSyncedValue !== value) {
+    setLastSyncedValue(value);
+    setLocalValue(value);
+  }
+
+  async function commitIfChanged() {
+    if (localValue === value) {
+      setPendingEdit(false);
+      return;
+    }
+    setPendingEdit(true);
+    const success = await onCommit(localValue);
+    if (success) {
+      setPendingEdit(false);
+    }
+    // On failure: keep pendingEdit true and keep showing the user's local
+    // value - the parent already surfaces the error message; we must not
+    // silently overwrite the unsaved edit with the stale server value.
+  }
+
+  return (
+    <Input
+      type={numeric ? "number" : "text"}
+      value={localValue}
+      disabled={disabled}
+      className={className}
+      aria-label={ariaLabel}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false);
+        void commitIfChanged();
+      }}
+      onChange={(e) => setLocalValue(numeric ? Number(e.target.value) : e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
+/**
+ * Renders either a plain, always-immediate-onChange `Input` (local mode -
+ * unchanged behaviour, no API calls involved at all) or a `PersistedFieldInput`
+ * (persisted mode - commit-on-blur, see above) for one text/number offlijn
+ * field, based on `mode`.
+ */
+function LineField({
+  mode,
+  fieldKey,
+  value,
+  onFieldChange,
+  numeric = false,
+  disabled,
+  className,
+  ariaLabel,
+}: {
+  mode: "local" | "persisted";
+  fieldKey: keyof LineFields;
+  value: string | number;
+  onFieldChange: (patch: Partial<LineFields>) => boolean | Promise<boolean>;
+  numeric?: boolean;
+  disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  if (mode === "persisted") {
+    return (
+      <PersistedFieldInput
+        value={value}
+        numeric={numeric}
+        disabled={disabled}
+        className={className}
+        ariaLabel={ariaLabel}
+        onCommit={(v) =>
+          Promise.resolve(
+            onFieldChange({ [fieldKey]: v } as Partial<LineFields>)
+          ) as Promise<boolean>
+        }
+      />
+    );
+  }
+  return (
+    <Input
+      type={numeric ? "number" : "text"}
+      value={value}
+      disabled={disabled}
+      className={className}
+      aria-label={ariaLabel}
+      onChange={(e) =>
+        onFieldChange({
+          [fieldKey]: numeric ? Number(e.target.value) : e.target.value,
+        } as Partial<LineFields>)
+      }
+    />
+  );
+}
+
 export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
   const { mode } = props;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -127,11 +268,12 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
   }
 
   // ---- local mode helpers ----
-  function updateLocal(clientId: string, patch: Partial<LineFields>) {
-    if (mode !== "local") return;
+  function updateLocal(clientId: string, patch: Partial<LineFields>): boolean {
+    if (mode !== "local") return false;
     props.onChange(
       props.lijnen.map((lijn) => (lijn.clientId === clientId ? { ...lijn, ...patch } : lijn))
     );
+    return true;
   }
 
   function deleteLocal(clientId: string) {
@@ -167,15 +309,17 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
   }
 
   // ---- persisted mode helpers ----
-  async function updatePersisted(lijnnr: number, patch: Partial<LineFields>) {
-    if (mode !== "persisted") return;
+  async function updatePersisted(lijnnr: number, patch: Partial<LineFields>): Promise<boolean> {
+    if (mode !== "persisted") return false;
     setBusyKey(`update-${lijnnr}`);
     setError(null);
     try {
       const updated = await updateOfflijn(props.offnr, props.versie, lijnnr, patch);
       props.onLijnenChange(props.lijnen.map((l) => (l.lijnnr === lijnnr ? updated : l)));
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Er ging iets mis bij het opslaan van de lijn.");
+      return false;
     } finally {
       setBusyKey(null);
     }
@@ -239,7 +383,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
     fields: LineFields;
     isFirst: boolean;
     isLast: boolean;
-    onFieldChange: (patch: Partial<LineFields>) => void;
+    onFieldChange: (patch: Partial<LineFields>) => boolean | Promise<boolean>;
     onDelete: () => void;
     onMoveUp: () => void;
     onMoveDown: () => void;
@@ -345,10 +489,12 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                     colSpan={8}
                     className={cn("whitespace-normal", row.kind === "titel" && TITLE_LINE_TEXT_CLASS)}
                   >
-                    <Input
+                    <LineField
+                      mode={mode}
+                      fieldKey="omschrijvingOfferte"
                       value={row.fields.omschrijvingOfferte.trim() || row.fields.omschrijving}
-                      onChange={(e) => row.onFieldChange({ omschrijvingOfferte: e.target.value })}
-                      aria-label={`Omschrijving lijn ${row.displayLijnnr}`}
+                      onFieldChange={row.onFieldChange}
+                      ariaLabel={`Omschrijving lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
                     />
                   </TableCell>
@@ -400,78 +546,94 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                     <KindBadge kind={row.kind} />
                   </TableCell>
                   <TableCell>
-                    <Input
+                    <LineField
+                      mode={mode}
+                      fieldKey="artnr"
                       value={row.fields.artnr}
-                      onChange={(e) => row.onFieldChange({ artnr: e.target.value })}
-                      aria-label={`Artnr lijn ${row.displayLijnnr}`}
+                      onFieldChange={row.onFieldChange}
+                      ariaLabel={`Artnr lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
                       className="w-28"
                     />
                   </TableCell>
                   <TableCell className="whitespace-normal">
-                    <Input
+                    <LineField
+                      mode={mode}
+                      fieldKey="omschrijvingOfferte"
                       value={row.fields.omschrijvingOfferte}
-                      onChange={(e) => row.onFieldChange({ omschrijvingOfferte: e.target.value })}
-                      aria-label={`Omschrijving lijn ${row.displayLijnnr}`}
+                      onFieldChange={row.onFieldChange}
+                      ariaLabel={`Omschrijving lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
+                    <LineField
+                      mode={mode}
+                      fieldKey="aantal"
+                      numeric
                       value={row.fields.aantal}
-                      onChange={(e) => row.onFieldChange({ aantal: Number(e.target.value) })}
-                      aria-label={`Aantal lijn ${row.displayLijnnr}`}
+                      onFieldChange={row.onFieldChange}
+                      ariaLabel={`Aantal lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
                       className="w-20"
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
+                    <LineField
+                      mode={mode}
+                      fieldKey="teLeveren"
+                      numeric
                       value={row.fields.teLeveren}
-                      onChange={(e) => row.onFieldChange({ teLeveren: Number(e.target.value) })}
-                      aria-label={`Te leveren lijn ${row.displayLijnnr}`}
+                      onFieldChange={row.onFieldChange}
+                      ariaLabel={`Te leveren lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
                       className="w-20"
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
+                    <LineField
+                      mode={mode}
+                      fieldKey="verkoopprijs"
+                      numeric
                       value={row.fields.verkoopprijs}
-                      onChange={(e) => row.onFieldChange({ verkoopprijs: Number(e.target.value) })}
-                      aria-label={`Vprijs lijn ${row.displayLijnnr}`}
+                      onFieldChange={row.onFieldChange}
+                      ariaLabel={`Vprijs lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
                       className="w-24"
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
+                    <LineField
+                      mode={mode}
+                      fieldKey="korting"
+                      numeric
                       value={row.fields.korting}
-                      onChange={(e) => row.onFieldChange({ korting: Number(e.target.value) })}
-                      aria-label={`Korting lijn ${row.displayLijnnr}`}
+                      onFieldChange={row.onFieldChange}
+                      ariaLabel={`Korting lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
                       className="w-20"
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
+                    <LineField
+                      mode={mode}
+                      fieldKey="bedrag"
+                      numeric
                       value={row.fields.bedrag}
-                      onChange={(e) => row.onFieldChange({ bedrag: Number(e.target.value) })}
-                      aria-label={`Bedrag lijn ${row.displayLijnnr}`}
+                      onFieldChange={row.onFieldChange}
+                      ariaLabel={`Bedrag lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
                       className="w-24"
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
+                    <LineField
+                      mode={mode}
+                      fieldKey="aankoopprijs"
+                      numeric
                       value={row.fields.aankoopprijs}
-                      onChange={(e) => row.onFieldChange({ aankoopprijs: Number(e.target.value) })}
-                      aria-label={`Aankoopprijs lijn ${row.displayLijnnr}`}
+                      onFieldChange={row.onFieldChange}
+                      ariaLabel={`Aankoopprijs lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
                       className="w-24"
                     />
@@ -505,40 +667,46 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                         <label className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
                           BTW-kode
-                          <Input
+                          <LineField
+                            mode={mode}
+                            fieldKey="btwKode"
                             value={row.fields.btwKode}
-                            onChange={(e) => row.onFieldChange({ btwKode: e.target.value })}
+                            onFieldChange={row.onFieldChange}
                             disabled={row.busy}
                             className="mt-1 font-normal normal-case"
                           />
                         </label>
                         <label className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
                           Bruto verkoopprijs
-                          <Input
-                            type="number"
+                          <LineField
+                            mode={mode}
+                            fieldKey="brutoVerkoopprijs"
+                            numeric
                             value={row.fields.brutoVerkoopprijs}
-                            onChange={(e) =>
-                              row.onFieldChange({ brutoVerkoopprijs: Number(e.target.value) })
-                            }
+                            onFieldChange={row.onFieldChange}
                             disabled={row.busy}
                             className="mt-1 font-normal normal-case"
                           />
                         </label>
                         <label className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
                           Bruto
-                          <Input
-                            type="number"
+                          <LineField
+                            mode={mode}
+                            fieldKey="bruto"
+                            numeric
                             value={row.fields.bruto}
-                            onChange={(e) => row.onFieldChange({ bruto: Number(e.target.value) })}
+                            onFieldChange={row.onFieldChange}
                             disabled={row.busy}
                             className="mt-1 font-normal normal-case"
                           />
                         </label>
                         <label className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
                           Opmerking
-                          <Input
+                          <LineField
+                            mode={mode}
+                            fieldKey="opm"
                             value={row.fields.opm}
-                            onChange={(e) => row.onFieldChange({ opm: e.target.value })}
+                            onFieldChange={row.onFieldChange}
                             disabled={row.busy}
                             className="mt-1 font-normal normal-case"
                           />

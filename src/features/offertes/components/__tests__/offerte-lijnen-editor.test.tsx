@@ -149,7 +149,7 @@ describe("OfferteLijnenEditor - local mode", () => {
 });
 
 describe("OfferteLijnenEditor - persisted mode", () => {
-  it("calls updateOfflijn and reports the updated list on field change", async () => {
+  it("does not call updateOfflijn while typing - only commits on blur", async () => {
     const user = userEvent.setup();
     const onLijnenChange = vi.fn();
     const lijn = makeOfflijn();
@@ -168,12 +168,93 @@ describe("OfferteLijnenEditor - persisted mode", () => {
     const artnrInput = screen.getByRole("textbox", { name: /artnr lijn/i });
     await user.clear(artnrInput);
     await user.type(artnrInput, "NEWART");
-    // triggers onChange per keystroke; last call carries the final patch
-    await waitFor(() => expect(updateOfflijnMock).toHaveBeenCalled());
-    expect(updateOfflijnMock.mock.calls.at(-1)?.[0]).toBe(100);
-    expect(updateOfflijnMock.mock.calls.at(-1)?.[1]).toBe(1);
-    expect(updateOfflijnMock.mock.calls.at(-1)?.[2]).toBe(10);
-    await waitFor(() => expect(onLijnenChange).toHaveBeenCalled());
+
+    // Every keystroke only updates the local, uncommitted value - no PUT
+    // call yet, and the displayed value reflects what was typed.
+    expect(updateOfflijnMock).not.toHaveBeenCalled();
+    expect(onLijnenChange).not.toHaveBeenCalled();
+    expect(artnrInput).toHaveValue("NEWART");
+  });
+
+  it("commits exactly once, with the new value, when the field is blurred after a change", async () => {
+    const user = userEvent.setup();
+    const onLijnenChange = vi.fn();
+    const lijn = makeOfflijn();
+    updateOfflijnMock.mockResolvedValue({ ...lijn, artnr: "NEWART" });
+
+    render(
+      <OfferteLijnenEditor
+        mode="persisted"
+        offnr={100}
+        versie={1}
+        lijnen={[lijn]}
+        onLijnenChange={onLijnenChange}
+      />
+    );
+
+    const artnrInput = screen.getByRole("textbox", { name: /artnr lijn/i });
+    await user.clear(artnrInput);
+    await user.type(artnrInput, "NEWART");
+    await user.tab(); // blur
+
+    await waitFor(() => expect(updateOfflijnMock).toHaveBeenCalledTimes(1));
+    expect(updateOfflijnMock).toHaveBeenCalledWith(100, 1, 10, { artnr: "NEWART" });
+    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not call updateOfflijn on blur when the field's value did not change", async () => {
+    const user = userEvent.setup();
+    const onLijnenChange = vi.fn();
+    const lijn = makeOfflijn();
+
+    render(
+      <OfferteLijnenEditor
+        mode="persisted"
+        offnr={100}
+        versie={1}
+        lijnen={[lijn]}
+        onLijnenChange={onLijnenChange}
+      />
+    );
+
+    const artnrInput = screen.getByRole("textbox", { name: /artnr lijn/i });
+    await user.click(artnrInput);
+    await user.tab(); // focus then blur, no edit
+
+    expect(updateOfflijnMock).not.toHaveBeenCalled();
+    expect(onLijnenChange).not.toHaveBeenCalled();
+  });
+
+  it("re-syncs an untouched field's displayed value when the lijnen prop changes externally", async () => {
+    const onLijnenChange = vi.fn();
+    const lijn = makeOfflijn({ artnr: "OLD1" });
+
+    const { rerender } = render(
+      <OfferteLijnenEditor
+        mode="persisted"
+        offnr={100}
+        versie={1}
+        lijnen={[lijn]}
+        onLijnenChange={onLijnenChange}
+      />
+    );
+
+    expect(screen.getByRole("textbox", { name: /artnr lijn/i })).toHaveValue("OLD1");
+
+    // Simulate the parent replacing the list after e.g. a different field's
+    // successful server round-trip or a reorder response.
+    const updatedLijn = { ...lijn, artnr: "SYNCED" };
+    rerender(
+      <OfferteLijnenEditor
+        mode="persisted"
+        offnr={100}
+        versie={1}
+        lijnen={[updatedLijn]}
+        onLijnenChange={onLijnenChange}
+      />
+    );
+
+    expect(screen.getByRole("textbox", { name: /artnr lijn/i })).toHaveValue("SYNCED");
   });
 
   it("asks for confirmation before deleting a persisted line and deletes on confirm", async () => {
@@ -394,9 +475,13 @@ describe("OfferteLijnenEditor - persisted mode", () => {
 
     const artnrInput = screen.getByRole("textbox", { name: /artnr lijn/i });
     await user.type(artnrInput, "X");
+    await user.tab(); // blur triggers the commit attempt
 
     expect(await screen.findByText("Offlijn 100/1/10 not found")).toBeInTheDocument();
     expect(onLijnenChange).not.toHaveBeenCalled();
+    // The user's unsaved edit is not silently reverted to the stale server
+    // value - it stays visible alongside the error message.
+    expect(artnrInput).toHaveValue(`${lijn.artnr}X`);
   });
 
   it("shows a readable error and leaves the list untouched when deleting a persisted line fails", async () => {
