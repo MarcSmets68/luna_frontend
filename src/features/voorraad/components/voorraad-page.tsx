@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { ArtikelItem } from "@/lib/api-client";
 
@@ -24,17 +25,29 @@ export function VoorraadPage({
   page,
   hasMore,
   lageVoorraad = false,
+  toonGeblokkeerd = false,
 }: {
   items: ArtikelItem[];
   page: number;
   hasMore: boolean;
   lageVoorraad?: boolean;
+  toonGeblokkeerd?: boolean;
 }) {
   const router = useRouter();
-  const filterQuery = lageVoorraad ? "&lageVoorraad=true" : "";
+  const filterQuery =
+    (lageVoorraad ? "&lageVoorraad=true" : "") +
+    (toonGeblokkeerd ? "&toonGeblokkeerd=true" : "");
 
   function goToArtikel(artnr: string) {
     router.push(`/voorraad/${encodeURIComponent(artnr)}`);
+  }
+
+  function setToonGeblokkeerd(checked: boolean) {
+    const params = new URLSearchParams();
+    if (lageVoorraad) params.set("lageVoorraad", "true");
+    if (checked) params.set("toonGeblokkeerd", "true");
+    const query = params.toString();
+    router.push(query ? `/voorraad?${query}` : "/voorraad");
   }
 
   return (
@@ -54,6 +67,15 @@ export function VoorraadPage({
           )}
         </div>
         <div className="text-[13px] text-[#5e5e5e]">Pagina {page}</div>
+      </div>
+
+      <div className="mb-4 flex items-center gap-2">
+        <Checkbox
+          checked={toonGeblokkeerd}
+          onCheckedChange={setToonGeblokkeerd}
+          aria-label="Ook geblokkeerde artikelen tonen"
+        />
+        <span className="text-sm text-foreground">Ook geblokkeerde artikelen tonen</span>
       </div>
 
       {items.length === 0 ? (

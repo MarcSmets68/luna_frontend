@@ -7,16 +7,30 @@ const PAGE_SIZE = 25;
 export default async function Voorraad({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; lageVoorraad?: string }>;
+  searchParams: Promise<{ page?: string; lageVoorraad?: string; toonGeblokkeerd?: string }>;
 }) {
-  const { page: pageParam, lageVoorraad: lageVoorraadParam } = await searchParams;
+  const {
+    page: pageParam,
+    lageVoorraad: lageVoorraadParam,
+    toonGeblokkeerd: toonGeblokkeerdParam,
+  } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
   const lageVoorraad = lageVoorraadParam === "true";
-  const { items, hasMore } = await getArtikelen(page, PAGE_SIZE, { lageVoorraad });
+  const toonGeblokkeerd = toonGeblokkeerdParam === "true";
+  const { items, hasMore } = await getArtikelen(page, PAGE_SIZE, {
+    lageVoorraad,
+    geblokkeerd: toonGeblokkeerd ? undefined : false,
+  });
 
   return (
     <AppShell>
-      <VoorraadPage items={items} page={page} hasMore={hasMore} lageVoorraad={lageVoorraad} />
+      <VoorraadPage
+        items={items}
+        page={page}
+        hasMore={hasMore}
+        lageVoorraad={lageVoorraad}
+        toonGeblokkeerd={toonGeblokkeerd}
+      />
     </AppShell>
   );
 }
