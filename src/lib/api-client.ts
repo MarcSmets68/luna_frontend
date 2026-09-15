@@ -1025,10 +1025,19 @@ export type DashboardProductionItem = {
   geparkeerd: boolean;
 };
 
+export type DashboardOmzetTrendItem = {
+  month: number;
+  year: number;
+  label: string;
+  total: number;
+  isPartial: boolean;
+};
+
 export type DashboardResponse = {
   statCards: DashboardStatCards;
   recentActivity: DashboardActivityItem[];
   productionThisWeek: DashboardProductionItem[];
+  omzetTrend: DashboardOmzetTrendItem[];
 };
 
 /**
