@@ -66,6 +66,11 @@ describe("BestellingDetailPage", () => {
     expect(screen.getByText(/wat aan de leverancier wordt betaald/)).toBeInTheDocument();
   });
 
+  it("renders the Orderlijnen section title as a level-2 heading", () => {
+    render(<BestellingDetailPage bestelling={mockBestelling} lijnen={mockLijnen} />);
+    expect(screen.getByRole("heading", { name: "Orderlijnen", level: 2 })).toBeInTheDocument();
+  });
+
   it("shows an empty state when there are no orderlijnen", () => {
     render(<BestellingDetailPage bestelling={mockBestelling} lijnen={[]} />);
     expect(screen.getByText("Geen orderlijnen gevonden.")).toBeInTheDocument();
