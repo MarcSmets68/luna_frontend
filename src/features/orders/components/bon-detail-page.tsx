@@ -13,6 +13,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
+import { BonLijnFoutBanner } from "./bon-lijn-fout-banner";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -71,6 +72,8 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
           </div>
         </CardContent>
       </Card>
+
+      <BonLijnFoutBanner bonnr={bon.bonnr} />
 
       <h2 className="mb-3 text-[16px] font-semibold text-foreground">Lijnen</h2>
 

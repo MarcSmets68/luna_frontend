@@ -82,4 +82,12 @@ describe("KlantOrdersList", () => {
     row.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     expect(pushMock).toHaveBeenCalledWith("/orders/458123");
   });
+
+  it("renders a 'Nieuwe order' button that navigates to the create page, even when empty", () => {
+    pushMock.mockClear();
+    render(<KlantOrdersList klnr={10432} items={[]} page={1} hasMore={false} offertesPage={1} />);
+    const button = screen.getByRole("button", { name: /nieuwe order/i });
+    button.click();
+    expect(pushMock).toHaveBeenCalledWith("/orders/nieuw?klnr=10432");
+  });
 });
