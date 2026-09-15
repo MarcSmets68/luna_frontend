@@ -1,7 +1,18 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
+
+const searchParamsMock = vi.fn(() => new URLSearchParams());
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => searchParamsMock(),
+}));
+
+beforeEach(() => {
+  searchParamsMock.mockReset();
+  searchParamsMock.mockReturnValue(new URLSearchParams());
+  sessionStorage.clear();
+});
 
 const mockBon: BonItem = {
   bonnr: 1234567,
@@ -176,5 +187,23 @@ describe("BonDetailPage", () => {
     expect(screen.getByText(mockLijnen[0].omschrijving).className).not.toContain(
       "text-primary-600"
     );
+  });
+
+  it("shows the lijn-fout banner before the Lijnen heading when lijnFout=1 and sessionStorage has failures", () => {
+    searchParamsMock.mockReturnValue(new URLSearchParams("lijnFout=1"));
+    sessionStorage.setItem(
+      `luna:bon-lijn-fout:${mockBon.bonnr}`,
+      JSON.stringify({ failed: [{ omschrijving: "Ontbrekende lijn", error: "400 Bad Request" }] })
+    );
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+
+    expect(screen.getByText("Niet alle lijnen zijn opgeslagen.")).toBeInTheDocument();
+    expect(screen.getByText("Ontbrekende lijn: 400 Bad Request")).toBeInTheDocument();
+  });
+
+  it("does not show the lijn-fout banner without lijnFout=1", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    expect(screen.queryByText("Niet alle lijnen zijn opgeslagen.")).not.toBeInTheDocument();
   });
 });

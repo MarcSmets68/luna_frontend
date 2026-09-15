@@ -717,6 +717,32 @@ export async function getBonLijnen(bonnr: number): Promise<BonLijnItem[]> {
   return data.items;
 }
 
+export type CreateBonPayload = Partial<Omit<BonItem, "bonnr" | "klnr">> & {
+  klnr: number;
+};
+
+export type CreateBonLijnPayload = Partial<Omit<BonLijnItem, "bonnr" | "lijnnr">>;
+
+/**
+ * Creates a new bon (order/quote confirmation depending on `type`).
+ * Backend: POST /web/bon (Luna.Web.BonHandler).
+ */
+export async function createBon(payload: CreateBonPayload): Promise<BonItem> {
+  return apiPost<BonItem>("/bon", payload);
+}
+
+/**
+ * Creates a new bonlijn (order line) under an existing bon. `lijnnr` is
+ * server-generated (mirrors createOfflijn) - never sent by the client.
+ * Backend: POST /web/bon/{bonnr}/lijn (Luna.Web.BonHandler).
+ */
+export async function createBonLijn(
+  bonnr: number,
+  payload: CreateBonLijnPayload
+): Promise<BonLijnItem> {
+  return apiPost<BonLijnItem>(`/bon/${bonnr}/lijn`, payload);
+}
+
 /**
  * Paged list of bonnen (orders/order confirmations etc.). No exact total
  * count is available (same reasoning as getArtikelen) - so pagination
