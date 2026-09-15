@@ -71,6 +71,13 @@ describe("KlantenPage", () => {
     expect(pushMock).toHaveBeenCalledWith("/klanten/1");
   });
 
+  it("navigates to the create page when 'Nieuwe klant' is clicked", () => {
+    pushMock.mockClear();
+    render(<KlantenPage items={mockItems} page={1} hasMore={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Nieuwe klant" }));
+    expect(pushMock).toHaveBeenCalledWith("/klanten/nieuw");
+  });
+
   it("navigates to the klant detail page when Enter is pressed on a focused row", () => {
     pushMock.mockClear();
     render(<KlantenPage items={mockItems} page={1} hasMore={false} />);
