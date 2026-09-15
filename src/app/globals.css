@@ -34,6 +34,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-600: var(--primary-600);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -68,6 +69,10 @@
   --popover-foreground: #252d2f;
   --primary: #60a172;
   --primary-foreground: #ffffff;
+  /* primary-600 (§2.1 design-system.md): text/icons on white, 4.6:1 AA contrast.
+     `--primary`/`--color-primary` above is the primary-500 fill color, which is
+     not AA-safe for small text - use `text-primary-600` for green body text. */
+  --primary-600: #4d815b;
   --secondary: #eef1f2;
   --secondary-foreground: #252d2f;
   --muted: #f8f9f9;
@@ -119,6 +124,7 @@
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
+  --primary-600: #4d815b;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);

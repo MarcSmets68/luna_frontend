@@ -55,6 +55,17 @@ const mockLijnen: OfflijnItem[] = [
   },
 ];
 
+const mockTitleLijn: OfflijnItem = {
+  ...mockLijnen[0],
+  lijnnr: 2,
+  artnr: "K00",
+  omschrijving: "SECTIE TITEL",
+  // Real K00 lines come back from the backend with a whitespace-only
+  // omschrijvingOfferte (e.g. "\n"), not an empty string. Reproduce that here
+  // so the merged-cell test actually covers the reported bug scenario.
+  omschrijvingOfferte: "\n",
+};
+
 describe("OfferteDetailPage", () => {
   it("renders the offerte heading and klant link", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
@@ -89,6 +100,14 @@ describe("OfferteDetailPage", () => {
     expect(screen.getByText("LED profiel 2m")).toBeInTheDocument();
   });
 
+  it("falls back to omschrijving when omschrijvingOfferte is whitespace-only", () => {
+    const lijnenMetWhitespaceOfferteTekst: OfflijnItem[] = [
+      { ...mockLijnen[0], omschrijvingOfferte: "\n" },
+    ];
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={lijnenMetWhitespaceOfferteTekst} />);
+    expect(screen.getByText("LED profiel 2m")).toBeInTheDocument();
+  });
+
   it("shows an empty state when there are no lijnen", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={[]} />);
     expect(screen.getByText("Geen lijnen gevonden voor deze offerte.")).toBeInTheDocument();
@@ -99,6 +118,24 @@ describe("OfferteDetailPage", () => {
     expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute(
       "href",
       "/offertes/alle"
+    );
+  });
+
+  it("collapses a K00 line to a single merged cell in the primary-600 title-line color", () => {
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={[mockTitleLijn]} />);
+    const cell = screen.getByText("SECTIE TITEL");
+    expect(cell.className).toContain("text-primary-600");
+    expect(cell.tagName).toBe("TD");
+    expect(cell).toHaveAttribute("colspan", "9");
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
+    expect(screen.queryByText("K00")).not.toBeInTheDocument();
+  });
+
+  it("does not apply the title-line color to a normal article row", () => {
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
+    expect(screen.getByText(mockLijnen[0].artnr).className).not.toContain("text-primary-600");
+    expect(screen.getByText(mockLijnen[0].omschrijvingOfferte).className).not.toContain(
+      "text-primary-600"
     );
   });
 });
