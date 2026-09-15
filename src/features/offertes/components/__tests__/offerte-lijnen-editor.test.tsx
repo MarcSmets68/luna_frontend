@@ -291,4 +291,133 @@ describe("OfferteLijnenEditor - persisted mode", () => {
     expect(upButtons[0]).toBeDisabled();
     expect(downButtons[1]).toBeDisabled();
   });
+
+  it("adds a new persisted artikellijn via createOfflijn and appends the server response to the list", async () => {
+    const user = userEvent.setup();
+    const onLijnenChange = vi.fn();
+    const lijn = makeOfflijn();
+    const created = makeOfflijn({ lijnnr: 20, artnr: "NEW1" });
+    createOfflijnMock.mockResolvedValue(created);
+
+    render(
+      <OfferteLijnenEditor
+        mode="persisted"
+        offnr={100}
+        versie={1}
+        lijnen={[lijn]}
+        onLijnenChange={onLijnenChange}
+      />
+    );
+
+    await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "NEW1");
+    await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
+
+    await waitFor(() => expect(createOfflijnMock).toHaveBeenCalledTimes(1));
+    expect(createOfflijnMock).toHaveBeenCalledWith(
+      100,
+      1,
+      expect.objectContaining({ artnr: "NEW1", subtotaal: false, kolomtitel: false, infolijn: false })
+    );
+    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledWith([lijn, created]));
+  });
+
+  it("sends only the subtotaal flag (mutually exclusive with kolomtitel/infolijn) when adding a subtotaal line", async () => {
+    const user = userEvent.setup();
+    const onLijnenChange = vi.fn();
+    const lijn = makeOfflijn();
+    createOfflijnMock.mockResolvedValue(makeOfflijn({ lijnnr: 20, subtotaal: true }));
+
+    render(
+      <OfferteLijnenEditor
+        mode="persisted"
+        offnr={100}
+        versie={1}
+        lijnen={[lijn]}
+        onLijnenChange={onLijnenChange}
+      />
+    );
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Type nieuwe lijn" }), "subtotaal");
+    await user.type(screen.getByRole("textbox", { name: "Omschrijving nieuwe lijn" }), "Subtotaal groep A");
+    await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
+
+    await waitFor(() => expect(createOfflijnMock).toHaveBeenCalledTimes(1));
+    expect(createOfflijnMock).toHaveBeenCalledWith(
+      100,
+      1,
+      expect.objectContaining({ subtotaal: true, kolomtitel: false, infolijn: false })
+    );
+  });
+
+  it("shows the server's mutual-exclusivity/precondition error verbatim and does not update the list when adding a line fails", async () => {
+    const user = userEvent.setup();
+    const onLijnenChange = vi.fn();
+    const lijn = makeOfflijn();
+    createOfflijnMock.mockRejectedValue(
+      new Error("Een subtotaallijn vereist een voorgaande gewone lijn")
+    );
+
+    render(
+      <OfferteLijnenEditor
+        mode="persisted"
+        offnr={100}
+        versie={1}
+        lijnen={[lijn]}
+        onLijnenChange={onLijnenChange}
+      />
+    );
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Type nieuwe lijn" }), "subtotaal");
+    await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
+
+    expect(
+      await screen.findByText("Een subtotaallijn vereist een voorgaande gewone lijn")
+    ).toBeInTheDocument();
+    expect(onLijnenChange).not.toHaveBeenCalled();
+  });
+
+  it("shows a readable error and leaves the list untouched when updating a persisted line fails", async () => {
+    const user = userEvent.setup();
+    const onLijnenChange = vi.fn();
+    const lijn = makeOfflijn();
+    updateOfflijnMock.mockRejectedValue(new Error("Offlijn 100/1/10 not found"));
+
+    render(
+      <OfferteLijnenEditor
+        mode="persisted"
+        offnr={100}
+        versie={1}
+        lijnen={[lijn]}
+        onLijnenChange={onLijnenChange}
+      />
+    );
+
+    const artnrInput = screen.getByRole("textbox", { name: /artnr lijn/i });
+    await user.type(artnrInput, "X");
+
+    expect(await screen.findByText("Offlijn 100/1/10 not found")).toBeInTheDocument();
+    expect(onLijnenChange).not.toHaveBeenCalled();
+  });
+
+  it("shows a readable error and leaves the list untouched when deleting a persisted line fails", async () => {
+    const user = userEvent.setup();
+    const onLijnenChange = vi.fn();
+    const lijn = makeOfflijn();
+    deleteOfflijnMock.mockRejectedValue(new Error("Offlijn 100/1/10 not found"));
+
+    render(
+      <OfferteLijnenEditor
+        mode="persisted"
+        offnr={100}
+        versie={1}
+        lijnen={[lijn]}
+        onLijnenChange={onLijnenChange}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /verwijder lijn/i }));
+
+    expect(await screen.findByText("Offlijn 100/1/10 not found")).toBeInTheDocument();
+    expect(onLijnenChange).not.toHaveBeenCalled();
+  });
 });
