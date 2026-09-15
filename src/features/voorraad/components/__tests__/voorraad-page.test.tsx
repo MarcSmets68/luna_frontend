@@ -101,14 +101,14 @@ describe("VoorraadPage", () => {
     render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
     expect(
       screen.getByRole("checkbox", { name: /ook geblokkeerde artikelen tonen/i })
-    ).not.toBeChecked();
+    ).toHaveProperty("ariaChecked", "false");
   });
 
   it("renders the 'Ook geblokkeerde artikelen tonen' filter checked when toonGeblokkeerd is true", () => {
     render(<VoorraadPage items={mockItems} page={1} hasMore={false} toonGeblokkeerd={true} />);
     expect(
       screen.getByRole("checkbox", { name: /ook geblokkeerde artikelen tonen/i })
-    ).toBeChecked();
+    ).toHaveProperty("ariaChecked", "true");
   });
 
   it("navigates to /voorraad?toonGeblokkeerd=true when the filter is checked", async () => {
