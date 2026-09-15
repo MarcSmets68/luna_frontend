@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatBedrag } from "@/lib/format";
@@ -10,6 +11,7 @@ type StatCard = {
   value: string;
   hint: string;
   hintColor?: HintColor;
+  href?: string;
 };
 
 const hintColorClass: Record<HintColor, string> = {
@@ -48,6 +50,7 @@ function buildStatCards(statCards: DashboardStatCards): StatCard[] {
       value: String(statCards.lageVoorraadCount),
       hint: "items onder reorder point",
       hintColor: "warning",
+      href: "/voorraad?lageVoorraad=true",
     },
   ];
 }
@@ -57,26 +60,45 @@ export function StatCards({ statCards }: { statCards: DashboardStatCards }) {
 
   return (
     <div className="mb-7 grid grid-cols-4 gap-4">
-      {cards.map((stat) => (
-        <Card key={stat.label} className="rounded-none border-border shadow-none">
-          <CardContent className="px-5 py-1">
-            <div className="mb-2 text-[11px] font-semibold tracking-[0.05em] text-[#787878] uppercase">
-              {stat.label}
-            </div>
-            <div
-              className={cn(
-                "text-[22px] font-bold whitespace-nowrap",
-                stat.hintColor === "warning" ? "text-[#8a6820]" : "text-foreground"
-              )}
-            >
-              {stat.value}
-            </div>
-            <div className={cn("mt-1 text-[12px]", hintColorClass[stat.hintColor ?? "default"])}>
-              {stat.hint}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+      {cards.map((stat) => {
+        const card = (
+          <Card
+            className={cn(
+              "rounded-none border-border shadow-none",
+              stat.href && "cursor-pointer hover:border-primary hover:bg-muted/40"
+            )}
+          >
+            <CardContent className="px-5 py-1">
+              <div className="mb-2 text-[11px] font-semibold tracking-[0.05em] text-[#787878] uppercase">
+                {stat.label}
+              </div>
+              <div
+                className={cn(
+                  "text-[22px] font-bold whitespace-nowrap",
+                  stat.hintColor === "warning" ? "text-[#8a6820]" : "text-foreground"
+                )}
+              >
+                {stat.value}
+              </div>
+              <div className={cn("mt-1 text-[12px]", hintColorClass[stat.hintColor ?? "default"])}>
+                {stat.hint}
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+        return stat.href ? (
+          <Link
+            key={stat.label}
+            href={stat.href}
+            aria-label={`${stat.label}: bekijk gefilterde voorraadlijst`}
+          >
+            {card}
+          </Link>
+        ) : (
+          <div key={stat.label}>{card}</div>
+        );
+      })}
     </div>
   );
 }
