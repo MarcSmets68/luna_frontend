@@ -518,6 +518,108 @@ export async function getOfferteLijnen(offnr: number, versie: number): Promise<O
   return data.items;
 }
 
+export type CreateOffertePayload = Partial<Omit<OfferteItem, "offnr" | "versie" | "klnr">> & {
+  klnr: number;
+};
+
+/**
+ * Creates a new offerte. `offnr`/`versie` are server-allocated - do not
+ * send them in the payload.
+ * Backend: POST /web/offerte (Luna.Web.OfferteHandler).
+ */
+export async function createOfferte(payload: CreateOffertePayload): Promise<OfferteItem> {
+  return apiPost<OfferteItem>("/offerte", payload);
+}
+
+/**
+ * Partial update payload for an offerte - every field is optional (only
+ * fields present are changed) and `offnr`/`versie`/`klnr` are deliberately
+ * excluded (immutable identifiers).
+ */
+export type UpdateOffertePayload = Partial<Omit<OfferteItem, "offnr" | "versie" | "klnr">>;
+
+/**
+ * Updates an offerte. Only the fields present in `payload` are changed.
+ * The `verloren`-auto-clear rule is applied server-side - no client logic
+ * needed.
+ * Backend: PUT /web/offerte/{offnr}/{versie} (Luna.Web.OfferteHandler).
+ */
+export async function updateOfferte(
+  offnr: number,
+  versie: number,
+  payload: UpdateOffertePayload
+): Promise<OfferteItem> {
+  return apiPut<OfferteItem>(`/offerte/${offnr}/${versie}`, payload);
+}
+
+export type CreateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
+
+/**
+ * Creates a new offlijn (quote line) under an offerte. `lijnnr` is
+ * server-allocated (+10 from the previous line) - do not send it.
+ * Backend: POST /web/offerte/{offnr}/{versie}/lijn (Luna.Web.OfferteHandler).
+ */
+export async function createOfflijn(
+  offnr: number,
+  versie: number,
+  payload: CreateOfflijnPayload
+): Promise<OfflijnItem> {
+  return apiPost<OfflijnItem>(`/offerte/${offnr}/${versie}/lijn`, payload);
+}
+
+export type UpdateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
+
+/**
+ * Updates an offlijn. Only the fields present in `payload` are changed.
+ * Backend: PUT /web/offerte/{offnr}/{versie}/lijn/{lijnnr}
+ * (Luna.Web.OfferteHandler).
+ */
+export async function updateOfflijn(
+  offnr: number,
+  versie: number,
+  lijnnr: number,
+  payload: UpdateOfflijnPayload
+): Promise<OfflijnItem> {
+  return apiPut<OfflijnItem>(`/offerte/${offnr}/${versie}/lijn/${lijnnr}`, payload);
+}
+
+export type DeleteOfflijnResult = { status: string; offnr: number; versie: number; lijnnr: number };
+
+/**
+ * Deletes an offlijn.
+ * Backend: DELETE /web/offerte/{offnr}/{versie}/lijn/{lijnnr}
+ * (Luna.Web.OfferteHandler).
+ */
+export async function deleteOfflijn(
+  offnr: number,
+  versie: number,
+  lijnnr: number
+): Promise<DeleteOfflijnResult> {
+  return apiDelete<DeleteOfflijnResult>(`/offerte/${offnr}/${versie}/lijn/${lijnnr}`);
+}
+
+export type ReorderDirection = "up" | "down";
+
+/**
+ * Moves an offlijn up/down among its siblings. Returns the full,
+ * re-ordered list of lines (not just the moved one) - the backend response
+ * is `{ items: OfflijnItem[] }`.
+ * Backend: POST /web/offerte/{offnr}/{versie}/lijn/{lijnnr}/reorder
+ * (Luna.Web.OfferteHandler).
+ */
+export async function reorderOfflijn(
+  offnr: number,
+  versie: number,
+  lijnnr: number,
+  direction: ReorderDirection
+): Promise<OfflijnItem[]> {
+  const data = await apiPost<{ items: OfflijnItem[] }>(
+    `/offerte/${offnr}/${versie}/lijn/${lijnnr}/reorder`,
+    { direction }
+  );
+  return data.items;
+}
+
 export type BonItem = {
   bonnr: number;
   type: string;

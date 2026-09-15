@@ -1,7 +1,31 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OfferteDetailPage } from "../offerte-detail-page";
 import type { OfferteItem, OfflijnItem } from "@/lib/api-client";
+
+const refreshMock = vi.fn();
+const searchParamsMock = vi.fn(() => new URLSearchParams());
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: refreshMock, push: vi.fn() }),
+  useSearchParams: () => searchParamsMock(),
+}));
+
+const updateOfferteMock = vi.fn();
+vi.mock("@/lib/api-client", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
+  return {
+    ...actual,
+    updateOfferte: (...args: unknown[]) => updateOfferteMock(...args),
+  };
+});
+
+beforeEach(() => {
+  refreshMock.mockReset();
+  updateOfferteMock.mockReset();
+  searchParamsMock.mockReset();
+  searchParamsMock.mockReturnValue(new URLSearchParams());
+});
 
 const mockOfferte: OfferteItem = {
   offnr: 2167769,
@@ -83,12 +107,12 @@ describe("OfferteDetailPage", () => {
     expect(screen.getByText("Open")).toBeInTheDocument();
   });
 
-  it("renders the lijnen section with every line's artnr and omschrijving", () => {
+  it("renders the lijnen section with every line's artnr and omschrijving as editable inputs", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
     expect(screen.getByRole("heading", { name: "Lijnen" })).toBeInTheDocument();
     for (const lijn of mockLijnen) {
-      expect(screen.getByText(lijn.artnr)).toBeInTheDocument();
-      expect(screen.getByText(lijn.omschrijvingOfferte)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(lijn.artnr)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(lijn.omschrijvingOfferte)).toBeInTheDocument();
     }
   });
 
@@ -110,7 +134,7 @@ describe("OfferteDetailPage", () => {
 
   it("shows an empty state when there are no lijnen", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={[]} />);
-    expect(screen.getByText("Geen lijnen gevonden voor deze offerte.")).toBeInTheDocument();
+    expect(screen.getByText("Geen lijnen.")).toBeInTheDocument();
   });
 
   it("renders a back link to the offertes overview", () => {
