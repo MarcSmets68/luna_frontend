@@ -808,6 +808,18 @@ export async function getKlant(klnr: number): Promise<KlantItem | null> {
   return response.json() as Promise<KlantItem>;
 }
 
+export type CreateKlantPayload = Partial<Omit<KlantItem, "klnr">> & {
+  klnr: number;
+};
+
+/**
+ * Creates a new klant.
+ * Backend: POST /web/klant (Luna.Web.KlantHandler).
+ */
+export async function createKlant(payload: CreateKlantPayload): Promise<KlantItem> {
+  return apiPost<KlantItem>("/klant", payload);
+}
+
 /**
  * Partial update payload for a klant - every field is optional (only
  * fields present are changed) and `klnr` is deliberately excluded since
