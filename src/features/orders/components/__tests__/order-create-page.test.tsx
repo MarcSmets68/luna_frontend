@@ -58,6 +58,16 @@ describe("OrderCreatePage", () => {
     expect(screen.getByText("14644")).toBeInTheDocument();
   });
 
+  it("does not render an editable 'type' header field - it is hardcoded to ORDERBEVESTIGING", () => {
+    render(<OrderCreatePage klant={mockKlant} />);
+    // Exact match: rules out matching the unrelated "Type nieuwe lijn" select
+    // and the lijnen-table "Type" column header further down the page.
+    expect(screen.queryByLabelText("Type", { exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("ORDERBEVESTIGING")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /^type$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /^type$/i })).not.toBeInTheDocument();
+  });
+
   it("rejects a missing datum without calling the API", async () => {
     const user = userEvent.setup();
     render(<OrderCreatePage klant={mockKlant} />);
@@ -117,6 +127,48 @@ describe("OrderCreatePage", () => {
     expect(stored).not.toBeNull();
     const parsed = JSON.parse(stored as string);
     expect(parsed.failed[0].error).toBe("400 Bad Request");
+  });
+
+  it("computes bedrag excluding subtotaal/kolomtitel/infolijn lines and sends it on the bon payload", async () => {
+    const user = userEvent.setup();
+    createBonMock.mockResolvedValue({ bonnr: 999, klnr: 14644, type: "ORDERBEVESTIGING" });
+    createBonLijnMock.mockResolvedValue({ bonnr: 999, lijnnr: 10 });
+
+    render(<OrderCreatePage klant={mockKlant} />);
+
+    // Artikellijn met bedrag 50 - telt mee.
+    await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "ART1");
+    await user.clear(screen.getByRole("spinbutton", { name: "Bedrag nieuwe lijn" }));
+    await user.type(screen.getByRole("spinbutton", { name: "Bedrag nieuwe lijn" }), "50");
+    await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
+
+    // Subtotaallijn - moet uitgesloten worden ondanks een (hypothetisch) bedrag-veld.
+    await user.selectOptions(screen.getByRole("combobox", { name: "Type nieuwe lijn" }), "subtotaal");
+    await user.type(screen.getByRole("textbox", { name: "Omschrijving nieuwe lijn" }), "Subtotaal");
+    await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
+
+    // Kolomtitellijn - moet uitgesloten worden.
+    await user.selectOptions(screen.getByRole("combobox", { name: "Type nieuwe lijn" }), "kolomtitel");
+    await user.type(screen.getByRole("textbox", { name: "Omschrijving nieuwe lijn" }), "Kolomtitel");
+    await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
+
+    // Infolijn - moet uitgesloten worden.
+    await user.selectOptions(screen.getByRole("combobox", { name: "Type nieuwe lijn" }), "infolijn");
+    await user.type(screen.getByRole("textbox", { name: "Omschrijving nieuwe lijn" }), "Info");
+    await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
+
+    // Tweede artikellijn met bedrag 25 - telt mee (totaal moet 75 worden, niet meer).
+    await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "ART2");
+    await user.clear(screen.getByRole("spinbutton", { name: "Bedrag nieuwe lijn" }));
+    await user.type(screen.getByRole("spinbutton", { name: "Bedrag nieuwe lijn" }), "25");
+    await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(createBonMock).toHaveBeenCalledTimes(1));
+    expect(createBonMock).toHaveBeenCalledWith(expect.objectContaining({ bedrag: 75 }));
+    // Alle 5 lijnen (2 artikel + subtotaal + kolomtitel + infolijn) worden nog steeds als bonlijn aangemaakt.
+    expect(createBonLijnMock).toHaveBeenCalledTimes(5);
   });
 
   it("shows an error and does not navigate when the header create call fails", async () => {

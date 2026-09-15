@@ -90,4 +90,13 @@ describe("KlantOrdersList", () => {
     button.click();
     expect(pushMock).toHaveBeenCalledWith("/orders/nieuw?klnr=10432");
   });
+
+  it("navigates only to the create page when 'Nieuwe order' is clicked, not to a bon detail page (no row-click bubbling)", () => {
+    pushMock.mockClear();
+    render(<KlantOrdersList klnr={10432} items={mockItems} page={1} hasMore={false} offertesPage={1} />);
+    const button = screen.getByRole("button", { name: /nieuwe order/i });
+    button.click();
+    expect(pushMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).toHaveBeenCalledWith("/orders/nieuw?klnr=10432");
+  });
 });
