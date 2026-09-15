@@ -293,20 +293,22 @@ type ArtikelenResponse = {
  * available - see Backend/README.md ("No exact totalCount") - so pagination
  * relies on `hasMore` rather than a page count. Pass `lageVoorraad: true` to
  * filter to the same "lage voorraad" set as the dashboard's
- * lageVoorraadCount stat (exact same rule, server-side) - exclusive with any
- * other filter on this endpoint.
+ * lageVoorraadCount stat (exact same rule, server-side). Pass `geblokkeerd`
+ * to filter on the blocked flag server-side (`false` = only unblocked,
+ * `true` = only blocked, omitted = no filter).
  * Backend: GET /web/artikel (Luna.Web.ArtikelHandler).
  */
 export async function getArtikelen(
   page = 1,
   pageSize = 25,
-  options: { lageVoorraad?: boolean } = {}
+  options: { lageVoorraad?: boolean; geblokkeerd?: boolean } = {}
 ): Promise<ArtikelenResponse> {
-  const { lageVoorraad } = options;
+  const { lageVoorraad, geblokkeerd } = options;
   const query = new URLSearchParams();
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
   if (lageVoorraad) query.set("lageVoorraad", "true");
+  if (geblokkeerd !== undefined) query.set("geblokkeerd", String(geblokkeerd));
   return apiGet<ArtikelenResponse>(`/artikel?${query.toString()}`);
 }
 
