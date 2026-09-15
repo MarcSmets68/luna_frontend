@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { KlantItem } from "@/lib/api-client";
@@ -87,7 +87,12 @@ export function KlantenPage({
       </div>
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-[26px] font-bold text-foreground">Klanten</h1>
-        <div className="text-[13px] text-muted-foreground">Pagina {page}</div>
+        <div className="flex items-center gap-3">
+          <div className="text-[13px] text-muted-foreground">Pagina {page}</div>
+          <Button type="button" size="sm" onClick={() => router.push("/klanten/nieuw")}>
+            Nieuwe klant
+          </Button>
+        </div>
       </div>
 
       <div className="mb-6 flex flex-col gap-1">
