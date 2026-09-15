@@ -12,13 +12,8 @@ import { EntityDetailHeader } from "@/components/ui/entity-detail-header";
 import { FlagGrid } from "@/components/ui/flag-grid";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum, statusLabel } from "@/lib/format";
-import { OfferteLijnenEditor } from "./offerte-lijnen-editor";
-import {
-  updateOfferte,
-  type OfferteItem,
-  type OfflijnItem,
-  type UpdateOffertePayload,
-} from "@/lib/api-client";
+import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
+import type { OfferteItem, OfflijnItem } from "@/lib/api-client";
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -382,22 +377,78 @@ export function OfferteDetailPage({
 
       <h2 className="mb-3 text-[16px] font-semibold text-foreground">Lijnen</h2>
 
-      {lijnFouten.length > 0 && (
-        <Card className="mb-4 border-destructive">
-          <CardContent>
-            <p className="text-sm font-semibold text-destructive">
-              Niet alle lijnen zijn opgeslagen. De volgende lijn(en) ontbreken - voeg ze hieronder
-              alsnog toe:
-            </p>
-            <ul className="mt-2 list-inside list-disc text-sm text-destructive">
-              {lijnFouten.map((fout, index) => (
-                <li key={index}>
-                  {fout.omschrijving}: {fout.error}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+      {lijnen.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Geen lijnen gevonden voor deze offerte.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Lijnnr</TableHead>
+              <TableHead>Artnr</TableHead>
+              <TableHead>Omschrijving</TableHead>
+              <TableHead>Aantal</TableHead>
+              <TableHead>Te leveren</TableHead>
+              <TableHead>Vprijs</TableHead>
+              <TableHead>Korting</TableHead>
+              <TableHead>Bedrag</TableHead>
+              <TableHead>Aankoopprijs</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {/*
+              NOTE: this table has no client-side totals/footer row today. If
+              one is ever added, it must aggregate over
+              `excludeTitleLines(lijnen)`, not raw `lijnen` - K00 rows are
+              section-title placeholders, not real articles with real amounts.
+            */}
+            {lijnen.map((lijn) => {
+              const isTitle = isTitleLine(lijn.artnr);
+              if (isTitle) {
+                return (
+                  <TableRow key={lijn.lijnnr}>
+                    <TableCell
+                      colSpan={9}
+                      className={cn("whitespace-normal", TITLE_LINE_TEXT_CLASS)}
+                    >
+                      {lijn.omschrijvingOfferte.trim() || lijn.omschrijving}
+                    </TableCell>
+                  </TableRow>
+                );
+              }
+              return (
+                <TableRow key={lijn.lijnnr}>
+                  <TableCell className={cn("font-semibold", isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.lijnnr}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.artnr}
+                  </TableCell>
+                  <TableCell className={cn("whitespace-normal", isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.omschrijvingOfferte.trim() || lijn.omschrijving}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.aantal}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.teLeveren}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {formatBedrag(lijn.verkoopprijs)}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {lijn.korting}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {formatBedrag(lijn.bedrag)}
+                  </TableCell>
+                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
+                    {formatBedrag(lijn.aankoopprijs)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       )}
 
       <OfferteLijnenEditor

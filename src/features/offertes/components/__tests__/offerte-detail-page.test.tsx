@@ -116,7 +116,23 @@ describe("OfferteDetailPage", () => {
     }
   });
 
-  it("shows a 'Geen lijnen' message when there are no lijnen", () => {
+  it("falls back to omschrijving when omschrijvingOfferte is empty", () => {
+    const lijnenZonderOfferteTekst: OfflijnItem[] = [
+      { ...mockLijnen[0], omschrijvingOfferte: "" },
+    ];
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={lijnenZonderOfferteTekst} />);
+    expect(screen.getByText("LED profiel 2m")).toBeInTheDocument();
+  });
+
+  it("falls back to omschrijving when omschrijvingOfferte is whitespace-only", () => {
+    const lijnenMetWhitespaceOfferteTekst: OfflijnItem[] = [
+      { ...mockLijnen[0], omschrijvingOfferte: "\n" },
+    ];
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={lijnenMetWhitespaceOfferteTekst} />);
+    expect(screen.getByText("LED profiel 2m")).toBeInTheDocument();
+  });
+
+  it("shows an empty state when there are no lijnen", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={[]} />);
     expect(screen.getByText("Geen lijnen.")).toBeInTheDocument();
   });
@@ -129,95 +145,21 @@ describe("OfferteDetailPage", () => {
     );
   });
 
-  it("renders a K00 title line with the fallback description in the primary-600 color", () => {
+  it("collapses a K00 line to a single merged cell in the primary-600 title-line color", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={[mockTitleLijn]} />);
-    const input = screen.getByDisplayValue("SECTIE TITEL");
-    expect(input.closest("td")).toHaveAttribute("colspan", "8");
-    expect(input.closest("td")?.className).toContain("text-primary-600");
+    const cell = screen.getByText("SECTIE TITEL");
+    expect(cell.className).toContain("text-primary-600");
+    expect(cell.tagName).toBe("TD");
+    expect(cell).toHaveAttribute("colspan", "9");
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
+    expect(screen.queryByText("K00")).not.toBeInTheDocument();
   });
 
-  it("does not show editable header fields until 'Verbeteren' is clicked", () => {
+  it("does not apply the title-line color to a normal article row", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
-    expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
-  });
-
-  it("switches to editable header fields after clicking 'Verbeteren', with offnr/versie/bedrag/btw staying read-only", async () => {
-    const user = userEvent.setup();
-    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
-
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-
-    expect(screen.getByRole("textbox", { name: "Naam" })).toHaveValue("CONE LIGHTING BV");
-    expect(screen.getByText("Offnr")).toBeInTheDocument();
-    expect(screen.getByText("2167769")).toBeInTheDocument();
-    expect(screen.queryByRole("spinbutton", { name: "Bedrag" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
-  });
-
-  it("shows the verloren help text in edit mode", async () => {
-    const user = userEvent.setup();
-    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    expect(
-      screen.getByText("Wordt bij opslaan automatisch uitgezet tenzij hier aangevinkt.")
-    ).toBeInTheDocument();
-  });
-
-  it("saves the edited header fields and refreshes on success", async () => {
-    const user = userEvent.setup();
-    updateOfferteMock.mockResolvedValue({ ...mockOfferte, naam: "CONE LIGHTING NV" });
-
-    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
-
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    const naamInput = screen.getByRole("textbox", { name: "Naam" });
-    await user.clear(naamInput);
-    await user.type(naamInput, "CONE LIGHTING NV");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() => expect(updateOfferteMock).toHaveBeenCalledTimes(1));
-    expect(updateOfferteMock).toHaveBeenCalledWith(
-      2167769,
-      1,
-      expect.objectContaining({ naam: "CONE LIGHTING NV" })
+    expect(screen.getByText(mockLijnen[0].artnr).className).not.toContain("text-primary-600");
+    expect(screen.getByText(mockLijnen[0].omschrijvingOfferte).className).not.toContain(
+      "text-primary-600"
     );
-    expect(refreshMock).toHaveBeenCalled();
-  });
-
-  it("shows an error and stays in edit mode when the update API call fails", async () => {
-    const user = userEvent.setup();
-    updateOfferteMock.mockRejectedValue(new Error("Offerte 2167769/1 not found"));
-
-    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
-
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(await screen.findByText("Offerte 2167769/1 not found")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-  });
-
-  it("reads the partial-failure banner from sessionStorage when lijnFout=1", () => {
-    searchParamsMock.mockReturnValue(new URLSearchParams("lijnFout=1"));
-    const key = `luna:offerte-lijn-fout:${mockOfferte.offnr}:${mockOfferte.versie}`;
-    sessionStorage.setItem(
-      key,
-      JSON.stringify({ failed: [{ omschrijving: "Ontbrekende lijn", error: "400 Bad Request" }] })
-    );
-
-    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
-
-    expect(
-      screen.getByText(/Niet alle lijnen zijn opgeslagen/)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Ontbrekende lijn: 400 Bad Request/)).toBeInTheDocument();
-    expect(sessionStorage.getItem(key)).toBeNull();
-  });
-
-  it("does not show the partial-failure banner without lijnFout=1", () => {
-    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
-    expect(screen.queryByText(/Niet alle lijnen zijn opgeslagen/)).not.toBeInTheDocument();
   });
 });
