@@ -293,20 +293,22 @@ type ArtikelenResponse = {
  * available - see Backend/README.md ("No exact totalCount") - so pagination
  * relies on `hasMore` rather than a page count. Pass `lageVoorraad: true` to
  * filter to the same "lage voorraad" set as the dashboard's
- * lageVoorraadCount stat (exact same rule, server-side) - exclusive with any
- * other filter on this endpoint.
+ * lageVoorraadCount stat (exact same rule, server-side). Pass `geblokkeerd`
+ * to filter on the blocked flag server-side (`false` = only unblocked,
+ * `true` = only blocked, omitted = no filter).
  * Backend: GET /web/artikel (Luna.Web.ArtikelHandler).
  */
 export async function getArtikelen(
   page = 1,
   pageSize = 25,
-  options: { lageVoorraad?: boolean } = {}
+  options: { lageVoorraad?: boolean; geblokkeerd?: boolean } = {}
 ): Promise<ArtikelenResponse> {
-  const { lageVoorraad } = options;
+  const { lageVoorraad, geblokkeerd } = options;
   const query = new URLSearchParams();
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
   if (lageVoorraad) query.set("lageVoorraad", "true");
+  if (geblokkeerd !== undefined) query.set("geblokkeerd", String(geblokkeerd));
   return apiGet<ArtikelenResponse>(`/artikel?${query.toString()}`);
 }
 
@@ -374,7 +376,10 @@ type KlantenResponse = {
  * relies on `hasMore` rather than a page count. Pass `naam` to filter to
  * customers matching every space-separated word (case-insensitive, any
  * order) across naam/naam1 - e.g. "Smets Marc" matches naam "Smets" /
- * naam1 "Marc".
+ * naam1 "Marc". Pass `nomaled: true` to restrict the list to
+ * Nomaled-dealer customers only; combines with `naam` as an AND filter.
+ * Defaults to `false` (no filter, all customers) so existing call sites
+ * without this option keep their current behavior.
  *
  * The `naam` value is deliberately appended with encodeURIComponent
  * rather than through URLSearchParams: URLSearchParams serializes spaces
@@ -386,12 +391,13 @@ type KlantenResponse = {
  * Backend: GET /web/klant (Luna.Web.KlantHandler).
  */
 export async function getKlanten(
-  params: { naam?: string; page?: number; pageSize?: number } = {}
+  params: { naam?: string; page?: number; pageSize?: number; nomaled?: boolean } = {}
 ): Promise<KlantenResponse> {
-  const { naam, page = 1, pageSize = 25 } = params;
+  const { naam, page = 1, pageSize = 25, nomaled = false } = params;
   const query = new URLSearchParams();
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
+  if (nomaled) query.set("nomaled", "true");
   const naamPart = naam ? `&naam=${encodeURIComponent(naam)}` : "";
   return apiGet<KlantenResponse>(`/klant?${query.toString()}${naamPart}`);
 }
@@ -715,6 +721,32 @@ type BonLijnenResponse = {
 export async function getBonLijnen(bonnr: number): Promise<BonLijnItem[]> {
   const data = await apiGet<BonLijnenResponse>(`/bon/${bonnr}/lijn`);
   return data.items;
+}
+
+export type CreateBonPayload = Partial<Omit<BonItem, "bonnr" | "klnr">> & {
+  klnr: number;
+};
+
+export type CreateBonLijnPayload = Partial<Omit<BonLijnItem, "bonnr" | "lijnnr">>;
+
+/**
+ * Creates a new bon (order/quote confirmation depending on `type`).
+ * Backend: POST /web/bon (Luna.Web.BonHandler).
+ */
+export async function createBon(payload: CreateBonPayload): Promise<BonItem> {
+  return apiPost<BonItem>("/bon", payload);
+}
+
+/**
+ * Creates a new bonlijn (order line) under an existing bon. `lijnnr` is
+ * server-generated (mirrors createOfflijn) - never sent by the client.
+ * Backend: POST /web/bon/{bonnr}/lijn (Luna.Web.BonHandler).
+ */
+export async function createBonLijn(
+  bonnr: number,
+  payload: CreateBonLijnPayload
+): Promise<BonLijnItem> {
+  return apiPost<BonLijnItem>(`/bon/${bonnr}/lijn`, payload);
 }
 
 /**
