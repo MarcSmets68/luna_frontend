@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { ArtikelItem } from "@/lib/api-client";
 
@@ -23,15 +24,30 @@ export function VoorraadPage({
   items,
   page,
   hasMore,
+  lageVoorraad = false,
+  toonGeblokkeerd = false,
 }: {
   items: ArtikelItem[];
   page: number;
   hasMore: boolean;
+  lageVoorraad?: boolean;
+  toonGeblokkeerd?: boolean;
 }) {
   const router = useRouter();
+  const filterQuery =
+    (lageVoorraad ? "&lageVoorraad=true" : "") +
+    (toonGeblokkeerd ? "&toonGeblokkeerd=true" : "");
 
   function goToArtikel(artnr: string) {
     router.push(`/voorraad/${encodeURIComponent(artnr)}`);
+  }
+
+  function setToonGeblokkeerd(checked: boolean) {
+    const params = new URLSearchParams();
+    if (lageVoorraad) params.set("lageVoorraad", "true");
+    if (checked) params.set("toonGeblokkeerd", "true");
+    const query = params.toString();
+    router.push(query ? `/voorraad?${query}` : "/voorraad");
   }
 
   return (
@@ -40,8 +56,26 @@ export function VoorraadPage({
         Voorraad
       </div>
       <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-[26px] font-bold text-foreground">Artikelen</h1>
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-[26px] font-bold text-foreground">
+            {lageVoorraad ? "Artikelen — Lage voorraad" : "Artikelen"}
+          </h1>
+          {lageVoorraad && (
+            <Link href="/voorraad" className="text-[13px] text-primary underline">
+              Filter wissen
+            </Link>
+          )}
+        </div>
         <div className="text-[13px] text-[#5e5e5e]">Pagina {page}</div>
+      </div>
+
+      <div className="mb-4 flex items-center gap-2">
+        <Checkbox
+          checked={toonGeblokkeerd}
+          onCheckedChange={setToonGeblokkeerd}
+          aria-label="Ook geblokkeerde artikelen tonen"
+        />
+        <span className="text-sm text-foreground">Ook geblokkeerde artikelen tonen</span>
       </div>
 
       {items.length === 0 ? (
@@ -93,7 +127,7 @@ export function VoorraadPage({
           <div className="mt-4 flex items-center justify-end gap-2">
             {page > 1 ? (
               <Link
-                href={`/voorraad?page=${page - 1}`}
+                href={`/voorraad?page=${page - 1}${filterQuery}`}
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
                 <ChevronLeft />
@@ -110,7 +144,7 @@ export function VoorraadPage({
             )}
             {hasMore ? (
               <Link
-                href={`/voorraad?page=${page + 1}`}
+                href={`/voorraad?page=${page + 1}${filterQuery}`}
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
                 Volgende

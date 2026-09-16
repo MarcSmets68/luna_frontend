@@ -3,6 +3,7 @@ import { StatCards } from "./stat-cards";
 import { RecentActivityCard } from "./recent-activity-card";
 import { ProductionCard } from "./production-card";
 import { AiSearchCard } from "./ai-search-card";
+import { OmzetTrendCard } from "./omzet-trend-card";
 
 const today = new Date().toLocaleDateString("nl-BE", {
   weekday: "long",
@@ -23,6 +24,10 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardResponse }) {
       </div>
 
       <StatCards statCards={dashboard.statCards} />
+
+      <div className="mb-7">
+        <OmzetTrendCard items={dashboard.omzetTrend ?? []} />
+      </div>
 
       <div className="grid grid-cols-[2fr_1fr] gap-4">
         <RecentActivityCard items={dashboard.recentActivity} />

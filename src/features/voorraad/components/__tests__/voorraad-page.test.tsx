@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { VoorraadPage } from "../voorraad-page";
 import type { ArtikelItem } from "@/lib/api-client";
@@ -63,6 +64,84 @@ describe("VoorraadPage", () => {
     render(<VoorraadPage items={mockItems} page={2} hasMore={false} />);
     expect(screen.getByRole("link", { name: /vorige/i })).toHaveAttribute("href", "/voorraad?page=1");
     expect(screen.queryByRole("link", { name: /volgende/i })).not.toBeInTheDocument();
+  });
+
+  it("renders the plain heading and no 'Filter wissen' link when lageVoorraad is omitted", () => {
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
+    expect(screen.getByRole("heading", { name: "Artikelen" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /filter wissen/i })).not.toBeInTheDocument();
+  });
+
+  it("renders the filtered heading and a 'Filter wissen' link when lageVoorraad is true", () => {
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} lageVoorraad={true} />);
+    expect(screen.getByRole("heading", { name: "Artikelen — Lage voorraad" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /filter wissen/i })).toHaveAttribute("href", "/voorraad");
+  });
+
+  it("preserves the lageVoorraad filter in the Vorige/Volgende hrefs", () => {
+    render(<VoorraadPage items={mockItems} page={2} hasMore={true} lageVoorraad={true} />);
+    expect(screen.getByRole("link", { name: /vorige/i })).toHaveAttribute(
+      "href",
+      "/voorraad?page=1&lageVoorraad=true"
+    );
+    expect(screen.getByRole("link", { name: /volgende/i })).toHaveAttribute(
+      "href",
+      "/voorraad?page=3&lageVoorraad=true"
+    );
+  });
+
+  it("shows both the empty state and the filtered heading/clear link when items is empty and lageVoorraad is true", () => {
+    render(<VoorraadPage items={[]} page={1} hasMore={false} lageVoorraad={true} />);
+    expect(screen.getByText("Geen artikelen gevonden.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Artikelen — Lage voorraad" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /filter wissen/i })).toHaveAttribute("href", "/voorraad");
+  });
+
+  it("renders the 'Ook geblokkeerde artikelen tonen' filter unchecked by default", () => {
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
+    expect(
+      screen.getByRole("checkbox", { name: /ook geblokkeerde artikelen tonen/i })
+    ).toHaveProperty("ariaChecked", "false");
+  });
+
+  it("renders the 'Ook geblokkeerde artikelen tonen' filter checked when toonGeblokkeerd is true", () => {
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} toonGeblokkeerd={true} />);
+    expect(
+      screen.getByRole("checkbox", { name: /ook geblokkeerde artikelen tonen/i })
+    ).toHaveProperty("ariaChecked", "true");
+  });
+
+  it("navigates to /voorraad?toonGeblokkeerd=true when the filter is checked", async () => {
+    const user = userEvent.setup();
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
+    await user.click(screen.getByRole("checkbox", { name: /ook geblokkeerde artikelen tonen/i }));
+    expect(pushMock).toHaveBeenCalledWith("/voorraad?toonGeblokkeerd=true");
+  });
+
+  it("navigates back to /voorraad when the checked filter is unchecked", async () => {
+    const user = userEvent.setup();
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} toonGeblokkeerd={true} />);
+    await user.click(screen.getByRole("checkbox", { name: /ook geblokkeerde artikelen tonen/i }));
+    expect(pushMock).toHaveBeenCalledWith("/voorraad");
+  });
+
+  it("preserves the lageVoorraad filter when toggling toonGeblokkeerd", async () => {
+    const user = userEvent.setup();
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} lageVoorraad={true} />);
+    await user.click(screen.getByRole("checkbox", { name: /ook geblokkeerde artikelen tonen/i }));
+    expect(pushMock).toHaveBeenCalledWith("/voorraad?lageVoorraad=true&toonGeblokkeerd=true");
+  });
+
+  it("preserves the toonGeblokkeerd filter in the Vorige/Volgende hrefs", () => {
+    render(<VoorraadPage items={mockItems} page={2} hasMore={true} toonGeblokkeerd={true} />);
+    expect(screen.getByRole("link", { name: /vorige/i })).toHaveAttribute(
+      "href",
+      "/voorraad?page=1&toonGeblokkeerd=true"
+    );
+    expect(screen.getByRole("link", { name: /volgende/i })).toHaveAttribute(
+      "href",
+      "/voorraad?page=3&toonGeblokkeerd=true"
+    );
   });
 
   it("navigates to the artikel detail page when a row is clicked", () => {

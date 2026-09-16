@@ -1,12 +1,18 @@
 ﻿import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  logout,
-  searchDashboardAi,
-  reserveerBonLijn,
-  createBonLedLijn,
-  bonHerstelNaarDiagnose,
   afhalenPakbon,
+  bonHerstelNaarDiagnose,
+  createBonLedLijn,
+  createOfferte,
+  createOfflijn,
+  deleteOfflijn,
   getPakbonnen,
+  logout,
+  reorderOfflijn,
+  reserveerBonLijn,
+  searchDashboardAi,
+  updateOfferte,
+  updateOfflijn,
 } from "../api-client";
 
 // logout() must send the session token via the "X-Auth-Token" header, NOT
@@ -228,5 +234,111 @@ describe("getPakbonnen", () => {
     expect(url).toContain("paknr=5");
     expect(url).toContain("naam=CONE");
     expect(url).toContain("projectnr=1");
+  });
+});
+
+describe("offerte create/update", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("createOfferte posts to /offerte without an offnr/versie key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ offnr: 123, versie: 1, klnr: 14644 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createOfferte({ klnr: 14644, naam: "Test" });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/offerte");
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body as string);
+    expect(body).not.toHaveProperty("offnr");
+    expect(body).not.toHaveProperty("versie");
+    expect(body.klnr).toBe(14644);
+  });
+
+  it("updateOfferte puts to /offerte/{offnr}/{versie}", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ offnr: 123, versie: 1 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await updateOfferte(123, 1, { naam: "Nieuwe naam" });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/offerte/123/1");
+    expect(init.method).toBe("PUT");
+  });
+});
+
+describe("offlijn CRUD", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("createOfflijn posts to the nested lijn endpoint without a lijnnr key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ offnr: 123, versie: 1, lijnnr: 10 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createOfflijn(123, 1, { artnr: "ABC" });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/offerte/123/1/lijn");
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body as string);
+    expect(body).not.toHaveProperty("lijnnr");
+  });
+
+  it("updateOfflijn puts to the nested lijn endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ offnr: 123, versie: 1, lijnnr: 10 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await updateOfflijn(123, 1, 10, { aantal: 5 });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/offerte/123/1/lijn/10");
+    expect(init.method).toBe("PUT");
+  });
+
+  it("deleteOfflijn deletes the nested lijn endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: "deleted", offnr: 123, versie: 1, lijnnr: 10 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await deleteOfflijn(123, 1, 10);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/offerte/123/1/lijn/10");
+    expect(init.method).toBe("DELETE");
+    expect(result.status).toBe("deleted");
+  });
+
+  it("reorderOfflijn posts a direction and unwraps the full items list", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [{ offnr: 123, versie: 1, lijnnr: 10 }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await reorderOfflijn(123, 1, 20, "up");
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/offerte/123/1/lijn/20/reorder");
+    expect(JSON.parse(init.body as string)).toEqual({ direction: "up" });
+    expect(result).toEqual([{ offnr: 123, versie: 1, lijnnr: 10 }]);
   });
 });

@@ -22,6 +22,14 @@ const dashboard: DashboardResponse = {
     { bonnr: 2176927, klant: "Gypel bvba", leverdatum: "2026-08-10", bedrag: 1985.53, geparkeerd: false },
     { bonnr: 5000787, klant: "Meufalux bvba", leverdatum: "2026-08-10", bedrag: 530.32, geparkeerd: false },
   ],
+  omzetTrend: [
+    { month: 3, year: 2026, label: "mrt 2026", total: 52100.0, isPartial: false },
+    { month: 4, year: 2026, label: "apr 2026", total: 0.0, isPartial: false },
+    { month: 5, year: 2026, label: "mei 2026", total: 37850.5, isPartial: false },
+    { month: 6, year: 2026, label: "jun 2026", total: 61200.0, isPartial: false },
+    { month: 7, year: 2026, label: "jul 2026", total: 49500.0, isPartial: false },
+    { month: 8, year: 2026, label: "aug 2026", total: 86400.0, isPartial: true },
+  ],
 };
 
 describe("DashboardPage", () => {
@@ -50,6 +58,14 @@ describe("DashboardPage", () => {
     for (const order of dashboard.productionThisWeek) {
       expect(screen.getByText(String(order.bonnr))).toBeInTheDocument();
       expect(screen.getByText(order.klant)).toBeInTheDocument();
+    }
+  });
+
+  it("renders the omzet trend card", () => {
+    render(<DashboardPage dashboard={dashboard} />);
+    expect(screen.getByText("Omzet 6 maanden")).toBeInTheDocument();
+    for (const item of dashboard.omzetTrend) {
+      expect(screen.getByText(item.label)).toBeInTheDocument();
     }
   });
 });

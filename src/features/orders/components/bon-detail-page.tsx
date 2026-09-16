@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
+import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
+import { BonLijnFoutBanner } from "./bon-lijn-fout-banner";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
 import { BonlijnProductieTable } from "./bonlijn-productie-table";
 import { BonlijnReserveringDialog } from "./bonlijn-reservering-dialog";
@@ -24,6 +26,12 @@ import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
 import { LedConfigTable } from "./led-config-table";
 import { LedQcTable } from "./led-qc-table";
 import { HerstelDetailPanel } from "./herstel-detail-panel";
+
+// Column count of the "Lijnen" table body: chevron, Lijnnr, Artnr,
+// Omschrijving, Aantal, Te leveren, Gereserveerd, Eff. gereserveerd, Vprijs,
+// Korting, Bedrag, Leverdatum, actie (Reserveren). A collapsed K00 title row
+// merges every one of these into a single cell.
+const LIJNEN_TABLE_COLUMN_COUNT = 13;
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -101,6 +109,8 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
         </TabsList>
 
         <TabsContent value="lijnen">
+          <BonLijnFoutBanner bonnr={bon.bonnr} />
+
           <h2 className="mb-3 text-[16px] font-semibold text-foreground">Lijnen</h2>
 
           {rows.length === 0 ? (
@@ -115,8 +125,8 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
                   <TableHead>Omschrijving</TableHead>
                   <TableHead>Aantal</TableHead>
                   <TableHead>Te leveren</TableHead>
-                  <TableHead>Gereserv</TableHead>
-                  <TableHead>Effectief</TableHead>
+                  <TableHead>Gereserveerd</TableHead>
+                  <TableHead>Eff. gereserveerd</TableHead>
                   <TableHead>Vprijs</TableHead>
                   <TableHead>Korting</TableHead>
                   <TableHead>Bedrag</TableHead>
@@ -125,7 +135,27 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {/*
+                  NOTE: this table has no client-side totals/footer row today. If
+                  one is ever added, it must aggregate over
+                  `excludeTitleLines(rows)`, not raw `rows` - K00 rows are
+                  section-title placeholders, not real articles with real amounts.
+                */}
                 {rows.map((lijn) => {
+                  const isTitle = isTitleLine(lijn.artnr);
+                  if (isTitle) {
+                    return (
+                      <TableRow key={lijn.lijnnr}>
+                        <TableCell
+                          colSpan={LIJNEN_TABLE_COLUMN_COUNT}
+                          className={cn("whitespace-normal", TITLE_LINE_TEXT_CLASS)}
+                        >
+                          {lijn.omschrijving}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
                   const isExpanded = expandedLijnnr === lijn.lijnnr;
                   return (
                     <Fragment key={lijn.lijnnr}>
@@ -153,7 +183,15 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
                         </TableCell>
                         <TableCell>{lijn.aantal}</TableCell>
                         <TableCell>{lijn.teLeveren}</TableCell>
-                        <TableCell>{lijn.gereserv}</TableCell>
+                        <TableCell
+                          className={cn(
+                            lijn.swEffectief &&
+                              lijn.teLeveren > lijn.gereserv &&
+                              "bg-amber-100 font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                          )}
+                        >
+                          {lijn.gereserv}
+                        </TableCell>
                         <TableCell>
                           <Badge variant={lijn.swEffectief ? "default" : "outline"}>
                             {lijn.effectiefGereserv}
@@ -176,7 +214,7 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
                       </TableRow>
                       {isExpanded && (
                         <TableRow>
-                          <TableCell colSpan={12} className="bg-muted/20">
+                          <TableCell colSpan={LIJNEN_TABLE_COLUMN_COUNT} className="bg-muted/20">
                             <BonlijnProductieTable bonnr={bon.bonnr} blijnnr={lijn.lijnnr} />
                           </TableCell>
                         </TableRow>

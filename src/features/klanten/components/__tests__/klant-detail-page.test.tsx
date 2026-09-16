@@ -246,6 +246,24 @@ describe("KlantDetailPage", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
+  it("renders '—' fallback for an empty opm in view mode", () => {
+    render(<KlantDetailPage {...defaultProps} />);
+    expect(screen.getByText("Opmerking")).toBeInTheDocument();
+    const label = screen.getByText("Opmerking");
+    const container = label.parentElement;
+    expect(container?.textContent).toContain("\u2014");
+  });
+
+  it("renders '—' fallback for empty optional fields in view mode", () => {
+    render(<KlantDetailPage {...defaultProps} />);
+
+    for (const label of ["Naam 1", "Fax", "GSM"]) {
+      const labelEl = screen.getByText(label);
+      const container = labelEl.parentElement;
+      expect(container?.textContent).toContain("\u2014");
+    }
+  });
+
   it("renders a back link to the klanten overview", () => {
     render(<KlantDetailPage {...defaultProps} />);
     expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute(

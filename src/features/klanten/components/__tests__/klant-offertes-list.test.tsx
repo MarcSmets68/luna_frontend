@@ -85,4 +85,12 @@ describe("KlantOffertesList", () => {
     row.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     expect(pushMock).toHaveBeenCalledWith("/offertes/2167769/1");
   });
+
+  it("renders a 'Nieuwe offerte' button that navigates to the create page, even when empty", () => {
+    pushMock.mockClear();
+    render(<KlantOffertesList klnr={14644} items={[]} page={1} hasMore={false} ordersPage={1} />);
+    const button = screen.getByRole("button", { name: /nieuwe offerte/i });
+    button.click();
+    expect(pushMock).toHaveBeenCalledWith("/offertes/nieuw?klnr=14644");
+  });
 });

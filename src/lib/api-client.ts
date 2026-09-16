@@ -291,11 +291,25 @@ type ArtikelenResponse = {
 /**
  * Paged list of artikelen (products/inventory). No exact total count is
  * available - see Backend/README.md ("No exact totalCount") - so pagination
- * relies on `hasMore` rather than a page count.
+ * relies on `hasMore` rather than a page count. Pass `lageVoorraad: true` to
+ * filter to the same "lage voorraad" set as the dashboard's
+ * lageVoorraadCount stat (exact same rule, server-side). Pass `geblokkeerd`
+ * to filter on the blocked flag server-side (`false` = only unblocked,
+ * `true` = only blocked, omitted = no filter).
  * Backend: GET /web/artikel (Luna.Web.ArtikelHandler).
  */
-export async function getArtikelen(page = 1, pageSize = 25): Promise<ArtikelenResponse> {
-  return apiGet<ArtikelenResponse>(`/artikel?page=${page}&pageSize=${pageSize}`);
+export async function getArtikelen(
+  page = 1,
+  pageSize = 25,
+  options: { lageVoorraad?: boolean; geblokkeerd?: boolean } = {}
+): Promise<ArtikelenResponse> {
+  const { lageVoorraad, geblokkeerd } = options;
+  const query = new URLSearchParams();
+  query.set("page", String(page));
+  query.set("pageSize", String(pageSize));
+  if (lageVoorraad) query.set("lageVoorraad", "true");
+  if (geblokkeerd !== undefined) query.set("geblokkeerd", String(geblokkeerd));
+  return apiGet<ArtikelenResponse>(`/artikel?${query.toString()}`);
 }
 
 /**
@@ -362,7 +376,10 @@ type KlantenResponse = {
  * relies on `hasMore` rather than a page count. Pass `naam` to filter to
  * customers matching every space-separated word (case-insensitive, any
  * order) across naam/naam1 - e.g. "Smets Marc" matches naam "Smets" /
- * naam1 "Marc".
+ * naam1 "Marc". Pass `nomaled: true` to restrict the list to
+ * Nomaled-dealer customers only; combines with `naam` as an AND filter.
+ * Defaults to `false` (no filter, all customers) so existing call sites
+ * without this option keep their current behavior.
  *
  * The `naam` value is deliberately appended with encodeURIComponent
  * rather than through URLSearchParams: URLSearchParams serializes spaces
@@ -374,12 +391,13 @@ type KlantenResponse = {
  * Backend: GET /web/klant (Luna.Web.KlantHandler).
  */
 export async function getKlanten(
-  params: { naam?: string; page?: number; pageSize?: number } = {}
+  params: { naam?: string; page?: number; pageSize?: number; nomaled?: boolean } = {}
 ): Promise<KlantenResponse> {
-  const { naam, page = 1, pageSize = 25 } = params;
+  const { naam, page = 1, pageSize = 25, nomaled = false } = params;
   const query = new URLSearchParams();
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
+  if (nomaled) query.set("nomaled", "true");
   const naamPart = naam ? `&naam=${encodeURIComponent(naam)}` : "";
   return apiGet<KlantenResponse>(`/klant?${query.toString()}${naamPart}`);
 }
@@ -506,6 +524,108 @@ export async function getOfferteLijnen(offnr: number, versie: number): Promise<O
   return data.items;
 }
 
+export type CreateOffertePayload = Partial<Omit<OfferteItem, "offnr" | "versie" | "klnr">> & {
+  klnr: number;
+};
+
+/**
+ * Creates a new offerte. `offnr`/`versie` are server-allocated - do not
+ * send them in the payload.
+ * Backend: POST /web/offerte (Luna.Web.OfferteHandler).
+ */
+export async function createOfferte(payload: CreateOffertePayload): Promise<OfferteItem> {
+  return apiPost<OfferteItem>("/offerte", payload);
+}
+
+/**
+ * Partial update payload for an offerte - every field is optional (only
+ * fields present are changed) and `offnr`/`versie`/`klnr` are deliberately
+ * excluded (immutable identifiers).
+ */
+export type UpdateOffertePayload = Partial<Omit<OfferteItem, "offnr" | "versie" | "klnr">>;
+
+/**
+ * Updates an offerte. Only the fields present in `payload` are changed.
+ * The `verloren`-auto-clear rule is applied server-side - no client logic
+ * needed.
+ * Backend: PUT /web/offerte/{offnr}/{versie} (Luna.Web.OfferteHandler).
+ */
+export async function updateOfferte(
+  offnr: number,
+  versie: number,
+  payload: UpdateOffertePayload
+): Promise<OfferteItem> {
+  return apiPut<OfferteItem>(`/offerte/${offnr}/${versie}`, payload);
+}
+
+export type CreateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
+
+/**
+ * Creates a new offlijn (quote line) under an offerte. `lijnnr` is
+ * server-allocated (+10 from the previous line) - do not send it.
+ * Backend: POST /web/offerte/{offnr}/{versie}/lijn (Luna.Web.OfferteHandler).
+ */
+export async function createOfflijn(
+  offnr: number,
+  versie: number,
+  payload: CreateOfflijnPayload
+): Promise<OfflijnItem> {
+  return apiPost<OfflijnItem>(`/offerte/${offnr}/${versie}/lijn`, payload);
+}
+
+export type UpdateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
+
+/**
+ * Updates an offlijn. Only the fields present in `payload` are changed.
+ * Backend: PUT /web/offerte/{offnr}/{versie}/lijn/{lijnnr}
+ * (Luna.Web.OfferteHandler).
+ */
+export async function updateOfflijn(
+  offnr: number,
+  versie: number,
+  lijnnr: number,
+  payload: UpdateOfflijnPayload
+): Promise<OfflijnItem> {
+  return apiPut<OfflijnItem>(`/offerte/${offnr}/${versie}/lijn/${lijnnr}`, payload);
+}
+
+export type DeleteOfflijnResult = { status: string; offnr: number; versie: number; lijnnr: number };
+
+/**
+ * Deletes an offlijn.
+ * Backend: DELETE /web/offerte/{offnr}/{versie}/lijn/{lijnnr}
+ * (Luna.Web.OfferteHandler).
+ */
+export async function deleteOfflijn(
+  offnr: number,
+  versie: number,
+  lijnnr: number
+): Promise<DeleteOfflijnResult> {
+  return apiDelete<DeleteOfflijnResult>(`/offerte/${offnr}/${versie}/lijn/${lijnnr}`);
+}
+
+export type ReorderDirection = "up" | "down";
+
+/**
+ * Moves an offlijn up/down among its siblings. Returns the full,
+ * re-ordered list of lines (not just the moved one) - the backend response
+ * is `{ items: OfflijnItem[] }`.
+ * Backend: POST /web/offerte/{offnr}/{versie}/lijn/{lijnnr}/reorder
+ * (Luna.Web.OfferteHandler).
+ */
+export async function reorderOfflijn(
+  offnr: number,
+  versie: number,
+  lijnnr: number,
+  direction: ReorderDirection
+): Promise<OfflijnItem[]> {
+  const data = await apiPost<{ items: OfflijnItem[] }>(
+    `/offerte/${offnr}/${versie}/lijn/${lijnnr}/reorder`,
+    { direction }
+  );
+  return data.items;
+}
+
 export type BonItem = {
   bonnr: number;
   type: string;
@@ -602,6 +722,32 @@ type BonLijnenResponse = {
 export async function getBonLijnen(bonnr: number): Promise<BonLijnItem[]> {
   const data = await apiGet<BonLijnenResponse>(`/bon/${bonnr}/lijn`);
   return data.items;
+}
+
+export type CreateBonPayload = Partial<Omit<BonItem, "bonnr" | "klnr">> & {
+  klnr: number;
+};
+
+export type CreateBonLijnPayload = Partial<Omit<BonLijnItem, "bonnr" | "lijnnr">>;
+
+/**
+ * Creates a new bon (order/quote confirmation depending on `type`).
+ * Backend: POST /web/bon (Luna.Web.BonHandler).
+ */
+export async function createBon(payload: CreateBonPayload): Promise<BonItem> {
+  return apiPost<BonItem>("/bon", payload);
+}
+
+/**
+ * Creates a new bonlijn (order line) under an existing bon. `lijnnr` is
+ * server-generated (mirrors createOfflijn) - never sent by the client.
+ * Backend: POST /web/bon/{bonnr}/lijn (Luna.Web.BonHandler).
+ */
+export async function createBonLijn(
+  bonnr: number,
+  payload: CreateBonLijnPayload
+): Promise<BonLijnItem> {
+  return apiPost<BonLijnItem>(`/bon/${bonnr}/lijn`, payload);
 }
 
 /**
@@ -1236,6 +1382,18 @@ export async function getKlant(klnr: number): Promise<KlantItem | null> {
   return response.json() as Promise<KlantItem>;
 }
 
+export type CreateKlantPayload = Partial<Omit<KlantItem, "klnr">> & {
+  klnr: number;
+};
+
+/**
+ * Creates a new klant.
+ * Backend: POST /web/klant (Luna.Web.KlantHandler).
+ */
+export async function createKlant(payload: CreateKlantPayload): Promise<KlantItem> {
+  return apiPost<KlantItem>("/klant", payload);
+}
+
 /**
  * Partial update payload for a klant - every field is optional (only
  * fields present are changed) and `klnr` is deliberately excluded since
@@ -1441,10 +1599,19 @@ export type DashboardProductionItem = {
   geparkeerd: boolean;
 };
 
+export type DashboardOmzetTrendItem = {
+  month: number;
+  year: number;
+  label: string;
+  total: number;
+  isPartial: boolean;
+};
+
 export type DashboardResponse = {
   statCards: DashboardStatCards;
   recentActivity: DashboardActivityItem[];
   productionThisWeek: DashboardProductionItem[];
+  omzetTrend: DashboardOmzetTrendItem[];
 };
 
 /**

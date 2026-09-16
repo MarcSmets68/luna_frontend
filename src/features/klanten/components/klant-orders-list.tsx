@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTablePanel } from "@/components/ui/data-table-panel";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
@@ -81,7 +81,20 @@ export function KlantOrdersList({
     );
 
   return (
-    <DataTablePanel title="Orders" footer={footer}>
+    <DataTablePanel
+      title="Orders"
+      action={
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => router.push(`/orders/nieuw?klnr=${klnr}`)}
+        >
+          <Plus />
+          Nieuwe order
+        </Button>
+      }
+      footer={footer}
+    >
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Geen orders gevonden voor deze klant.</p>
       ) : (

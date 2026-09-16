@@ -1,6 +1,6 @@
 import { act } from "react";
 import { render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
 
@@ -22,6 +22,17 @@ function stubFetch() {
     vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [] }) })
   );
 }
+
+const searchParamsMock = vi.fn(() => new URLSearchParams());
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => searchParamsMock(),
+}));
+
+beforeEach(() => {
+  searchParamsMock.mockReset();
+  searchParamsMock.mockReturnValue(new URLSearchParams());
+  sessionStorage.clear();
+});
 
 const mockBon: BonItem = {
   bonnr: 1234567,
@@ -74,6 +85,45 @@ const mockLijnen: BonLijnItem[] = [
     swEffectief: true,
   },
 ];
+
+const mockUnderReservedLijn: BonLijnItem = {
+  ...mockLijnen[0],
+  lijnnr: 2,
+  artnr: "ART-002",
+  omschrijving: "LED profiel 3m",
+  teLeveren: 8,
+  gereserv: 3,
+  effectiefGereserv: 0,
+  swEffectief: true,
+};
+
+const mockNotUnderReservedLijn: BonLijnItem = {
+  ...mockLijnen[0],
+  lijnnr: 4,
+  artnr: "ART-004",
+  omschrijving: "LED profiel 4m",
+  gereserv: 12,
+  effectiefGereserv: 6,
+  swEffectief: true,
+};
+
+const mockZeroNegativeLijn: BonLijnItem = {
+  ...mockLijnen[0],
+  lijnnr: 3,
+  artnr: "ART-003",
+  omschrijving: "LED profiel 1m",
+  teLeveren: 0,
+  gereserv: 0,
+  effectiefGereserv: -1,
+  swEffectief: false,
+};
+
+const mockTitleLijn: BonLijnItem = {
+  ...mockLijnen[0],
+  lijnnr: 5,
+  artnr: " k00 ",
+  omschrijving: "SECTIE TITEL",
+};
 
 describe("BonDetailPage", () => {
   afterEach(() => {
@@ -144,5 +194,88 @@ describe("BonDetailPage", () => {
     await flush();
     expect(screen.getByRole("button", { name: "Reserveren" })).toBeInTheDocument();
     expect(screen.getAllByText("5").length).toBeGreaterThan(0);
+  });
+
+  it("renders the Gereserveerd and Eff. gereserveerd headers between Te leveren and Vprijs", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+    const headers = screen.getAllByRole("columnheader").map((el) => el.textContent);
+    const teLeverenIndex = headers.indexOf("Te leveren");
+    const vprijsIndex = headers.indexOf("Vprijs");
+    expect(headers[teLeverenIndex + 1]).toBe("Gereserveerd");
+    expect(headers[teLeverenIndex + 2]).toBe("Eff. gereserveerd");
+    expect(vprijsIndex).toBe(teLeverenIndex + 3);
+  });
+
+  it("highlights the Gereserveerd cell when effectively reserved and under-reserved", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={[mockUnderReservedLijn]} />);
+    await flush();
+    const cell = screen.getByText("3");
+    expect(cell.className).toContain("bg-amber-100");
+  });
+
+  it("does not highlight the Gereserveerd cell when the line is not under-reserved", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={[mockNotUnderReservedLijn]} />);
+    await flush();
+    const cell = screen.getByText("12");
+    expect(cell.className).not.toContain("bg-amber-100");
+  });
+
+  it("renders zero and negative reservation values as plain numbers", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={[mockZeroNegativeLijn]} />);
+    await flush();
+    expect(screen.getByText("-1")).toBeInTheDocument();
+    expect(screen.getAllByText("0").length).toBeGreaterThan(0);
+  });
+
+  it("collapses a K00 line to a single merged cell in the primary-600 title-line color", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={[mockTitleLijn]} />);
+    await flush();
+    const cell = screen.getByText("SECTIE TITEL");
+    expect(cell.className).toContain("text-primary-600");
+    expect(cell.tagName).toBe("TD");
+    // 13 columns in the merged fase2+lijn-fout table: chevron, Lijnnr, Artnr,
+    // Omschrijving, Aantal, Te leveren, Gereserveerd, Eff. gereserveerd,
+    // Vprijs, Korting, Bedrag, Leverdatum, actie.
+    expect(cell).toHaveAttribute("colspan", "13");
+    expect(screen.queryByText("5")).not.toBeInTheDocument();
+    expect(screen.queryByText("k00", { exact: false })).not.toBeInTheDocument();
+  });
+
+  it("does not apply the title-line color to a normal article row", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+    expect(screen.getByText(mockLijnen[0].artnr).className).not.toContain("text-primary-600");
+    expect(screen.getByText(mockLijnen[0].omschrijving).className).not.toContain(
+      "text-primary-600"
+    );
+  });
+
+  it("shows the lijn-fout banner before the Lijnen heading when lijnFout=1 and sessionStorage has failures", async () => {
+    stubFetch();
+    searchParamsMock.mockReturnValue(new URLSearchParams("lijnFout=1"));
+    sessionStorage.setItem(
+      `luna:bon-lijn-fout:${mockBon.bonnr}`,
+      JSON.stringify({ failed: [{ omschrijving: "Ontbrekende lijn", error: "400 Bad Request" }] })
+    );
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    expect(screen.getByText("Niet alle lijnen zijn opgeslagen.")).toBeInTheDocument();
+    expect(screen.getByText("Ontbrekende lijn: 400 Bad Request")).toBeInTheDocument();
+  });
+
+  it("does not show the lijn-fout banner without lijnFout=1", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+    expect(screen.queryByText("Niet alle lijnen zijn opgeslagen.")).not.toBeInTheDocument();
   });
 });
