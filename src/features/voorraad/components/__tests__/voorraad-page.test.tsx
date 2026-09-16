@@ -31,6 +31,7 @@ const mockItems: ArtikelItem[] = [
     gewicht: 1.2,
     type: "STD",
     datum: "2026-01-01",
+    isSamengesteld: false,
   },
 ];
 
