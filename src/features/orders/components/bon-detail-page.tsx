@@ -1,6 +1,10 @@
+"use client";
+
+import { Fragment, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -9,12 +13,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
 import { BonLijnFoutBanner } from "./bon-lijn-fout-banner";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
+import { BonlijnProductieTable } from "./bonlijn-productie-table";
+import { BonlijnReserveringDialog } from "./bonlijn-reservering-dialog";
+import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
+import { LedConfigTable } from "./led-config-table";
+import { LedQcTable } from "./led-qc-table";
+import { HerstelDetailPanel } from "./herstel-detail-panel";
+import { BonDetailEditDialog } from "./bon-detail-edit-dialog";
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -27,7 +41,32 @@ function DetailField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnItem[] }) {
+export function BonDetailPage({
+  bon: initialBon,
+  lijnen,
+}: {
+  bon: BonItem;
+  lijnen: BonLijnItem[];
+}) {
+  const router = useRouter();
+  // Local copy of the server state so a reservering-call's response can
+  // refresh a single row without a full page re-fetch.
+  const [bon, setBon] = useState<BonItem>(initialBon);
+  const [rows, setRows] = useState<BonLijnItem[]>(lijnen);
+  const [expandedLijnnr, setExpandedLijnnr] = useState<number | null>(null);
+  const [reserveringTarget, setReserveringTarget] = useState<BonLijnItem | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const isHerstelling = bon.type === "HERSTELLING";
+
+  const heeftExtraKlantnrs = Boolean(bon.klnr2) || Boolean(bon.klnr3);
+  const heeftAfleveradres = Boolean(
+    bon.lnaam || bon.lnaam1 || bon.ladres || bon.lpostnr || bon.lstad
+  );
+
+  function handleReserved(updated: BonLijnItem) {
+    setRows((prev) => prev.map((row) => (row.lijnnr === updated.lijnnr ? updated : row)));
+  }
+
   return (
     <div>
       <Link
@@ -51,6 +90,14 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
       </div>
 
       <Card className="mb-6">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+            Ordergegevens
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            Bewerken
+          </Button>
+        </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Bonnr" value={String(bon.bonnr)} />
@@ -69,6 +116,51 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
             <DetailField label="Geparkeerd" value={bon.geparkeerd ? "Ja" : "Nee"} />
             <DetailField label="Verzonden" value={bon.verzonden ? "Ja" : "Nee"} />
             <DetailField label="Opmerking" value={bon.opm} />
+          </div>
+
+          {heeftExtraKlantnrs && (
+            <>
+              <Separator className="my-4" />
+              <div>
+                <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                  Extra klantnummers
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {Boolean(bon.klnr2) && <DetailField label="Klnr2" value={String(bon.klnr2)} />}
+                  {Boolean(bon.klnr3) && <DetailField label="Klnr3" value={String(bon.klnr3)} />}
+                </div>
+              </div>
+            </>
+          )}
+
+          {heeftAfleveradres && (
+            <>
+              <Separator className="my-4" />
+              <div>
+                <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                  Afleveradres
+                </div>
+                <div className="text-sm text-foreground">
+                  {bon.lnaam && <div>{bon.lnaam}</div>}
+                  {bon.lnaam1 && <div>{bon.lnaam1}</div>}
+                  {bon.ladres && <div>{bon.ladres}</div>}
+                  {(bon.lpostnr || bon.lstad) && (
+                    <div>{[bon.lpostnr, bon.lstad].filter(Boolean).join(" ")}</div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          <Separator className="my-4" />
+          <div>
+            <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+              Bedragen (extra)
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <DetailField label="Recupel bedrag" value={formatBedrag(bon.recupelBedrag)} />
+              <DetailField label="A-bedrag" value={formatBedrag(bon.aBedrag)} />
+            </div>
           </div>
         </CardContent>
       </Card>
