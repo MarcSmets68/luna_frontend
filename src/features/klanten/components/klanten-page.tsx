@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { KlantItem } from "@/lib/api-client";
@@ -30,16 +30,19 @@ export function KlantenPage({
   page,
   hasMore,
   naam = "",
+  nomaled = false,
 }: {
   items: KlantItem[];
   page: number;
   hasMore: boolean;
   naam?: string;
+  nomaled?: boolean;
 }) {
   const router = useRouter();
   const [naamFilter, setNaamFilter] = useState(naam);
   const isFirstRender = useRef(true);
   const skipNextPropsSync = useRef(false);
+  const pendingNaamPush = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* The URL is the source of truth (server component re-fetches on every
      navigation). Re-sync local state when the prop changes from outside our
@@ -60,24 +63,41 @@ export function KlantenPage({
     }
 
     const timeout = setTimeout(() => {
+      pendingNaamPush.current = null;
       skipNextPropsSync.current = true;
-      router.push(buildHref(1, naamFilter));
+      router.push(buildHref(1, naamFilter, nomaled));
     }, FILTER_DEBOUNCE_MS);
+    pendingNaamPush.current = timeout;
 
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      if (pendingNaamPush.current === timeout) {
+        pendingNaamPush.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [naamFilter]);
 
-  function buildHref(targetPage: number, naamValue: string): string {
+  function buildHref(targetPage: number, naamValue: string, nomaledValue: boolean): string {
     const query = new URLSearchParams();
     query.set("page", String(targetPage));
     if (naamValue) query.set("naam", naamValue);
+    if (nomaledValue) query.set("nomaled", "true");
 
     return `/klanten?${query.toString()}`;
   }
 
   function goToKlant(klnr: number) {
     router.push(`/klanten/${klnr}`);
+  }
+
+  function selectDealerFilter(next: boolean) {
+    if (next === nomaled) return;
+    if (pendingNaamPush.current) {
+      clearTimeout(pendingNaamPush.current);
+      pendingNaamPush.current = null;
+    }
+    router.push(buildHref(1, naamFilter, next));
   }
 
   return (
@@ -87,22 +107,53 @@ export function KlantenPage({
       </div>
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-[26px] font-bold text-foreground">Klanten</h1>
-        <div className="text-[13px] text-muted-foreground">Pagina {page}</div>
+        <div className="flex items-center gap-3">
+          <div className="text-[13px] text-muted-foreground">Pagina {page}</div>
+          <Button type="button" size="sm" onClick={() => router.push("/klanten/nieuw")}>
+            Nieuwe klant
+          </Button>
+        </div>
       </div>
 
-      <div className="mb-6 flex flex-col gap-1">
-        <label htmlFor="klanten-filter-naam" className="text-[12px] text-muted-foreground">
-          Naam
-        </label>
-        <div className="relative w-[280px]">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="klanten-filter-naam"
-            className="pl-8"
-            placeholder="Zoek op naam (bv. Smets Marc)..."
-            value={naamFilter}
-            onChange={(e) => setNaamFilter(e.target.value)}
-          />
+      <div className="mb-6 flex gap-6">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="klanten-filter-naam" className="text-[12px] text-muted-foreground">
+            Naam
+          </label>
+          <div className="relative w-[280px]">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="klanten-filter-naam"
+              className="pl-8"
+              placeholder="Zoek op naam (bv. Smets Marc)..."
+              value={naamFilter}
+              onChange={(e) => setNaamFilter(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-[12px] text-muted-foreground">Filter</span>
+          <div role="group" aria-label="Klantenfilter" className="flex">
+            <Button
+              type="button"
+              size="sm"
+              variant={nomaled ? "outline" : "default"}
+              className="rounded-r-none"
+              onClick={() => selectDealerFilter(false)}
+            >
+              Alle klanten
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={nomaled ? "default" : "outline"}
+              className="-ml-px rounded-l-none"
+              onClick={() => selectDealerFilter(true)}
+            >
+              Nomaled-dealers
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -157,7 +208,7 @@ export function KlantenPage({
           <div className="mt-4 flex items-center justify-end gap-2">
             {page > 1 ? (
               <Link
-                href={buildHref(page - 1, naamFilter)}
+                href={buildHref(page - 1, naamFilter, nomaled)}
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
                 <ChevronLeft />
@@ -174,7 +225,7 @@ export function KlantenPage({
             )}
             {hasMore ? (
               <Link
-                href={buildHref(page + 1, naamFilter)}
+                href={buildHref(page + 1, naamFilter, nomaled)}
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
                 Volgende

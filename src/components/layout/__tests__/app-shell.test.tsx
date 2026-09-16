@@ -3,6 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "../app-shell";
 import { saveSession, type Session } from "@/features/auth/session";
 
+const setInterfaceModeMock = vi.fn();
+vi.mock("@/features/interface-mode/interface-mode", () => ({
+  setInterfaceMode: (...args: unknown[]) => setInterfaceModeMock(...args),
+  useInterfaceMode: () => "luna",
+}));
+
 // AppShell wires TestModeBanner to session.everyoneAdminActive (see
 // docs/architecture/login-auth-ontwerp.md par 4.2: "app-shell.tsx toont
 // TestModeBanner wanneer everyoneAdminActive === true"). TestModeBanner
@@ -32,6 +38,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
 
 beforeEach(() => {
   window.sessionStorage.clear();
+  setInterfaceModeMock.mockReset();
 });
 
 describe("AppShell", () => {
@@ -55,6 +62,11 @@ describe("AppShell", () => {
   it("still renders its children", () => {
     render(<AppShell>unique-children-marker</AppShell>);
     expect(screen.getByText("unique-children-marker")).toBeInTheDocument();
+  });
+
+  it("resets the interface mode to luna on mount", () => {
+    render(<AppShell>content</AppShell>);
+    expect(setInterfaceModeMock).toHaveBeenCalledWith("luna");
   });
 });
 

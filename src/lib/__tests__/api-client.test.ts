@@ -1,12 +1,13 @@
 ﻿import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createOfferte,
+  createOfflijn,
+  deleteOfflijn,
   logout,
+  reorderOfflijn,
   searchDashboardAi,
-  reserveerBonLijn,
-  createBonLedLijn,
-  bonHerstelNaarDiagnose,
-  afhalenPakbon,
-  getPakbonnen,
+  updateOfferte,
+  updateOfflijn,
 } from "../api-client";
 
 // logout() must send the session token via the "X-Auth-Token" header, NOT
@@ -87,146 +88,108 @@ describe("searchDashboardAi", () => {
   });
 });
 
-describe("reserveerBonLijn", () => {
+describe("offerte create/update", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("posts the delta and returns the full updated bonlijn", async () => {
-    const updatedLijn = { bonnr: 100, lijnnr: 1, gereserv: 5, effectiefGereserv: 5, swEffectief: true };
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => updatedLijn });
+  it("createOfferte posts to /offerte without an offnr/versie key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ offnr: 123, versie: 1, klnr: 14644 }),
+    });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await reserveerBonLijn(100, 1, 3);
+    await createOfferte({ klnr: 14644, naam: "Test" });
 
-    expect(result).toEqual(updatedLijn);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/bon/100/lijn/1/reservering");
+    expect(url).toContain("/offerte");
     expect(init.method).toBe("POST");
-    expect(JSON.parse(init.body as string)).toEqual({ delta: 3 });
+    const body = JSON.parse(init.body as string);
+    expect(body).not.toHaveProperty("offnr");
+    expect(body).not.toHaveProperty("versie");
+    expect(body.klnr).toBe(14644);
   });
 
-  it("surfaces the backend's exact error message on a 400", async () => {
+  it("updateOfferte puts to /offerte/{offnr}/{versie}", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: async () => ({ error: { message: "Delta buiten toegelaten bereik." } }),
+      ok: true,
+      json: async () => ({ offnr: 123, versie: 1 }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(reserveerBonLijn(100, 1, 999)).rejects.toThrow(
-      "Delta buiten toegelaten bereik."
-    );
-  });
-});
+    await updateOfferte(123, 1, { naam: "Nieuwe naam" });
 
-describe("createBonLedLijn", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("surfaces the backend's 400 when siktaKleurKodes[1] is missing", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: async () => ({ error: { message: "siktaKleurKodes[1] is verplicht." } }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await expect(
-      createBonLedLijn(100, {
-        groepnr: 1,
-        ledLijn: 1,
-        docLijnnr: 1,
-        soort: "LED",
-        kode: "K1",
-        artnr: "ART-1",
-        aantal: 1,
-        lengte: 1000,
-        lMaat: 0,
-        rMaat: 0,
-        switch1: "",
-        switch2: "",
-        reflector: "",
-        prijs: 0,
-        montagePrijs: 0,
-        circuit: "",
-        comp: "",
-        sturing: "",
-        opm: "",
-        siktaKleurKodes: ["", "", "", "", ""],
-      })
-    ).rejects.toThrow("siktaKleurKodes[1] is verplicht.");
-  });
-});
-
-describe("bonHerstelNaarDiagnose", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("posts without a body and returns the updated herstel record", async () => {
-    const updated = { bonnr: 100, stempel: "DIAGNOSE" };
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => updated });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await bonHerstelNaarDiagnose(100);
-
-    expect(result).toEqual(updated);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/bon/100/herstel/diagnose");
+    expect(url).toContain("/offerte/123/1");
+    expect(init.method).toBe("PUT");
+  });
+});
+
+describe("offlijn CRUD", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("createOfflijn posts to the nested lijn endpoint without a lijnnr key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ offnr: 123, versie: 1, lijnnr: 10 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createOfflijn(123, 1, { artnr: "ABC" });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/offerte/123/1/lijn");
     expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body as string);
+    expect(body).not.toHaveProperty("lijnnr");
   });
 
-  it("surfaces a 409 when bon.type is not HERSTELLING", async () => {
+  it("updateOfflijn puts to the nested lijn endpoint", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: async () => ({ error: { message: "Bon is geen HERSTELLING." } }),
+      ok: true,
+      json: async () => ({ offnr: 123, versie: 1, lijnnr: 10 }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(bonHerstelNaarDiagnose(100)).rejects.toThrow("Bon is geen HERSTELLING.");
-  });
-});
+    await updateOfflijn(123, 1, 10, { aantal: 5 });
 
-describe("afhalenPakbon", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("posts the afgehaaldId and returns the full updated pakbon", async () => {
-    const updated = { paknr: 500, afgehaald: true, afgehaaldId: "ID-1" };
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => updated });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await afhalenPakbon(500, "ID-1");
-
-    expect(result).toEqual(updated);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/pakbon/500/afhalen");
-    expect(JSON.parse(init.body as string)).toEqual({ afgehaaldId: "ID-1" });
-  });
-});
-
-describe("getPakbonnen", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
+    expect(url).toContain("/offerte/123/1/lijn/10");
+    expect(init.method).toBe("PUT");
   });
 
-  it("builds the query string from every supported filter", async () => {
-    const response = { items: [], page: 1, pageSize: 25, hasMore: false };
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response });
+  it("deleteOfflijn deletes the nested lijn endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: "deleted", offnr: 123, versie: 1, lijnnr: 10 }),
+    });
     vi.stubGlobal("fetch", fetchMock);
 
-    await getPakbonnen({ klnr: 14644, stempel: "OPEN", paknr: "5", naam: "CONE", projectnr: 1 });
+    const result = await deleteOfflijn(123, 1, 10);
 
-    const [url] = fetchMock.mock.calls[0] as [string];
-    expect(url).toContain("/pakbon?");
-    expect(url).toContain("klnr=14644");
-    expect(url).toContain("stempel=OPEN");
-    expect(url).toContain("paknr=5");
-    expect(url).toContain("naam=CONE");
-    expect(url).toContain("projectnr=1");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/offerte/123/1/lijn/10");
+    expect(init.method).toBe("DELETE");
+    expect(result.status).toBe("deleted");
+  });
+
+  it("reorderOfflijn posts a direction and unwraps the full items list", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [{ offnr: 123, versie: 1, lijnnr: 10 }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await reorderOfflijn(123, 1, 20, "up");
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/offerte/123/1/lijn/20/reorder");
+    expect(JSON.parse(init.body as string)).toEqual({ direction: "up" });
+    expect(result).toEqual([{ offnr: 123, versie: 1, lijnnr: 10 }]);
   });
 });

@@ -1,12 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/api-client";
 import { clearSession, useSession, type Session } from "@/features/auth/session";
+import { useInterfaceMode, setInterfaceMode, type InterfaceMode } from "@/features/interface-mode/interface-mode";
 
 const LOGIN_PATH = "/login";
 
@@ -22,10 +22,22 @@ function initialsFor(session: Session): string {
 
 export function Topbar({ className }: { className?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
   // useSession() (see features/auth/session.ts) keeps the SSR render and
   // the client's hydration render in sync (both see null), then picks up
   // the real session right after mount - avoiding a hydration mismatch.
   const session = useSession();
+  const mode = useInterfaceMode();
+
+  function handleSwitch(target: InterfaceMode) {
+    setInterfaceMode(target);
+    if (target === "npp") {
+      router.push("/npp");
+    } else if (pathname === "/npp") {
+      router.push("/");
+    }
+    // else: already somewhere in the Luna app, no navigation needed
+  }
 
   async function handleLogout() {
     try {
@@ -44,15 +56,28 @@ export function Topbar({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-7",
+        "relative flex h-14 shrink-0 items-center justify-end border-b border-border bg-card px-7",
         className
       )}
     >
-      <Input
-        type="text"
-        placeholder="Zoek klanten, offertes, orders..."
-        className="w-80 rounded-sm bg-background text-[13px]"
-      />
+      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={mode === "luna" ? "default" : "outline"}
+          onClick={() => handleSwitch("luna")}
+        >
+          Luna
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={mode === "npp" ? "default" : "outline"}
+          onClick={() => handleSwitch("npp")}
+        >
+          NPP
+        </Button>
+      </div>
       <div className="flex items-center gap-3">
         <div className="text-right leading-tight">
           <div className="text-[13px] font-semibold text-foreground">

@@ -71,6 +71,13 @@ describe("KlantenPage", () => {
     expect(pushMock).toHaveBeenCalledWith("/klanten/1");
   });
 
+  it("navigates to the create page when 'Nieuwe klant' is clicked", () => {
+    pushMock.mockClear();
+    render(<KlantenPage items={mockItems} page={1} hasMore={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Nieuwe klant" }));
+    expect(pushMock).toHaveBeenCalledWith("/klanten/nieuw");
+  });
+
   it("navigates to the klant detail page when Enter is pressed on a focused row", () => {
     pushMock.mockClear();
     render(<KlantenPage items={mockItems} page={1} hasMore={false} />);
@@ -112,6 +119,88 @@ describe("KlantenPage", () => {
 
       expect(screen.getByRole("link", { name: /vorige/i })).toHaveAttribute("href", "/klanten?page=1&naam=Test");
       expect(screen.getByRole("link", { name: /volgende/i })).toHaveAttribute("href", "/klanten?page=3&naam=Test");
+    });
+  });
+
+  describe("nomaled-dealers toggle", () => {
+    it("renders both filter buttons", () => {
+      render(<KlantenPage items={mockItems} page={1} hasMore={false} />);
+      expect(screen.getByRole("button", { name: "Alle klanten" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Nomaled-dealers" })).toBeInTheDocument();
+    });
+
+    it("navigates with nomaled=true and resets to page 1 when 'Nomaled-dealers' is clicked", () => {
+      pushMock.mockClear();
+      render(<KlantenPage items={mockItems} page={3} hasMore={false} naam="Test" nomaled={false} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Nomaled-dealers" }));
+      expect(pushMock).toHaveBeenCalledWith("/klanten?page=1&naam=Test&nomaled=true");
+    });
+
+    it("is a no-op when clicking 'Alle klanten' while already on 'Alle klanten'", () => {
+      pushMock.mockClear();
+      render(<KlantenPage items={mockItems} page={1} hasMore={false} nomaled={false} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Alle klanten" }));
+      expect(pushMock).not.toHaveBeenCalled();
+    });
+
+    it("navigates back to 'Alle klanten' (no nomaled param) and resets to page 1", () => {
+      pushMock.mockClear();
+      render(<KlantenPage items={mockItems} page={2} hasMore={false} nomaled={true} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Alle klanten" }));
+      expect(pushMock).toHaveBeenCalledWith("/klanten?page=1");
+    });
+
+    it("marks 'Nomaled-dealers' as the active button when nomaled is true", () => {
+      render(<KlantenPage items={mockItems} page={1} hasMore={false} nomaled={true} />);
+      expect(screen.getByRole("button", { name: "Nomaled-dealers" })).toHaveClass("bg-primary");
+      expect(screen.getByRole("button", { name: "Alle klanten" })).not.toHaveClass("bg-primary");
+    });
+
+    it("marks 'Alle klanten' as the active button when nomaled is false (default)", () => {
+      render(<KlantenPage items={mockItems} page={1} hasMore={false} />);
+      expect(screen.getByRole("button", { name: "Alle klanten" })).toHaveClass("bg-primary");
+      expect(screen.getByRole("button", { name: "Nomaled-dealers" })).not.toHaveClass("bg-primary");
+    });
+
+    it("preserves nomaled=true when paginating", () => {
+      render(<KlantenPage items={mockItems} page={2} hasMore={true} nomaled={true} />);
+      expect(screen.getByRole("link", { name: /vorige/i })).toHaveAttribute("href", "/klanten?page=1&nomaled=true");
+      expect(screen.getByRole("link", { name: /volgende/i })).toHaveAttribute("href", "/klanten?page=3&nomaled=true");
+    });
+
+    describe("interaction with pending naam debounce", () => {
+      beforeEach(() => {
+        vi.useFakeTimers();
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it("does not revert the toggle when a pending naam-debounce fires after the toggle click", () => {
+        pushMock.mockClear();
+        render(<KlantenPage items={mockItems} page={1} hasMore={false} nomaled={false} />);
+
+        // Start typing - schedules a debounced push closing over nomaled=false.
+        fireEvent.change(screen.getByPlaceholderText(/zoek op naam/i), { target: { value: "Testklant" } });
+        expect(pushMock).not.toHaveBeenCalled();
+
+        // Before the debounce fires, click the toggle - should push immediately with nomaled=true.
+        fireEvent.click(screen.getByRole("button", { name: "Nomaled-dealers" }));
+        expect(pushMock).toHaveBeenCalledWith("/klanten?page=1&naam=Testklant&nomaled=true");
+
+        pushMock.mockClear();
+
+        // Advance past the debounce window - the stale naam-debounce push must NOT fire
+        // and revert the toggle back to nomaled=false.
+        act(() => {
+          vi.advanceTimersByTime(400);
+        });
+        expect(pushMock).not.toHaveBeenCalled();
+      });
     });
   });
 });
