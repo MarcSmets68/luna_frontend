@@ -8,21 +8,22 @@ const PAGE_SIZE = 25;
 export default async function Klanten({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; naam?: string }>;
+  searchParams: Promise<{ page?: string; naam?: string; nomaled?: string }>;
 }) {
-  const { page: pageParam, naam } = await searchParams;
+  const { page: pageParam, naam, nomaled } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  
+  const nomaledOnly = nomaled === "true";
+
   let items, hasMore;
   try {
-    ({ items, hasMore } = await getKlanten({ naam, page, pageSize: PAGE_SIZE }));
+    ({ items, hasMore } = await getKlanten({ naam, page, pageSize: PAGE_SIZE, nomaled: nomaledOnly }));
   } catch (error) {
     return <ApiErrorMessage error={error} pageName="klanten" />;
   }
 
   return (
     <AppShell>
-      <KlantenPage items={items} page={page} hasMore={hasMore} naam={naam ?? ""} />
+      <KlantenPage items={items} page={page} hasMore={hasMore} naam={naam ?? ""} nomaled={nomaledOnly} />
     </AppShell>
   );
 }

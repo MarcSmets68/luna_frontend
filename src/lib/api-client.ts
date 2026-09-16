@@ -376,7 +376,10 @@ type KlantenResponse = {
  * relies on `hasMore` rather than a page count. Pass `naam` to filter to
  * customers matching every space-separated word (case-insensitive, any
  * order) across naam/naam1 - e.g. "Smets Marc" matches naam "Smets" /
- * naam1 "Marc".
+ * naam1 "Marc". Pass `nomaled: true` to restrict the list to
+ * Nomaled-dealer customers only; combines with `naam` as an AND filter.
+ * Defaults to `false` (no filter, all customers) so existing call sites
+ * without this option keep their current behavior.
  *
  * The `naam` value is deliberately appended with encodeURIComponent
  * rather than through URLSearchParams: URLSearchParams serializes spaces
@@ -388,12 +391,13 @@ type KlantenResponse = {
  * Backend: GET /web/klant (Luna.Web.KlantHandler).
  */
 export async function getKlanten(
-  params: { naam?: string; page?: number; pageSize?: number } = {}
+  params: { naam?: string; page?: number; pageSize?: number; nomaled?: boolean } = {}
 ): Promise<KlantenResponse> {
-  const { naam, page = 1, pageSize = 25 } = params;
+  const { naam, page = 1, pageSize = 25, nomaled = false } = params;
   const query = new URLSearchParams();
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
+  if (nomaled) query.set("nomaled", "true");
   const naamPart = naam ? `&naam=${encodeURIComponent(naam)}` : "";
   return apiGet<KlantenResponse>(`/klant?${query.toString()}${naamPart}`);
 }
