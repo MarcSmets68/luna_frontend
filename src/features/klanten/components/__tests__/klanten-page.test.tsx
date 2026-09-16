@@ -170,5 +170,37 @@ describe("KlantenPage", () => {
       expect(screen.getByRole("link", { name: /vorige/i })).toHaveAttribute("href", "/klanten?page=1&nomaled=true");
       expect(screen.getByRole("link", { name: /volgende/i })).toHaveAttribute("href", "/klanten?page=3&nomaled=true");
     });
+
+    describe("interaction with pending naam debounce", () => {
+      beforeEach(() => {
+        vi.useFakeTimers();
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it("does not revert the toggle when a pending naam-debounce fires after the toggle click", () => {
+        pushMock.mockClear();
+        render(<KlantenPage items={mockItems} page={1} hasMore={false} nomaled={false} />);
+
+        // Start typing - schedules a debounced push closing over nomaled=false.
+        fireEvent.change(screen.getByPlaceholderText(/zoek op naam/i), { target: { value: "Testklant" } });
+        expect(pushMock).not.toHaveBeenCalled();
+
+        // Before the debounce fires, click the toggle - should push immediately with nomaled=true.
+        fireEvent.click(screen.getByRole("button", { name: "Nomaled-dealers" }));
+        expect(pushMock).toHaveBeenCalledWith("/klanten?page=1&naam=Testklant&nomaled=true");
+
+        pushMock.mockClear();
+
+        // Advance past the debounce window - the stale naam-debounce push must NOT fire
+        // and revert the toggle back to nomaled=false.
+        act(() => {
+          vi.advanceTimersByTime(400);
+        });
+        expect(pushMock).not.toHaveBeenCalled();
+      });
+    });
   });
 });

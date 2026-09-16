@@ -42,6 +42,7 @@ export function KlantenPage({
   const [naamFilter, setNaamFilter] = useState(naam);
   const isFirstRender = useRef(true);
   const skipNextPropsSync = useRef(false);
+  const pendingNaamPush = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* The URL is the source of truth (server component re-fetches on every
      navigation). Re-sync local state when the prop changes from outside our
@@ -62,11 +63,18 @@ export function KlantenPage({
     }
 
     const timeout = setTimeout(() => {
+      pendingNaamPush.current = null;
       skipNextPropsSync.current = true;
       router.push(buildHref(1, naamFilter, nomaled));
     }, FILTER_DEBOUNCE_MS);
+    pendingNaamPush.current = timeout;
 
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      if (pendingNaamPush.current === timeout) {
+        pendingNaamPush.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [naamFilter]);
 
@@ -85,6 +93,10 @@ export function KlantenPage({
 
   function selectDealerFilter(next: boolean) {
     if (next === nomaled) return;
+    if (pendingNaamPush.current) {
+      clearTimeout(pendingNaamPush.current);
+      pendingNaamPush.current = null;
+    }
     router.push(buildHref(1, naamFilter, next));
   }
 
