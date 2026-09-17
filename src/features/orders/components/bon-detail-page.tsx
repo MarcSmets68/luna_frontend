@@ -23,6 +23,7 @@ import type { BonItem, BonLijnItem } from "@/lib/api-client";
 import { BonlijnProductieTable } from "./bonlijn-productie-table";
 import { BonlijnReserveringDialog } from "./bonlijn-reservering-dialog";
 import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
+import { PakbonAanmakenDialog } from "./pakbon-aanmaken-dialog";
 import { LedConfigTable } from "./led-config-table";
 import { LedQcTable } from "./led-qc-table";
 import { HerstelDetailPanel } from "./herstel-detail-panel";
@@ -50,6 +51,7 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
   const [rows, setRows] = useState<BonLijnItem[]>(lijnen);
   const [expandedLijnnr, setExpandedLijnnr] = useState<number | null>(null);
   const [reserveringTarget, setReserveringTarget] = useState<BonLijnItem | null>(null);
+  const [pakbonDialogOpen, setPakbonDialogOpen] = useState(false);
   const isHerstelling = bon.type === "HERSTELLING";
 
   function handleReserved(updated: BonLijnItem) {
@@ -111,7 +113,18 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
         <TabsContent value="lijnen">
           <BonLijnFoutBanner bonnr={bon.bonnr} />
 
-          <h2 className="mb-3 text-[16px] font-semibold text-foreground">Lijnen</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[16px] font-semibold text-foreground">Lijnen</h2>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={rows.length === 0}
+              onClick={() => setPakbonDialogOpen(true)}
+            >
+              Pakbon aanmaken
+            </Button>
+          </div>
 
           {rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">Geen lijnen gevonden voor deze order.</p>
@@ -238,6 +251,15 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
           </TabsContent>
         )}
       </Tabs>
+
+      {pakbonDialogOpen && (
+        <PakbonAanmakenDialog
+          bon={bon}
+          lijnen={rows}
+          open={pakbonDialogOpen}
+          onOpenChange={setPakbonDialogOpen}
+        />
+      )}
 
       {reserveringTarget && (
         <BonlijnReserveringDialog
