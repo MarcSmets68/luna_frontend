@@ -201,6 +201,22 @@ describe("PakbonAanmakenDialog", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
+  it("warns that the head exists when the very first paklijn fails", async () => {
+    const user = userEvent.setup();
+    createPakbonMock.mockResolvedValue({ paknr: 9 });
+    createPaklijnMock.mockRejectedValue(new Error("Lijn geweigerd."));
+
+    renderDialog();
+
+    await user.type(screen.getByLabelText("Paknr"), "9");
+    await user.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+
+    expect(
+      await screen.findByText("Lijn geweigerd. Pakbon 9 is aangemaakt maar bevat nog geen lijnen.")
+    ).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
   it("shows an empty state and disables the confirm button when nothing is deliverable", () => {
     renderDialog([lijn({ lijnnr: 1, teLeveren: 0 })]);
 

@@ -175,8 +175,10 @@ export function PakbonAanmakenDialog({
     setSaving(true);
     setError(null);
     const gelukt: number[] = [];
+    let kopAangemaakt = false;
     try {
       const created = await createPakbon(buildPakbonPayload(bon, paknrValue));
+      kopAangemaakt = true;
       for (const s of gekozen) {
         await createPaklijn(created.paknr, buildPaklijnPayload(s.lijn, Number(s.aantal)));
         gelukt.push(s.lijn.lijnnr);
@@ -186,11 +188,17 @@ export function PakbonAanmakenDialog({
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Er ging iets mis bij het aanmaken van de pakbon.";
-      setError(
-        gelukt.length > 0
-          ? `${message} Pakbon ${paknrValue} is aangemaakt met lijn(en) ${gelukt.join(", ")}; de overige lijnen zijn niet toegevoegd.`
-          : message
-      );
+      if (!kopAangemaakt) {
+        setError(message);
+      } else if (gelukt.length > 0) {
+        setError(
+          `${message} Pakbon ${paknrValue} is aangemaakt met lijn(en) ${gelukt.join(", ")}; de overige lijnen zijn niet toegevoegd.`
+        );
+      } else {
+        setError(
+          `${message} Pakbon ${paknrValue} is aangemaakt maar bevat nog geen lijnen.`
+        );
+      }
     } finally {
       setSaving(false);
     }
