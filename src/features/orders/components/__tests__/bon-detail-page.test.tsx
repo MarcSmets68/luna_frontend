@@ -317,6 +317,45 @@ describe("BonDetailPage", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
+  it("keeps stempel and klnr read-only in edit mode (workflow-critical / identifier fields)", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    // Stempel drives the backend's PUT-lijn stempel="D" guard and the
+    // annuleer stempel="V"/"B" precondition - it must never be a free-text
+    // input a user can type an arbitrary value into.
+    expect(screen.queryByRole("textbox", { name: "Stempel" })).not.toBeInTheDocument();
+    expect(screen.getByText("Stempel")).toBeInTheDocument();
+
+    // Klnr is treated as an immutable identifier, consistent with offerte's
+    // own klnr field.
+    expect(screen.queryByRole("spinbutton", { name: "Klnr" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Klnr" })).not.toBeInTheDocument();
+    expect(screen.getByText("Klnr")).toBeInTheDocument();
+    expect(screen.getByText(String(mockBon.klnr))).toBeInTheDocument();
+  });
+
+  it("does not send stempel or klnr in the update payload", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    updateBonMock.mockResolvedValue({ ...mockBon });
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
+    const [, payload] = updateBonMock.mock.calls[0];
+    expect(payload).not.toHaveProperty("stempel");
+    expect(payload).not.toHaveProperty("klnr");
+  });
+
   it("saves the edited header fields and refreshes on success", async () => {
     stubFetch();
     const user = userEvent.setup();

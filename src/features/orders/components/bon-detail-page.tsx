@@ -84,15 +84,29 @@ function EditField({
 // Bewerkbare velden op de bonkaart - `bonnr` (identificatie, immutable) en
 // `bedrag`/`btw` (server-berekend, niet op deze pagina herberekend) horen
 // hier bewust niet bij; zie docs/backend/bon.md's field map voor de volledige
-// writable-lijst. `klnr`/`stempel` zijn in dat field map wel "Yes" writable
-// en dus hier meegenomen (anders dan offerte's eigen `klnr`, dat daar als
-// immutable identificatie wordt behandeld) - flagged in de hand-off notitie
-// omdat `stempel` een workflow-kritisch veld is.
+// writable-lijst.
+//
+// frontend-tester fix (zie test-report): `klnr` en `stempel` staan in dat
+// field map wel als "Yes" writable via de API, maar zijn hier bewust NIET
+// als vrij-tekst-editable veld opgenomen, ondanks dat een eerdere versie van
+// deze pagina dat wel deed:
+// - `stempel` is workflow-kritisch - het stuurt de `PUT .../lijn`
+//   `stempel="D"`-guard en de `POST .../annuleer`-voorwaarde
+//   (`stempel` moet `"V"`/`"B"` zijn) op de backend. Een gebruiker die dit
+//   naar een willekeurige waarde typt kan de order in een inconsistente
+//   staat brengen zonder enige validatie. Offerte's eigen vergelijkbare
+//   workflow-velden (`verloren`/`verkocht`) zijn nooit vrij-tekst - het zijn
+//   `FlagGrid`-toggles met server-side auto-clear-logica. Bon heeft nog geen
+//   toggle-equivalent voor `stempel`, dus tot die er is blijft dit veld
+//   read-only, net als `bonnr`/`bedrag`/`btw`.
+// - `klnr` is offerte's eigen `klnr` altijd immutable/identificatie
+//   (zie offerte-detail-page.tsx). Bon los daarvan editable maken zou de
+//   twee analoge detailpagina's laten verschillen zonder functionele
+//   aanleiding in de opdracht voor deze feature - teruggedraaid naar
+//   read-only voor consistentie.
 type BonFormState = {
   type: string;
-  stempel: string;
   datum: string;
-  klnr: string;
   naam: string;
   adres: string;
   postnr: string;
@@ -109,9 +123,7 @@ type BonFormState = {
 function toBonFormState(bon: BonItem): BonFormState {
   return {
     type: bon.type,
-    stempel: bon.stempel,
     datum: bon.datum ?? "",
-    klnr: String(bon.klnr),
     naam: bon.naam,
     adres: bon.adres,
     postnr: bon.postnr,
@@ -178,20 +190,12 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
   }
 
   async function handleSave() {
-    const klnr = Number(form.klnr);
-    if (Number.isNaN(klnr)) {
-      setError("Klnr moet een geldig getal zijn.");
-      return;
-    }
-
     setSaving(true);
     setError(null);
     try {
       const payload: UpdateBonPayload = {
         type: form.type,
-        stempel: form.stempel,
         datum: form.datum || undefined,
-        klnr,
         naam: form.naam,
         adres: form.adres,
         postnr: form.postnr,
@@ -267,23 +271,14 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <DetailField label="Bonnr" value={String(bon.bonnr)} />
                 <EditField label="Type" value={form.type} onChange={(v) => setField("type", v)} />
-                <EditField
-                  label="Stempel"
-                  value={form.stempel}
-                  onChange={(v) => setField("stempel", v)}
-                />
+                <DetailField label="Stempel" value={bon.stempel} />
                 <EditField
                   label="Datum"
                   value={form.datum}
                   onChange={(v) => setField("datum", v)}
                   type="date"
                 />
-                <EditField
-                  label="Klnr"
-                  value={form.klnr}
-                  onChange={(v) => setField("klnr", v)}
-                  type="number"
-                />
+                <DetailField label="Klnr" value={String(bon.klnr)} />
                 <EditField label="Klant" value={form.naam} onChange={(v) => setField("naam", v)} />
                 <EditField label="Adres" value={form.adres} onChange={(v) => setField("adres", v)} />
                 <EditField
