@@ -1,8 +1,19 @@
 import { act } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
+
+const refreshMock = vi.fn();
+const updateBonMock = vi.fn();
+vi.mock("@/lib/api-client", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
+  return {
+    ...actual,
+    updateBon: (...args: unknown[]) => updateBonMock(...args),
+  };
+});
 
 // Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
 // its resulting setState) settles before assertions run - avoids the
@@ -25,6 +36,7 @@ function stubFetch() {
 
 const searchParamsMock = vi.fn(() => new URLSearchParams());
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: refreshMock }),
   useSearchParams: () => searchParamsMock(),
 }));
 
@@ -32,6 +44,8 @@ beforeEach(() => {
   searchParamsMock.mockReset();
   searchParamsMock.mockReturnValue(new URLSearchParams());
   sessionStorage.clear();
+  refreshMock.mockReset();
+  updateBonMock.mockReset();
 });
 
 const mockBon: BonItem = {
@@ -277,5 +291,86 @@ describe("BonDetailPage", () => {
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
     await flush();
     expect(screen.queryByText("Niet alle lijnen zijn opgeslagen.")).not.toBeInTheDocument();
+  });
+
+  it("does not show editable header fields until 'Verbeteren' is clicked", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+    expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
+  });
+
+  it("switches to editable header fields after clicking 'Verbeteren', with bonnr/bedrag/btw staying read-only", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
+    expect(screen.getByText("Bonnr")).toBeInTheDocument();
+    expect(screen.getByText("1234567")).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: "Bedrag" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("saves the edited header fields and refreshes on success", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    updateBonMock.mockResolvedValue({ ...mockBon, naam: "CONE LIGHTING NV" });
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const naamInput = screen.getByRole("textbox", { name: "Klant" });
+    await user.clear(naamInput);
+    await user.type(naamInput, "CONE LIGHTING NV");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
+    expect(updateBonMock).toHaveBeenCalledWith(
+      1234567,
+      expect.objectContaining({ naam: "CONE LIGHTING NV" })
+    );
+    expect(refreshMock).toHaveBeenCalled();
+  });
+
+  it("shows an error and stays in edit mode when the update API call fails", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    updateBonMock.mockRejectedValue(new Error("Bon 1234567 not found"));
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Bon 1234567 not found")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("auto-enters edit mode when redirected here with ?edit=1 (offerte conversion flow)", async () => {
+    stubFetch();
+    searchParamsMock.mockReturnValue(new URLSearchParams("edit=1"));
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("does not auto-enter edit mode without ?edit=1", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    expect(screen.queryByRole("textbox", { name: "Klant" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
   });
 });
