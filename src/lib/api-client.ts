@@ -724,31 +724,6 @@ export async function getBon(bonnr: number): Promise<BonItem | null> {
   return response.json() as Promise<BonItem>;
 }
 
-export type UpdateBonPayload = Partial<
-  Pick<
-    BonItem,
-    | "klnr2"
-    | "klnr3"
-    | "lnaam"
-    | "lnaam1"
-    | "ladres"
-    | "lpostnr"
-    | "lstad"
-    | "recupelBedrag"
-    | "aBedrag"
-  >
->;
-
-/**
- * Partial update of a bon's afleveradres/multi-klant/extra-bedrag fields.
- * Backend: PUT /web/bon/{bonnr} (Luna.Web.BonHandler / BonBE.UpdateBon).
- * Only send the keys you intend to change - the backend applies a true
- * partial update (JsonObject:Has(...) per field).
- */
-export async function updateBon(bonnr: number, payload: UpdateBonPayload): Promise<BonItem> {
-  return apiPut<BonItem>(`/bon/${bonnr}`, payload);
-}
-
 export type BonLijnItem = {
   bonnr: number;
   lijnnr: number;
