@@ -416,6 +416,10 @@ export type OfferteItem = {
   btw: number;
   offgroep: string;
   soort: string;
+  // Raw offerte status code (e.g. "O" = open/overdraagbaar, "D" = omgezet
+  // naar order) - drives whether "Omzetten naar Order" is enabled. See
+  // docs/backend/offerte-conversie.md.
+  stempel: string;
   passief: boolean;
   verloren: boolean;
   verkocht: boolean;
@@ -556,6 +560,35 @@ export async function updateOfferte(
   payload: UpdateOffertePayload
 ): Promise<OfferteItem> {
   return apiPut<OfferteItem>(`/offerte/${offnr}/${versie}`, payload);
+}
+
+export type OmzettenNaarOrderResult = {
+  bonnr: number;
+  offnr: number;
+  versie: number;
+  offerteStempel: "B" | "D";
+  aantalLijnenOvergenomen: number;
+  aantalLedLijnenOvergenomen: number;
+  totBtw: number;
+  totaalBasis: number;
+  totaalInclBtw: number;
+};
+
+/**
+ * Converts an offerte into a bon (customer order) - creates the bon +
+ * bonlijn rows from the offerte's overdraagbare lijnen and flips the
+ * offerte's stempel. 404 if the offerte isn't found; 409 if
+ * `offerte.stempel<>"O"` (already converted or otherwise not
+ * convertible); 400 if there are no overdraagbare lijnen or a conversion
+ * error propagates - callers should surface that message as-is.
+ * Backend: POST /web/offerte/{offnr}/{versie}/omzetten-naar-order
+ * (Luna.Web.OfferteHandler).
+ */
+export async function omzettenNaarOrder(
+  offnr: number,
+  versie: number
+): Promise<OmzettenNaarOrderResult> {
+  return apiPost<OmzettenNaarOrderResult>(`/offerte/${offnr}/${versie}/omzetten-naar-order`, {});
 }
 
 export type CreateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
@@ -727,6 +760,22 @@ export async function getBonLijnen(bonnr: number): Promise<BonLijnItem[]> {
 export type CreateBonPayload = Partial<Omit<BonItem, "bonnr" | "klnr">> & {
   klnr: number;
 };
+
+/**
+ * Partial update payload for a bon - every field is optional (only fields
+ * present are changed) and `bonnr`/`bedrag`/`btw` are deliberately excluded
+ * (immutable identifier / server-computed totals, ignored on write even
+ * if sent per docs/backend/bon.md's field map).
+ */
+export type UpdateBonPayload = Partial<Omit<BonItem, "bonnr" | "bedrag" | "btw">>;
+
+/**
+ * Updates a bon. Only the fields present in `payload` are changed.
+ * Backend: PUT /web/bon/{bonnr} (Luna.Web.BonHandler).
+ */
+export async function updateBon(bonnr: number, payload: UpdateBonPayload): Promise<BonItem> {
+  return apiPut<BonItem>(`/bon/${bonnr}`, payload);
+}
 
 export type CreateBonLijnPayload = Partial<Omit<BonLijnItem, "bonnr" | "lijnnr">>;
 

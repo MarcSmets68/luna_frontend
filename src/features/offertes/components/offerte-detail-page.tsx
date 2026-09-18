@@ -15,6 +15,7 @@ import { formatBedrag, formatDatum, statusLabel } from "@/lib/format";
 import { OfferteLijnenEditor } from "./offerte-lijnen-editor";
 import {
   updateOfferte,
+  omzettenNaarOrder,
   type OfferteItem,
   type OfflijnItem,
   type UpdateOffertePayload,
@@ -115,6 +116,8 @@ export function OfferteDetailPage({
   const [form, setForm] = useState<OfferteFormState>(() => toFormState(offerte));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [convertError, setConvertError] = useState<string | null>(null);
   const [currentLijnen, setCurrentLijnen] = useState<OfflijnItem[]>(lijnen);
   const [lijnFouten, setLijnFouten] = useState<LijnFout[]>([]);
 
@@ -198,6 +201,20 @@ export function OfferteDetailPage({
     }
   }
 
+  async function handleOmzettenNaarOrder() {
+    setConverting(true);
+    setConvertError(null);
+    try {
+      const result = await omzettenNaarOrder(offerte.offnr, offerte.versie);
+      router.push(`/orders/${result.bonnr}?edit=1`);
+    } catch (e) {
+      setConvertError(
+        e instanceof Error ? e.message : "Er ging iets mis bij het omzetten naar order."
+      );
+      setConverting(false);
+    }
+  }
+
   const headerActions = editing ? (
     <>
       <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
@@ -208,9 +225,20 @@ export function OfferteDetailPage({
       </Button>
     </>
   ) : (
-    <Button type="button" size="sm" onClick={startEditing}>
-      Verbeteren
-    </Button>
+    <>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={handleOmzettenNaarOrder}
+        disabled={offerte.stempel !== "O" || converting}
+      >
+        {converting ? "Bezig..." : "Omzetten naar Order"}
+      </Button>
+      <Button type="button" size="sm" onClick={startEditing}>
+        Verbeteren
+      </Button>
+    </>
   );
 
   return (
@@ -239,6 +267,10 @@ export function OfferteDetailPage({
           {offerte.naam}
         </Link>
       </div>
+
+      {convertError && (
+        <p className="mb-4 text-sm text-destructive">{convertError}</p>
+      )}
 
       <Card className="mb-6">
         <CardContent>
