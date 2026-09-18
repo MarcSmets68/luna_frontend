@@ -206,15 +206,15 @@ export function PakbonAanmakenDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-3xl flex max-h-[85vh] flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Pakbon aanmaken</DialogTitle>
           <DialogDescription>
             Bon {bon.bonnr} - {bon.naam}. Kies een paknr en de lijnen die op deze pakbon komen.
           </DialogDescription>
         </DialogHeader>
 
-        <label className="flex flex-col gap-1 text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+        <label className="flex flex-col gap-1 text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase shrink-0">
           Paknr
           <Input
             type="number"
@@ -225,57 +225,59 @@ export function PakbonAanmakenDialog({
         </label>
 
         {selectie.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground shrink-0">
             Geen leverbare lijnen: alle lijnen van deze order zijn al volledig geleverd.
           </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8" />
-                <TableHead>Lijnnr</TableHead>
-                <TableHead>Artnr</TableHead>
-                <TableHead>Omschrijving</TableHead>
-                <TableHead>Te leveren</TableHead>
-                <TableHead className="w-28">Aantal</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {selectie.map(({ lijn, geselecteerd, aantal }) => (
-                <TableRow key={lijn.lijnnr}>
-                  <TableCell>
-                    <Checkbox
-                      checked={geselecteerd}
-                      onCheckedChange={(checked) =>
-                        updateSelectie(lijn.lijnnr, { geselecteerd: checked === true })
-                      }
-                      aria-label={`Lijn ${lijn.lijnnr} opnemen in pakbon`}
-                    />
-                  </TableCell>
-                  <TableCell className="font-semibold">{lijn.lijnnr}</TableCell>
-                  <TableCell>{lijn.artnr}</TableCell>
-                  <TableCell className="whitespace-normal">{lijn.omschrijving}</TableCell>
-                  <TableCell>{lijn.teLeveren}</TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={lijn.teLeveren}
-                      value={aantal}
-                      disabled={!geselecteerd}
-                      aria-label={`Aantal voor lijn ${lijn.lijnnr}`}
-                      onChange={(e) => updateSelectie(lijn.lijnnr, { aantal: e.target.value })}
-                    />
-                  </TableCell>
+          <div className="min-h-0 max-h-[50vh] overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8" />
+                  <TableHead>Lijnnr</TableHead>
+                  <TableHead>Artnr</TableHead>
+                  <TableHead>Omschrijving</TableHead>
+                  <TableHead>Te leveren</TableHead>
+                  <TableHead className="w-28">Aantal</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {selectie.map(({ lijn, geselecteerd, aantal }) => (
+                  <TableRow key={lijn.lijnnr}>
+                    <TableCell>
+                      <Checkbox
+                        checked={geselecteerd}
+                        onCheckedChange={(checked) =>
+                          updateSelectie(lijn.lijnnr, { geselecteerd: checked === true })
+                        }
+                        aria-label={`Lijn ${lijn.lijnnr} opnemen in pakbon`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-semibold">{lijn.lijnnr}</TableCell>
+                    <TableCell>{lijn.artnr}</TableCell>
+                    <TableCell className="whitespace-normal">{lijn.omschrijving}</TableCell>
+                    <TableCell>{lijn.teLeveren}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={lijn.teLeveren}
+                        value={aantal}
+                        disabled={!geselecteerd}
+                        aria-label={`Aantal voor lijn ${lijn.lijnnr}`}
+                        onChange={(e) => updateSelectie(lijn.lijnnr, { aantal: e.target.value })}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-destructive shrink-0">{error}</p>}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button
             type="button"
             variant="outline"
