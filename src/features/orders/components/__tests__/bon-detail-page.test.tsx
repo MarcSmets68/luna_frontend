@@ -4,6 +4,41 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
+import { formatBedrag } from "@/lib/format";
+
+const pushMock = vi.fn();
+const refreshMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
+}));
+
+const updateBonMock = vi.fn();
+vi.mock("@/lib/api-client", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
+  return {
+    ...actual,
+    updateBon: (...args: unknown[]) => updateBonMock(...args),
+  };
+});
+
+// Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
+// its resulting setState) settles before assertions run - avoids the
+// "not wrapped in act(...)" warning without changing test intent.
+async function flush() {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
+// BonDetailPage's LED-configuratie tab and per-row pakbon-badges fetch on
+// mount via the shared API client - stub fetch so every test gets a
+// deterministic empty response instead of a real network call.
+function stubFetch() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [] }) })
+  );
+}
 
 const refreshMock = vi.fn();
 const updateBonMock = vi.fn();
@@ -67,6 +102,15 @@ const mockBon: BonItem = {
   geparkeerd: false,
   verzonden: false,
   opm: "",
+  klnr2: 0,
+  klnr3: 0,
+  lnaam: "",
+  lnaam1: "",
+  ladres: "",
+  lpostnr: "",
+  lstad: "",
+  recupelBedrag: 0,
+  aBedrag: 0,
 };
 
 const mockLijnen: BonLijnItem[] = [
@@ -140,6 +184,12 @@ const mockTitleLijn: BonLijnItem = {
 };
 
 describe("BonDetailPage", () => {
+  beforeEach(() => {
+    pushMock.mockReset();
+    refreshMock.mockReset();
+    updateBonMock.mockReset();
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
