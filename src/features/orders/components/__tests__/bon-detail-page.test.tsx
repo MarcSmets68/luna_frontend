@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
 import { formatBedrag } from "@/lib/format";
@@ -38,8 +40,38 @@ function stubFetch() {
   );
 }
 
+const refreshMock = vi.fn();
+const updateBonMock = vi.fn();
+vi.mock("@/lib/api-client", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
+  return {
+    ...actual,
+    updateBon: (...args: unknown[]) => updateBonMock(...args),
+  };
+});
+
+// Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
+// its resulting setState) settles before assertions run - avoids the
+// "not wrapped in act(...)" warning without changing test intent.
+async function flush() {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
+// BonDetailPage's LED-configuratie tab and per-row pakbon-badges fetch on
+// mount via the shared API client - stub fetch so every test gets a
+// deterministic empty response instead of a real network call.
+function stubFetch() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [] }) })
+  );
+}
+
 const searchParamsMock = vi.fn(() => new URLSearchParams());
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: refreshMock }),
   useSearchParams: () => searchParamsMock(),
 }));
 
@@ -47,6 +79,8 @@ beforeEach(() => {
   searchParamsMock.mockReset();
   searchParamsMock.mockReturnValue(new URLSearchParams());
   sessionStorage.clear();
+  refreshMock.mockReset();
+  updateBonMock.mockReset();
 });
 
 const mockBon: BonItem = {
@@ -104,9 +138,9 @@ const mockLijnen: BonLijnItem[] = [
     subtotaal: false,
     kolomtitel: false,
     infolijn: false,
-    gereserv: 10,
-    effectiefGereserv: 10,
-    swEffectief: false,
+    gereserv: 5,
+    effectiefGereserv: 5,
+    swEffectief: true,
   },
 ];
 
@@ -207,8 +241,29 @@ describe("BonDetailPage", () => {
     );
   });
 
-  it("renders the Gereserveerd and Eff. gereserveerd headers between Te leveren and Vprijs", () => {
+  it("shows the Herstel tab only for bon.type HERSTELLING", async () => {
+    stubFetch();
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+    expect(screen.queryByRole("tab", { name: "Herstel" })).not.toBeInTheDocument();
+
+    render(<BonDetailPage bon={{ ...mockBon, type: "HERSTELLING" }} lijnen={mockLijnen} />);
+    await flush();
+    expect(screen.getByRole("tab", { name: "Herstel" })).toBeInTheDocument();
+  });
+
+  it("renders the reservering columns for every lijn", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+    expect(screen.getByRole("button", { name: "Reserveren" })).toBeInTheDocument();
+    expect(screen.getAllByText("5").length).toBeGreaterThan(0);
+  });
+
+  it("renders the Gereserveerd and Eff. gereserveerd headers between Te leveren and Vprijs", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
     const headers = screen.getAllByRole("columnheader").map((el) => el.textContent);
     const teLeverenIndex = headers.indexOf("Te leveren");
     const vprijsIndex = headers.indexOf("Vprijs");
@@ -217,43 +272,57 @@ describe("BonDetailPage", () => {
     expect(vprijsIndex).toBe(teLeverenIndex + 3);
   });
 
-  it("highlights the Gereserveerd cell when effectively reserved and under-reserved", () => {
+  it("highlights the Gereserveerd cell when effectively reserved and under-reserved", async () => {
+    stubFetch();
     render(<BonDetailPage bon={mockBon} lijnen={[mockUnderReservedLijn]} />);
+    await flush();
     const cell = screen.getByText("3");
     expect(cell.className).toContain("bg-amber-100");
   });
 
-  it("does not highlight the Gereserveerd cell when the line is not under-reserved", () => {
+  it("does not highlight the Gereserveerd cell when the line is not under-reserved", async () => {
+    stubFetch();
     render(<BonDetailPage bon={mockBon} lijnen={[mockNotUnderReservedLijn]} />);
+    await flush();
     const cell = screen.getByText("12");
     expect(cell.className).not.toContain("bg-amber-100");
   });
 
-  it("renders zero and negative reservation values as plain numbers", () => {
+  it("renders zero and negative reservation values as plain numbers", async () => {
+    stubFetch();
     render(<BonDetailPage bon={mockBon} lijnen={[mockZeroNegativeLijn]} />);
+    await flush();
     expect(screen.getByText("-1")).toBeInTheDocument();
     expect(screen.getAllByText("0").length).toBeGreaterThan(0);
   });
 
-  it("collapses a K00 line to a single merged cell in the primary-600 title-line color", () => {
+  it("collapses a K00 line to a single merged cell in the primary-600 title-line color", async () => {
+    stubFetch();
     render(<BonDetailPage bon={mockBon} lijnen={[mockTitleLijn]} />);
+    await flush();
     const cell = screen.getByText("SECTIE TITEL");
     expect(cell.className).toContain("text-primary-600");
     expect(cell.tagName).toBe("TD");
-    expect(cell).toHaveAttribute("colspan", "11");
+    // 13 columns in the merged fase2+lijn-fout table: chevron, Lijnnr, Artnr,
+    // Omschrijving, Aantal, Te leveren, Gereserveerd, Eff. gereserveerd,
+    // Vprijs, Korting, Bedrag, Leverdatum, actie.
+    expect(cell).toHaveAttribute("colspan", "13");
     expect(screen.queryByText("5")).not.toBeInTheDocument();
     expect(screen.queryByText("k00", { exact: false })).not.toBeInTheDocument();
   });
 
-  it("does not apply the title-line color to a normal article row", () => {
+  it("does not apply the title-line color to a normal article row", async () => {
+    stubFetch();
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
     expect(screen.getByText(mockLijnen[0].artnr).className).not.toContain("text-primary-600");
     expect(screen.getByText(mockLijnen[0].omschrijving).className).not.toContain(
       "text-primary-600"
     );
   });
 
-  it("shows the lijn-fout banner before the Lijnen heading when lijnFout=1 and sessionStorage has failures", () => {
+  it("shows the lijn-fout banner before the Lijnen heading when lijnFout=1 and sessionStorage has failures", async () => {
+    stubFetch();
     searchParamsMock.mockReturnValue(new URLSearchParams("lijnFout=1"));
     sessionStorage.setItem(
       `luna:bon-lijn-fout:${mockBon.bonnr}`,
@@ -261,13 +330,136 @@ describe("BonDetailPage", () => {
     );
 
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
 
     expect(screen.getByText("Niet alle lijnen zijn opgeslagen.")).toBeInTheDocument();
     expect(screen.getByText("Ontbrekende lijn: 400 Bad Request")).toBeInTheDocument();
   });
 
-  it("does not show the lijn-fout banner without lijnFout=1", () => {
+  it("does not show the lijn-fout banner without lijnFout=1", async () => {
+    stubFetch();
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
     expect(screen.queryByText("Niet alle lijnen zijn opgeslagen.")).not.toBeInTheDocument();
+  });
+
+  it("does not show editable header fields until 'Verbeteren' is clicked", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+    expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
+  });
+
+  it("switches to editable header fields after clicking 'Verbeteren', with bonnr/bedrag/btw staying read-only", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
+    expect(screen.getByText("Bonnr")).toBeInTheDocument();
+    expect(screen.getByText("1234567")).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: "Bedrag" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("keeps stempel and klnr read-only in edit mode (workflow-critical / identifier fields)", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    // Stempel drives the backend's PUT-lijn stempel="D" guard and the
+    // annuleer stempel="V"/"B" precondition - it must never be a free-text
+    // input a user can type an arbitrary value into.
+    expect(screen.queryByRole("textbox", { name: "Stempel" })).not.toBeInTheDocument();
+    expect(screen.getByText("Stempel")).toBeInTheDocument();
+
+    // Klnr is treated as an immutable identifier, consistent with offerte's
+    // own klnr field.
+    expect(screen.queryByRole("spinbutton", { name: "Klnr" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Klnr" })).not.toBeInTheDocument();
+    expect(screen.getByText("Klnr")).toBeInTheDocument();
+    expect(screen.getByText(String(mockBon.klnr))).toBeInTheDocument();
+  });
+
+  it("does not send stempel or klnr in the update payload", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    updateBonMock.mockResolvedValue({ ...mockBon });
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
+    const [, payload] = updateBonMock.mock.calls[0];
+    expect(payload).not.toHaveProperty("stempel");
+    expect(payload).not.toHaveProperty("klnr");
+  });
+
+  it("saves the edited header fields and refreshes on success", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    updateBonMock.mockResolvedValue({ ...mockBon, naam: "CONE LIGHTING NV" });
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const naamInput = screen.getByRole("textbox", { name: "Klant" });
+    await user.clear(naamInput);
+    await user.type(naamInput, "CONE LIGHTING NV");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
+    expect(updateBonMock).toHaveBeenCalledWith(
+      1234567,
+      expect.objectContaining({ naam: "CONE LIGHTING NV" })
+    );
+    expect(refreshMock).toHaveBeenCalled();
+  });
+
+  it("shows an error and stays in edit mode when the update API call fails", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    updateBonMock.mockRejectedValue(new Error("Bon 1234567 not found"));
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Bon 1234567 not found")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("auto-enters edit mode when redirected here with ?edit=1 (offerte conversion flow)", async () => {
+    stubFetch();
+    searchParamsMock.mockReturnValue(new URLSearchParams("edit=1"));
+
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("does not auto-enter edit mode without ?edit=1", async () => {
+    stubFetch();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    expect(screen.queryByRole("textbox", { name: "Klant" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
   });
 });

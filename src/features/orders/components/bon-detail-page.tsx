@@ -79,14 +79,19 @@ export function BonDetailPage({
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         Orders &amp; Productie
       </div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-[26px] font-bold text-foreground">Bon {bon.bonnr}</h1>
-        <div className="text-[13px] text-[#5e5e5e]">
-          Klant{" "}
-          <Link href={`/klanten/${bon.klnr}`} className="underline">
-            {bon.naam}
-          </Link>
-        </div>
+
+      <EntityDetailHeader
+        title={`Bon ${bon.bonnr}`}
+        subtitle={undefined}
+        dirty={editing && isDirty}
+        actions={headerActions}
+      />
+
+      <div className="mb-3 -mt-6 text-[13px] text-[#5e5e5e]">
+        Klant{" "}
+        <Link href={`/klanten/${bon.klnr}`} className="underline">
+          {bon.naam}
+        </Link>
       </div>
 
       <Card className="mb-6">
@@ -165,97 +170,177 @@ export function BonDetailPage({
         </CardContent>
       </Card>
 
-      <BonLijnFoutBanner bonnr={bon.bonnr} />
+      <Tabs defaultValue="lijnen">
+        <TabsList>
+          <TabsTrigger value="lijnen">Lijnen</TabsTrigger>
+          <TabsTrigger value="led">LED-configuratie</TabsTrigger>
+          {isHerstelling && <TabsTrigger value="herstel">Herstel</TabsTrigger>}
+        </TabsList>
 
-      <h2 className="mb-3 text-[16px] font-semibold text-foreground">Lijnen</h2>
+        <TabsContent value="lijnen">
+          <BonLijnFoutBanner bonnr={bon.bonnr} />
 
-      {lijnen.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Geen lijnen gevonden voor deze order.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Lijnnr</TableHead>
-              <TableHead>Artnr</TableHead>
-              <TableHead>Omschrijving</TableHead>
-              <TableHead>Aantal</TableHead>
-              <TableHead>Te leveren</TableHead>
-              <TableHead>Gereserveerd</TableHead>
-              <TableHead>Eff. gereserveerd</TableHead>
-              <TableHead>Vprijs</TableHead>
-              <TableHead>Korting</TableHead>
-              <TableHead>Bedrag</TableHead>
-              <TableHead>Leverdatum</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {/*
-              NOTE: this table has no client-side totals/footer row today. If
-              one is ever added, it must aggregate over
-              `excludeTitleLines(lijnen)`, not raw `lijnen` - K00 rows are
-              section-title placeholders, not real articles with real amounts.
-            */}
-            {lijnen.map((lijn) => {
-              const isTitle = isTitleLine(lijn.artnr);
-              if (isTitle) {
-                return (
-                  <TableRow key={lijn.lijnnr}>
-                    <TableCell
-                      colSpan={11}
-                      className={cn("whitespace-normal", TITLE_LINE_TEXT_CLASS)}
-                    >
-                      {lijn.omschrijving}
-                    </TableCell>
-                  </TableRow>
-                );
-              }
-              return (
-                <TableRow key={lijn.lijnnr}>
-                  <TableCell className={cn("font-semibold", isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {lijn.lijnnr}
-                  </TableCell>
-                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {lijn.artnr}
-                  </TableCell>
-                  <TableCell className={cn("whitespace-normal", isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {lijn.omschrijving}
-                  </TableCell>
-                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {lijn.aantal}
-                  </TableCell>
-                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {lijn.teLeveren}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      lijn.swEffectief &&
-                        lijn.teLeveren > lijn.gereserv &&
-                        "bg-amber-100 font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
-                      isTitle && TITLE_LINE_TEXT_CLASS
-                    )}
-                  >
-                    {lijn.gereserv}
-                  </TableCell>
-                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {lijn.effectiefGereserv}
-                  </TableCell>
-                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {formatBedrag(lijn.vprijs)}
-                  </TableCell>
-                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {lijn.korting}
-                  </TableCell>
-                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {formatBedrag(lijn.bedrag)}
-                  </TableCell>
-                  <TableCell className={cn(isTitle && TITLE_LINE_TEXT_CLASS)}>
-                    {formatDatum(lijn.levDatum)}
-                  </TableCell>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[16px] font-semibold text-foreground">Lijnen</h2>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={rows.length === 0}
+              onClick={() => setPakbonDialogOpen(true)}
+            >
+              Pakbon aanmaken
+            </Button>
+          </div>
+
+          {rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Geen lijnen gevonden voor deze order.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8" />
+                  <TableHead>Lijnnr</TableHead>
+                  <TableHead>Artnr</TableHead>
+                  <TableHead>Omschrijving</TableHead>
+                  <TableHead>Aantal</TableHead>
+                  <TableHead>Te leveren</TableHead>
+                  <TableHead>Gereserveerd</TableHead>
+                  <TableHead>Eff. gereserveerd</TableHead>
+                  <TableHead>Vprijs</TableHead>
+                  <TableHead>Korting</TableHead>
+                  <TableHead>Bedrag</TableHead>
+                  <TableHead>Leverdatum</TableHead>
+                  <TableHead className="w-28" />
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {/*
+                  NOTE: this table has no client-side totals/footer row today. If
+                  one is ever added, it must aggregate over
+                  `excludeTitleLines(rows)`, not raw `rows` - K00 rows are
+                  section-title placeholders, not real articles with real amounts.
+                */}
+                {rows.map((lijn) => {
+                  const isTitle = isTitleLine(lijn.artnr);
+                  if (isTitle) {
+                    return (
+                      <TableRow key={lijn.lijnnr}>
+                        <TableCell
+                          colSpan={LIJNEN_TABLE_COLUMN_COUNT}
+                          className={cn("whitespace-normal", TITLE_LINE_TEXT_CLASS)}
+                        >
+                          {lijn.omschrijving}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  const isExpanded = expandedLijnnr === lijn.lijnnr;
+                  return (
+                    <Fragment key={lijn.lijnnr}>
+                      <TableRow>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={
+                              isExpanded
+                                ? `Verberg productie-sublijnen van lijn ${lijn.lijnnr}`
+                                : `Toon productie-sublijnen van lijn ${lijn.lijnnr}`
+                            }
+                            onClick={() => setExpandedLijnnr(isExpanded ? null : lijn.lijnnr)}
+                          >
+                            {isExpanded ? <ChevronDown /> : <ChevronRight />}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="font-semibold">{lijn.lijnnr}</TableCell>
+                        <TableCell>{lijn.artnr}</TableCell>
+                        <TableCell className="whitespace-normal">
+                          {lijn.omschrijving}
+                          <BonlijnPakbonBadge bonnr={bon.bonnr} lijnnr={lijn.lijnnr} />
+                        </TableCell>
+                        <TableCell>{lijn.aantal}</TableCell>
+                        <TableCell>{lijn.teLeveren}</TableCell>
+                        <TableCell
+                          className={cn(
+                            lijn.swEffectief &&
+                              lijn.teLeveren > lijn.gereserv &&
+                              "bg-amber-100 font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                          )}
+                        >
+                          {lijn.gereserv}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={lijn.swEffectief ? "default" : "outline"}>
+                            {lijn.effectiefGereserv}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatBedrag(lijn.vprijs)}</TableCell>
+                        <TableCell>{lijn.korting}</TableCell>
+                        <TableCell>{formatBedrag(lijn.bedrag)}</TableCell>
+                        <TableCell>{formatDatum(lijn.levDatum)}</TableCell>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setReserveringTarget(lijn)}
+                          >
+                            Reserveren
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow>
+                          <TableCell colSpan={LIJNEN_TABLE_COLUMN_COUNT} className="bg-muted/20">
+                            <BonlijnProductieTable bonnr={bon.bonnr} blijnnr={lijn.lijnnr} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
+
+        <TabsContent value="led">
+          <LedConfigTable bonnr={bon.bonnr} />
+          <LedQcTable bonnr={bon.bonnr} />
+        </TabsContent>
+
+        {isHerstelling && (
+          <TabsContent value="herstel">
+            <HerstelDetailPanel bonnr={bon.bonnr} />
+          </TabsContent>
+        )}
+      </Tabs>
+
+      {pakbonDialogOpen && (
+        <PakbonAanmakenDialog
+          bon={bon}
+          lijnen={rows}
+          open={pakbonDialogOpen}
+          onOpenChange={setPakbonDialogOpen}
+        />
+      )}
+
+      {reserveringTarget && (
+        <BonlijnReserveringDialog
+          bonnr={bon.bonnr}
+          lijn={reserveringTarget}
+          open={reserveringTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setReserveringTarget(null);
+          }}
+          onReserved={(updated) => {
+            handleReserved(updated);
+            setReserveringTarget(null);
+          }}
+        />
       )}
     </div>
   );

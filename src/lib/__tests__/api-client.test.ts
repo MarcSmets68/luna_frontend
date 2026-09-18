@@ -1,10 +1,15 @@
 ﻿import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  afhalenPakbon,
+  bonHerstelNaarDiagnose,
+  createBonLedLijn,
   createOfferte,
   createOfflijn,
   deleteOfflijn,
+  getPakbonnen,
   logout,
   reorderOfflijn,
+  reserveerBonLijn,
   searchDashboardAi,
   updateOfferte,
   updateOfflijn,
@@ -85,6 +90,150 @@ describe("searchDashboardAi", () => {
     await expect(searchDashboardAi("iets")).rejects.toThrow(
       "AI-zoekdienst is tijdelijk niet beschikbaar"
     );
+  });
+});
+
+describe("reserveerBonLijn", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("posts the delta and returns the full updated bonlijn", async () => {
+    const updatedLijn = { bonnr: 100, lijnnr: 1, gereserv: 5, effectiefGereserv: 5, swEffectief: true };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => updatedLijn });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await reserveerBonLijn(100, 1, 3);
+
+    expect(result).toEqual(updatedLijn);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/bon/100/lijn/1/reservering");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ delta: 3 });
+  });
+
+  it("surfaces the backend's exact error message on a 400", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "Delta buiten toegelaten bereik." } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(reserveerBonLijn(100, 1, 999)).rejects.toThrow(
+      "Delta buiten toegelaten bereik."
+    );
+  });
+});
+
+describe("createBonLedLijn", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("surfaces the backend's 400 when siktaKleurKodes[1] is missing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "siktaKleurKodes[1] is verplicht." } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      createBonLedLijn(100, {
+        groepnr: 1,
+        ledLijn: 1,
+        docLijnnr: 1,
+        soort: "LED",
+        kode: "K1",
+        artnr: "ART-1",
+        aantal: 1,
+        lengte: 1000,
+        lMaat: 0,
+        rMaat: 0,
+        switch1: "",
+        switch2: "",
+        reflector: "",
+        prijs: 0,
+        montagePrijs: 0,
+        circuit: "",
+        comp: "",
+        sturing: "",
+        opm: "",
+        siktaKleurKodes: ["", "", "", "", ""],
+      })
+    ).rejects.toThrow("siktaKleurKodes[1] is verplicht.");
+  });
+});
+
+describe("bonHerstelNaarDiagnose", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("posts without a body and returns the updated herstel record", async () => {
+    const updated = { bonnr: 100, stempel: "DIAGNOSE" };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => updated });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await bonHerstelNaarDiagnose(100);
+
+    expect(result).toEqual(updated);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/bon/100/herstel/diagnose");
+    expect(init.method).toBe("POST");
+  });
+
+  it("surfaces a 409 when bon.type is not HERSTELLING", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: { message: "Bon is geen HERSTELLING." } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(bonHerstelNaarDiagnose(100)).rejects.toThrow("Bon is geen HERSTELLING.");
+  });
+});
+
+describe("afhalenPakbon", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("posts the afgehaaldId and returns the full updated pakbon", async () => {
+    const updated = { paknr: 500, afgehaald: true, afgehaaldId: "ID-1" };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => updated });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await afhalenPakbon(500, "ID-1");
+
+    expect(result).toEqual(updated);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/pakbon/500/afhalen");
+    expect(JSON.parse(init.body as string)).toEqual({ afgehaaldId: "ID-1" });
+  });
+});
+
+describe("getPakbonnen", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("builds the query string from every supported filter", async () => {
+    const response = { items: [], page: 1, pageSize: 25, hasMore: false };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getPakbonnen({ klnr: 14644, stempel: "OPEN", paknr: "5", naam: "CONE", projectnr: 1 });
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain("/pakbon?");
+    expect(url).toContain("klnr=14644");
+    expect(url).toContain("stempel=OPEN");
+    expect(url).toContain("paknr=5");
+    expect(url).toContain("naam=CONE");
+    expect(url).toContain("projectnr=1");
   });
 });
 

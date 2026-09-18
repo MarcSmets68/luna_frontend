@@ -32,6 +32,7 @@ const mockItems: OfferteItem[] = [
     besteldatum: null,
     verkochtdatum: null,
     opm: "",
+    stempel: "O",
   },
 ];
 
