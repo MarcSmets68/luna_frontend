@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
-import { formatBedrag } from "@/lib/format";
 
 const pushMock = vi.fn();
 const refreshMock = vi.fn();
