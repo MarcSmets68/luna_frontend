@@ -1,11 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardOmzetTrendItem } from "@/lib/api-client";
+import { formatBedragKort } from "@/lib/format";
 
 export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) {
   const width = 300;
   const height = 70;
   const plotTop = 6;
   const plotBottom = 57.5;
+  const plotLeft = 40;
   const n = items.length;
 
   const values = items.map((d) => d.total);
@@ -13,9 +15,11 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
   const max = Math.max(...values);
   const range = max - min || 1;
 
-  const x = (i: number) => (i / (n - 1)) * width;
+  const x = (i: number) => plotLeft + (i / (n - 1)) * width;
   const y = (value: number) =>
     plotBottom - ((value - min) / range) * (plotBottom - plotTop);
+
+  const ticks = [max, (min + max) / 2, min];
 
   return (
     <Card className="rounded-none border-border shadow-none">
@@ -28,13 +32,39 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
         <div className="text-[12px] text-muted-foreground">
           tot nu toe {items[items.length - 1]?.label ?? ""}
         </div>
-        <div className="mt-3 max-w-[300px]">
+        <div className="mt-3 max-w-[340px]">
           <svg
-            viewBox={`0 0 ${width} ${height}`}
+            viewBox={`0 0 ${plotLeft + width} ${height}`}
             className="h-auto w-full"
             role="img"
             aria-label="Omzet trend afgelopen 12 maanden"
           >
+            {ticks.map((tickValue, i) => (
+              <line
+                key={`gridline-${i}`}
+                x1={plotLeft}
+                y1={y(tickValue)}
+                x2={plotLeft + width}
+                y2={y(tickValue)}
+                stroke="#d9d9d9"
+                strokeWidth={0.5}
+                opacity={0.7}
+              />
+            ))}
+
+            {ticks.map((tickValue, i) => (
+              <text
+                key={`tick-label-${i}`}
+                x={plotLeft - 4}
+                y={y(tickValue)}
+                textAnchor="end"
+                dominantBaseline="middle"
+                className="fill-muted-foreground text-[6px]"
+              >
+                {formatBedragKort(tickValue)}
+              </text>
+            ))}
+
             {items.map((item, i) => (
               <text
                 key={`label-${item.year}-${item.month}`}
