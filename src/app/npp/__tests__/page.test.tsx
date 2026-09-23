@@ -8,9 +8,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Npp page", () => {
-  it("renders the Dutch placeholder copy", () => {
+  it("renders the NPP menu heading and task tiles", () => {
     render(<Npp />);
-    expect(screen.getByText(/NPP \(atelier\) — binnenkort beschikbaar/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "NPP" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Scannen \/ verifiëren/ })).toBeInTheDocument();
   });
 
   it("renders the shared Topbar (logout button present)", () => {
