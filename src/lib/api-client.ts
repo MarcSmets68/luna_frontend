@@ -678,6 +678,17 @@ export type BonItem = {
   geparkeerd: boolean;
   verzonden: boolean;
   opm: string;
+  // Extra klantnummers / afleveradres / extra bedragen (fase2) - always
+  // present on GET responses.
+  klnr2: number;
+  klnr3: number;
+  lnaam: string;
+  lnaam1: string;
+  ladres: string;
+  lpostnr: string;
+  lstad: string;
+  recupelBedrag: number;
+  aBedrag: number;
 };
 
 type BonnenResponse = {

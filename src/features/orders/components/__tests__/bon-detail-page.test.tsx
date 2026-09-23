@@ -4,7 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
+import { formatBedrag } from "@/lib/format";
 
+const pushMock = vi.fn();
 const refreshMock = vi.fn();
 const updateBonMock = vi.fn();
 vi.mock("@/lib/api-client", async () => {
@@ -14,6 +16,12 @@ vi.mock("@/lib/api-client", async () => {
     updateBon: (...args: unknown[]) => updateBonMock(...args),
   };
 });
+
+const searchParamsMock = vi.fn(() => new URLSearchParams());
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
+  useSearchParams: () => searchParamsMock(),
+}));
 
 // Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
 // its resulting setState) settles before assertions run - avoids the
@@ -34,16 +42,11 @@ function stubFetch() {
   );
 }
 
-const searchParamsMock = vi.fn(() => new URLSearchParams());
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: refreshMock }),
-  useSearchParams: () => searchParamsMock(),
-}));
-
 beforeEach(() => {
   searchParamsMock.mockReset();
   searchParamsMock.mockReturnValue(new URLSearchParams());
   sessionStorage.clear();
+  pushMock.mockReset();
   refreshMock.mockReset();
   updateBonMock.mockReset();
 });
@@ -67,6 +70,15 @@ const mockBon: BonItem = {
   geparkeerd: false,
   verzonden: false,
   opm: "",
+  klnr2: 0,
+  klnr3: 0,
+  lnaam: "",
+  lnaam1: "",
+  ladres: "",
+  lpostnr: "",
+  lstad: "",
+  recupelBedrag: 0,
+  aBedrag: 0,
 };
 
 const mockLijnen: BonLijnItem[] = [

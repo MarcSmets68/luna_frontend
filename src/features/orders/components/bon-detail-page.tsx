@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -27,15 +27,15 @@ import { updateBon, type BonItem, type BonLijnItem, type UpdateBonPayload } from
 import { BonlijnProductieTable } from "./bonlijn-productie-table";
 import { BonlijnReserveringDialog } from "./bonlijn-reservering-dialog";
 import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
-import { PakbonAanmakenDialog } from "./pakbon-aanmaken-dialog";
 import { LedConfigTable } from "./led-config-table";
 import { LedQcTable } from "./led-qc-table";
 import { HerstelDetailPanel } from "./herstel-detail-panel";
+import { PakbonAanmakenDialog } from "./pakbon-aanmaken-dialog";
 
-// Column count of the "Lijnen" table body: chevron, Lijnnr, Artnr,
+// Number of columns in the Lijnen table (chevron, Lijnnr, Artnr,
 // Omschrijving, Aantal, Te leveren, Gereserveerd, Eff. gereserveerd, Vprijs,
-// Korting, Bedrag, Leverdatum, actie (Reserveren). A collapsed K00 title row
-// merges every one of these into a single cell.
+// Korting, Bedrag, Leverdatum, actie) - used to colspan K00 title-line rows
+// and the expanded productie-sublijnen row so they span the full table width.
 const LIJNEN_TABLE_COLUMN_COUNT = 13;
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -138,11 +138,18 @@ function toBonFormState(bon: BonItem): BonFormState {
   };
 }
 
-export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnItem[] }) {
+export function BonDetailPage({
+  bon: initialBon,
+  lijnen,
+}: {
+  bon: BonItem;
+  lijnen: BonLijnItem[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   // Local copy of the server state so a reservering-call's response can
   // refresh a single row without a full page re-fetch.
+  const [bon, setBon] = useState<BonItem>(initialBon);
   const [rows, setRows] = useState<BonLijnItem[]>(lijnen);
   const [expandedLijnnr, setExpandedLijnnr] = useState<number | null>(null);
   const [reserveringTarget, setReserveringTarget] = useState<BonLijnItem | null>(null);
@@ -265,6 +272,11 @@ export function BonDetailPage({ bon, lijnen }: { bon: BonItem; lijnen: BonLijnIt
       </div>
 
       <Card className="mb-6">
+        <CardHeader>
+          <div className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+            Ordergegevens
+          </div>
+        </CardHeader>
         <CardContent>
           {editing ? (
             <>
