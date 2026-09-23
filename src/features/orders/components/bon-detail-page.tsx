@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -15,20 +15,29 @@ import {
 } from "@/components/ui/table";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EntityDetailHeader } from "@/components/ui/entity-detail-header";
+import { FlagGrid } from "@/components/ui/flag-grid";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
 import { BonLijnFoutBanner } from "./bon-lijn-fout-banner";
-import type { BonItem, BonLijnItem } from "@/lib/api-client";
+import { updateBon, type BonItem, type BonLijnItem, type UpdateBonPayload } from "@/lib/api-client";
 import { BonlijnProductieTable } from "./bonlijn-productie-table";
 import { BonlijnReserveringDialog } from "./bonlijn-reservering-dialog";
 import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
 import { LedConfigTable } from "./led-config-table";
 import { LedQcTable } from "./led-qc-table";
 import { HerstelDetailPanel } from "./herstel-detail-panel";
-import { BonDetailEditDialog } from "./bon-detail-edit-dialog";
+import { PakbonAanmakenDialog } from "./pakbon-aanmaken-dialog";
+
+// Number of columns in the Lijnen table (chevron, Lijnnr, Artnr,
+// Omschrijving, Aantal, Te leveren, Gereserveerd, Eff. gereserveerd, Vprijs,
+// Korting, Bedrag, Leverdatum, actie) - used to colspan K00 title-line rows
+// and the expanded productie-sublijnen row so they span the full table width.
+const LIJNEN_TABLE_COLUMN_COUNT = 13;
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -41,6 +50,113 @@ function DetailField({ label, value }: { label: string; value: string }) {
   );
 }
 
+// Kept 1:1 alongside offerte-detail-page.tsx's own DetailField/EditField
+// pair rather than hoisted to a shared component - see handoff note in the
+// PR: bon's read-only DetailField layout (stacked label/value) differs
+// from offerte's (inline grid-cols), so a shared component would need an
+// extra layout prop or a visual change to one of the two pages. Kept as a
+// small, deliberate duplication instead.
+function EditField({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+        {label}
+      </span>
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 font-normal normal-case"
+      />
+    </label>
+  );
+}
+
+// Bewerkbare velden op de bonkaart - `bonnr` (identificatie, immutable) en
+// `bedrag`/`btw` (server-berekend, niet op deze pagina herberekend) horen
+// hier bewust niet bij; zie docs/backend/bon.md's field map voor de volledige
+// writable-lijst.
+//
+// frontend-tester fix (zie test-report): `klnr` en `stempel` staan in dat
+// field map wel als "Yes" writable via de API, maar zijn hier bewust NIET
+// als vrij-tekst-editable veld opgenomen, ondanks dat een eerdere versie van
+// deze pagina dat wel deed:
+// - `stempel` is workflow-kritisch - het stuurt de `PUT .../lijn`
+//   `stempel="D"`-guard en de `POST .../annuleer`-voorwaarde
+//   (`stempel` moet `"V"`/`"B"` zijn) op de backend. Een gebruiker die dit
+//   naar een willekeurige waarde typt kan de order in een inconsistente
+//   staat brengen zonder enige validatie. Offerte's eigen vergelijkbare
+//   workflow-velden (`verloren`/`verkocht`) zijn nooit vrij-tekst - het zijn
+//   `FlagGrid`-toggles met server-side auto-clear-logica. Bon heeft nog geen
+//   toggle-equivalent voor `stempel`, dus tot die er is blijft dit veld
+//   read-only, net als `bonnr`/`bedrag`/`btw`.
+// - `klnr` is offerte's eigen `klnr` altijd immutable/identificatie
+//   (zie offerte-detail-page.tsx). Bon los daarvan editable maken zou de
+//   twee analoge detailpagina's laten verschillen zonder functionele
+//   aanleiding in de opdracht voor deze feature - teruggedraaid naar
+//   read-only voor consistentie.
+type BonFormState = {
+  type: string;
+  datum: string;
+  naam: string;
+  adres: string;
+  postnr: string;
+  stad: string;
+  munt: string;
+  uRef: string;
+  besteldatum: string;
+  levDatum: string;
+  opm: string;
+  geparkeerd: boolean;
+  verzonden: boolean;
+  klnr2: string;
+  klnr3: string;
+  lnaam: string;
+  lnaam1: string;
+  ladres: string;
+  lpostnr: string;
+  lstad: string;
+  recupelBedrag: string;
+  aBedrag: string;
+};
+
+function toBonFormState(bon: BonItem): BonFormState {
+  return {
+    type: bon.type,
+    datum: bon.datum ?? "",
+    naam: bon.naam,
+    adres: bon.adres,
+    postnr: bon.postnr,
+    stad: bon.stad,
+    munt: bon.munt,
+    uRef: bon.uRef,
+    besteldatum: bon.besteldatum ?? "",
+    levDatum: bon.levDatum ?? "",
+    opm: bon.opm,
+    geparkeerd: bon.geparkeerd,
+    verzonden: bon.verzonden,
+    klnr2: String(bon.klnr2),
+    klnr3: String(bon.klnr3),
+    lnaam: bon.lnaam,
+    lnaam1: bon.lnaam1,
+    ladres: bon.ladres,
+    lpostnr: bon.lpostnr,
+    lstad: bon.lstad,
+    recupelBedrag: String(bon.recupelBedrag),
+    aBedrag: String(bon.aBedrag),
+  };
+}
+
 export function BonDetailPage({
   bon: initialBon,
   lijnen,
@@ -49,18 +165,122 @@ export function BonDetailPage({
   lijnen: BonLijnItem[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   // Local copy of the server state so a reservering-call's response can
   // refresh a single row without a full page re-fetch.
   const [bon, setBon] = useState<BonItem>(initialBon);
   const [rows, setRows] = useState<BonLijnItem[]>(lijnen);
   const [expandedLijnnr, setExpandedLijnnr] = useState<number | null>(null);
   const [reserveringTarget, setReserveringTarget] = useState<BonLijnItem | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
+  const [pakbonDialogOpen, setPakbonDialogOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<BonFormState>(() => toBonFormState(bon));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const isHerstelling = bon.type === "HERSTELLING";
 
   const heeftExtraKlantnrs = Boolean(bon.klnr2) || Boolean(bon.klnr3);
   const heeftAfleveradres = Boolean(
     bon.lnaam || bon.lnaam1 || bon.ladres || bon.lpostnr || bon.lstad
+  );
+
+  // Auto-enter edit mode when redirected here from a successful
+  // offerte -> order conversion (offerte-detail-page's "Omzetten naar
+  // Order" button pushes `/orders/{bonnr}?edit=1`) - a one-time intent
+  // flag, not a derived-state sync loop, mirrors the `lijnFout=1` pattern
+  // used elsewhere on this page/offerte-detail-page.
+  useEffect(() => {
+    if (searchParams.get("edit") !== "1") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setForm(toBonFormState(bon));
+    setError(null);
+    setEditing(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const isDirty = useMemo(() => {
+    const original = toBonFormState(bon);
+    return (Object.keys(original) as (keyof BonFormState)[]).some(
+      (key) => original[key] !== form[key]
+    );
+  }, [bon, form]);
+
+  const setField = <K extends keyof BonFormState>(key: K, value: BonFormState[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  function startEditing() {
+    setForm(toBonFormState(bon));
+    setError(null);
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setForm(toBonFormState(bon));
+    setError(null);
+    setEditing(false);
+  }
+
+  async function handleSave() {
+    const numericFields = {
+      klnr2: form.klnr2 === "" ? 0 : Number(form.klnr2),
+      klnr3: form.klnr3 === "" ? 0 : Number(form.klnr3),
+      recupelBedrag: form.recupelBedrag === "" ? 0 : Number(form.recupelBedrag),
+      aBedrag: form.aBedrag === "" ? 0 : Number(form.aBedrag),
+    };
+    if (Object.values(numericFields).some((n) => Number.isNaN(n))) {
+      setError(
+        "Alle numerieke velden (Klnr2, Klnr3, Recupel bedrag, A-bedrag) moeten geldige getallen zijn."
+      );
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const payload: UpdateBonPayload = {
+        type: form.type,
+        datum: form.datum || undefined,
+        naam: form.naam,
+        adres: form.adres,
+        postnr: form.postnr,
+        stad: form.stad,
+        munt: form.munt,
+        uRef: form.uRef,
+        besteldatum: form.besteldatum || undefined,
+        levDatum: form.levDatum || undefined,
+        opm: form.opm,
+        geparkeerd: form.geparkeerd,
+        verzonden: form.verzonden,
+        ...numericFields,
+        lnaam: form.lnaam,
+        lnaam1: form.lnaam1,
+        ladres: form.ladres,
+        lpostnr: form.lpostnr,
+        lstad: form.lstad,
+      };
+      await updateBon(bon.bonnr, payload);
+      setEditing(false);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Er ging iets mis bij het opslaan van de bon.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const headerActions = editing ? (
+    <>
+      <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
+        Cancel
+      </Button>
+      <Button type="button" onClick={handleSave} disabled={saving}>
+        {saving ? "Bezig..." : "Save"}
+      </Button>
+    </>
+  ) : (
+    <Button type="button" size="sm" onClick={startEditing}>
+      Verbeteren
+    </Button>
   );
 
   function handleReserved(updated: BonLijnItem) {
@@ -95,78 +315,239 @@ export function BonDetailPage({
       </div>
 
       <Card className="mb-6">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <div className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
             Ordergegevens
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-            Bewerken
-          </Button>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailField label="Bonnr" value={String(bon.bonnr)} />
-            <DetailField label="Type" value={bon.type} />
-            <DetailField label="Datum" value={formatDatum(bon.datum)} />
-            <DetailField label="Klant" value={bon.naam} />
-            <DetailField label="Adres" value={bon.adres} />
-            <DetailField label="Postnr" value={bon.postnr} />
-            <DetailField label="Stad" value={bon.stad} />
-            <DetailField label="Munt" value={bon.munt} />
-            <DetailField label="Bedrag" value={formatBedrag(bon.bedrag)} />
-            <DetailField label="Btw" value={formatBedrag(bon.btw)} />
-            <DetailField label="Uw referentie" value={bon.uRef} />
-            <DetailField label="Besteldatum" value={formatDatum(bon.besteldatum)} />
-            <DetailField label="Leverdatum" value={formatDatum(bon.levDatum)} />
-            <DetailField label="Geparkeerd" value={bon.geparkeerd ? "Ja" : "Nee"} />
-            <DetailField label="Verzonden" value={bon.verzonden ? "Ja" : "Nee"} />
-            <DetailField label="Opmerking" value={bon.opm} />
-          </div>
-
-          {heeftExtraKlantnrs && (
+          {editing ? (
             <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <DetailField label="Bonnr" value={String(bon.bonnr)} />
+                <EditField label="Type" value={form.type} onChange={(v) => setField("type", v)} />
+                <DetailField label="Stempel" value={bon.stempel} />
+                <EditField
+                  label="Datum"
+                  value={form.datum}
+                  onChange={(v) => setField("datum", v)}
+                  type="date"
+                />
+                <DetailField label="Klnr" value={String(bon.klnr)} />
+                <EditField label="Klant" value={form.naam} onChange={(v) => setField("naam", v)} />
+                <EditField label="Adres" value={form.adres} onChange={(v) => setField("adres", v)} />
+                <EditField
+                  label="Postnr"
+                  value={form.postnr}
+                  onChange={(v) => setField("postnr", v)}
+                />
+                <EditField label="Stad" value={form.stad} onChange={(v) => setField("stad", v)} />
+                <EditField label="Munt" value={form.munt} onChange={(v) => setField("munt", v)} />
+                <DetailField label="Bedrag" value={formatBedrag(bon.bedrag)} />
+                <DetailField label="Btw" value={formatBedrag(bon.btw)} />
+                <EditField
+                  label="Uw referentie"
+                  value={form.uRef}
+                  onChange={(v) => setField("uRef", v)}
+                />
+                <EditField
+                  label="Besteldatum"
+                  value={form.besteldatum}
+                  onChange={(v) => setField("besteldatum", v)}
+                  type="date"
+                />
+                <EditField
+                  label="Leverdatum"
+                  value={form.levDatum}
+                  onChange={(v) => setField("levDatum", v)}
+                  type="date"
+                />
+                <EditField label="Opmerking" value={form.opm} onChange={(v) => setField("opm", v)} />
+              </div>
+
+              <div className="mt-6">
+                <FlagGrid
+                  title="Kenmerken"
+                  items={[
+                    {
+                      key: "geparkeerd",
+                      label: "Geparkeerd",
+                      checked: form.geparkeerd,
+                      onToggle: () => setField("geparkeerd", !form.geparkeerd),
+                    },
+                    {
+                      key: "verzonden",
+                      label: "Verzonden",
+                      checked: form.verzonden,
+                      onToggle: () => setField("verzonden", !form.verzonden),
+                    },
+                  ]}
+                />
+              </div>
+
               <Separator className="my-4" />
               <div>
                 <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
                   Extra klantnummers
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {Boolean(bon.klnr2) && <DetailField label="Klnr2" value={String(bon.klnr2)} />}
-                  {Boolean(bon.klnr3) && <DetailField label="Klnr3" value={String(bon.klnr3)} />}
+                  <EditField
+                    label="Klnr2"
+                    value={form.klnr2}
+                    onChange={(v) => setField("klnr2", v)}
+                    type="number"
+                  />
+                  <EditField
+                    label="Klnr3"
+                    value={form.klnr3}
+                    onChange={(v) => setField("klnr3", v)}
+                    type="number"
+                  />
                 </div>
               </div>
-            </>
-          )}
 
-          {heeftAfleveradres && (
-            <>
               <Separator className="my-4" />
               <div>
                 <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
                   Afleveradres
                 </div>
-                <div className="text-sm text-foreground">
-                  {bon.lnaam && <div>{bon.lnaam}</div>}
-                  {bon.lnaam1 && <div>{bon.lnaam1}</div>}
-                  {bon.ladres && <div>{bon.ladres}</div>}
-                  {(bon.lpostnr || bon.lstad) && (
-                    <div>{[bon.lpostnr, bon.lstad].filter(Boolean).join(" ")}</div>
-                  )}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <EditField label="Naam" value={form.lnaam} onChange={(v) => setField("lnaam", v)} />
+                  <EditField
+                    label="Naam 1"
+                    value={form.lnaam1}
+                    onChange={(v) => setField("lnaam1", v)}
+                  />
+                  <EditField
+                    label="Adres"
+                    value={form.ladres}
+                    onChange={(v) => setField("ladres", v)}
+                  />
+                  <EditField
+                    label="Postnr"
+                    value={form.lpostnr}
+                    onChange={(v) => setField("lpostnr", v)}
+                  />
+                  <EditField label="Stad" value={form.lstad} onChange={(v) => setField("lstad", v)} />
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+              <div>
+                <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                  Bedragen (extra)
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <EditField
+                    label="Recupel bedrag"
+                    value={form.recupelBedrag}
+                    onChange={(v) => setField("recupelBedrag", v)}
+                    type="number"
+                  />
+                  <EditField
+                    label="A-bedrag"
+                    value={form.aBedrag}
+                    onChange={(v) => setField("aBedrag", v)}
+                    type="number"
+                  />
+                </div>
+              </div>
+
+              {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <DetailField label="Bonnr" value={String(bon.bonnr)} />
+                <DetailField label="Type" value={bon.type} />
+                <DetailField label="Stempel" value={bon.stempel} />
+                <DetailField label="Datum" value={formatDatum(bon.datum)} />
+                <DetailField label="Klnr" value={String(bon.klnr)} />
+                <DetailField label="Klant" value={bon.naam} />
+                <DetailField label="Adres" value={bon.adres} />
+                <DetailField label="Postnr" value={bon.postnr} />
+                <DetailField label="Stad" value={bon.stad} />
+                <DetailField label="Munt" value={bon.munt} />
+                <DetailField label="Bedrag" value={formatBedrag(bon.bedrag)} />
+                <DetailField label="Btw" value={formatBedrag(bon.btw)} />
+                <DetailField label="Uw referentie" value={bon.uRef} />
+                <DetailField label="Besteldatum" value={formatDatum(bon.besteldatum)} />
+                <DetailField label="Leverdatum" value={formatDatum(bon.levDatum)} />
+                <DetailField label="Opmerking" value={bon.opm} />
+              </div>
+
+              <div className="mt-6">
+                <FlagGrid
+                  title="Kenmerken"
+                  items={[
+                    {
+                      key: "geparkeerd",
+                      label: "Geparkeerd",
+                      checked: bon.geparkeerd,
+                      onToggle: () => {},
+                      disabled: true,
+                    },
+                    {
+                      key: "verzonden",
+                      label: "Verzonden",
+                      checked: bon.verzonden,
+                      onToggle: () => {},
+                      disabled: true,
+                    },
+                  ]}
+                />
+              </div>
+
+              {heeftExtraKlantnrs && (
+                <>
+                  <Separator className="my-4" />
+                  <div>
+                    <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                      Extra klantnummers
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {Boolean(bon.klnr2) && (
+                        <DetailField label="Klnr2" value={String(bon.klnr2)} />
+                      )}
+                      {Boolean(bon.klnr3) && (
+                        <DetailField label="Klnr3" value={String(bon.klnr3)} />
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {heeftAfleveradres && (
+                <>
+                  <Separator className="my-4" />
+                  <div>
+                    <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                      Afleveradres
+                    </div>
+                    <div className="text-sm text-foreground">
+                      {bon.lnaam && <div>{bon.lnaam}</div>}
+                      {bon.lnaam1 && <div>{bon.lnaam1}</div>}
+                      {bon.ladres && <div>{bon.ladres}</div>}
+                      {(bon.lpostnr || bon.lstad) && (
+                        <div>{[bon.lpostnr, bon.lstad].filter(Boolean).join(" ")}</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <Separator className="my-4" />
+              <div>
+                <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                  Bedragen (extra)
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <DetailField label="Recupel bedrag" value={formatBedrag(bon.recupelBedrag)} />
+                  <DetailField label="A-bedrag" value={formatBedrag(bon.aBedrag)} />
                 </div>
               </div>
             </>
           )}
-
-          <Separator className="my-4" />
-          <div>
-            <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-              Bedragen (extra)
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailField label="Recupel bedrag" value={formatBedrag(bon.recupelBedrag)} />
-              <DetailField label="A-bedrag" value={formatBedrag(bon.aBedrag)} />
-            </div>
-          </div>
         </CardContent>
       </Card>
 

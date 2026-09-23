@@ -1,17 +1,12 @@
 import { act } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
-import { formatBedrag } from "@/lib/format";
 
 const pushMock = vi.fn();
 const refreshMock = vi.fn();
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
-}));
-
 const updateBonMock = vi.fn();
 vi.mock("@/lib/api-client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
@@ -20,65 +15,37 @@ vi.mock("@/lib/api-client", async () => {
     updateBon: (...args: unknown[]) => updateBonMock(...args),
   };
 });
-
-// Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
-// its resulting setState) settles before assertions run - avoids the
-// "not wrapped in act(...)" warning without changing test intent.
-async function flush() {
-  await act(async () => {
-    await Promise.resolve();
-  });
-}
-
-// BonDetailPage's LED-configuratie tab and per-row pakbon-badges fetch on
-// mount via the shared API client - stub fetch so every test gets a
-// deterministic empty response instead of a real network call.
-function stubFetch() {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [] }) })
-  );
-}
-
-const refreshMock = vi.fn();
-const updateBonMock = vi.fn();
-vi.mock("@/lib/api-client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
-  return {
-    ...actual,
-    updateBon: (...args: unknown[]) => updateBonMock(...args),
-  };
-});
-
-// Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
-// its resulting setState) settles before assertions run - avoids the
-// "not wrapped in act(...)" warning without changing test intent.
-async function flush() {
-  await act(async () => {
-    await Promise.resolve();
-  });
-}
-
-// BonDetailPage's LED-configuratie tab and per-row pakbon-badges fetch on
-// mount via the shared API client - stub fetch so every test gets a
-// deterministic empty response instead of a real network call.
-function stubFetch() {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [] }) })
-  );
-}
 
 const searchParamsMock = vi.fn(() => new URLSearchParams());
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: refreshMock }),
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
   useSearchParams: () => searchParamsMock(),
 }));
+
+// Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
+// its resulting setState) settles before assertions run - avoids the
+// "not wrapped in act(...)" warning without changing test intent.
+async function flush() {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
+// BonDetailPage's LED-configuratie tab and per-row pakbon-badges fetch on
+// mount via the shared API client - stub fetch so every test gets a
+// deterministic empty response instead of a real network call.
+function stubFetch() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [] }) })
+  );
+}
 
 beforeEach(() => {
   searchParamsMock.mockReset();
   searchParamsMock.mockReturnValue(new URLSearchParams());
   sessionStorage.clear();
+  pushMock.mockReset();
   refreshMock.mockReset();
   updateBonMock.mockReset();
 });
@@ -184,12 +151,6 @@ const mockTitleLijn: BonLijnItem = {
 };
 
 describe("BonDetailPage", () => {
-  beforeEach(() => {
-    pushMock.mockReset();
-    refreshMock.mockReset();
-    updateBonMock.mockReset();
-  });
-
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -461,5 +422,137 @@ describe("BonDetailPage", () => {
 
     expect(screen.queryByRole("textbox", { name: "Klant" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
+  });
+
+  describe("extra klantnummers / afleveradres / extra bedragen", () => {
+    it("does not show 'Extra klantnummers' or 'Afleveradres' read-only sections when the data is empty", async () => {
+      stubFetch();
+      render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+      await flush();
+
+      expect(screen.queryByText("Extra klantnummers")).not.toBeInTheDocument();
+      expect(screen.queryByText("Afleveradres")).not.toBeInTheDocument();
+      // Bedragen (extra) is always shown, even when zero.
+      expect(screen.getByText("Bedragen (extra)")).toBeInTheDocument();
+      expect(screen.getByText("Recupel bedrag")).toBeInTheDocument();
+      expect(screen.getByText("A-bedrag")).toBeInTheDocument();
+    });
+
+    it("shows 'Extra klantnummers' and 'Afleveradres' read-only sections when the data is present", async () => {
+      stubFetch();
+      const bonWithExtras: BonItem = {
+        ...mockBon,
+        klnr2: 555,
+        klnr3: 0,
+        lnaam: "Aflever BV",
+        lnaam1: "T.a.v. Jan",
+        ladres: "Straat 1",
+        lpostnr: "2000",
+        lstad: "Antwerpen",
+        recupelBedrag: 1.5,
+        aBedrag: 2.5,
+      };
+      render(<BonDetailPage bon={bonWithExtras} lijnen={mockLijnen} />);
+      await flush();
+
+      expect(screen.getByText("Extra klantnummers")).toBeInTheDocument();
+      expect(screen.getByText("Klnr2")).toBeInTheDocument();
+      expect(screen.getByText("555")).toBeInTheDocument();
+      // klnr3 is 0/falsy, so it should not render its own field.
+      expect(screen.queryByText("Klnr3")).not.toBeInTheDocument();
+
+      expect(screen.getByText("Afleveradres")).toBeInTheDocument();
+      expect(screen.getByText("Aflever BV")).toBeInTheDocument();
+      expect(screen.getByText("T.a.v. Jan")).toBeInTheDocument();
+      expect(screen.getByText("Straat 1")).toBeInTheDocument();
+      expect(screen.getByText("2000 Antwerpen")).toBeInTheDocument();
+    });
+
+    it("shows editable fields for extra klantnummers, afleveradres and extra bedragen in edit mode", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+      await flush();
+
+      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+      expect(screen.getByRole("spinbutton", { name: "Klnr2" })).toHaveValue(0);
+      expect(screen.getByRole("spinbutton", { name: "Klnr3" })).toHaveValue(0);
+      expect(screen.getByRole("textbox", { name: "Naam" })).toHaveValue("");
+      expect(screen.getByRole("textbox", { name: "Naam 1" })).toHaveValue("");
+      // "Adres"/"Postnr"/"Stad" labels are shared between the main
+      // afzenderadres and the afleveradres sections - assert there are
+      // exactly two of each (one per section) rather than picking by name.
+      expect(screen.getAllByRole("textbox", { name: "Adres" })).toHaveLength(2);
+      expect(screen.getAllByRole("textbox", { name: "Postnr" })).toHaveLength(2);
+      expect(screen.getAllByRole("textbox", { name: "Stad" })).toHaveLength(2);
+      expect(screen.getByRole("spinbutton", { name: "Recupel bedrag" })).toHaveValue(0);
+      expect(screen.getByRole("spinbutton", { name: "A-bedrag" })).toHaveValue(0);
+    });
+
+    it("shows an aggregate numeric validation error and does not call the API when klnr2 is not a number", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+      await flush();
+
+      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+      // Native <input type="number"> silently refuses to hold a
+      // non-numeric string (both via userEvent keystrokes and via
+      // fireEvent.change), so a truly invalid value can only be forced
+      // onto the underlying DOM node by temporarily flipping it to
+      // type="text" before dispatching the change - this still exercises
+      // the same controlled React onChange -> Number.isNaN validation
+      // path.
+      const klnr2Input = screen.getByRole("spinbutton", { name: "Klnr2" });
+      klnr2Input.setAttribute("type", "text");
+      fireEvent.change(klnr2Input, { target: { value: "not-a-number" } });
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(
+        await screen.findByText(
+          "Alle numerieke velden (Klnr2, Klnr3, Recupel bedrag, A-bedrag) moeten geldige getallen zijn."
+        )
+      ).toBeInTheDocument();
+      expect(updateBonMock).not.toHaveBeenCalled();
+    });
+
+    it("saves the extra klantnummers/afleveradres/bedragen fields with correct numeric coercion", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      updateBonMock.mockResolvedValue({ ...mockBon, klnr2: 42, lnaam: "Aflever BV" });
+
+      render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+      await flush();
+
+      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+      const klnr2Input = screen.getByRole("spinbutton", { name: "Klnr2" });
+      await user.clear(klnr2Input);
+      await user.type(klnr2Input, "42");
+
+      const lnaamInput = screen.getByRole("textbox", { name: "Naam" });
+      await user.type(lnaamInput, "Aflever BV");
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
+      expect(updateBonMock).toHaveBeenCalledWith(
+        1234567,
+        expect.objectContaining({
+          klnr2: 42,
+          klnr3: 0,
+          recupelBedrag: 0,
+          aBedrag: 0,
+          lnaam: "Aflever BV",
+          lnaam1: "",
+          ladres: "",
+          lpostnr: "",
+          lstad: "",
+        })
+      );
+    });
   });
 });
