@@ -50,4 +50,26 @@ describe("OmzetTrendCard", () => {
       expect(screen.getByText(item.label)).toBeInTheDocument();
     }
   });
+
+  it("renders exactly 3 y-axis tick labels", () => {
+    render(<OmzetTrendCard items={items} />);
+    expect(screen.getByText("€ 86k")).toBeInTheDocument();
+    expect(screen.getByText("€ 43k")).toBeInTheDocument();
+    expect(screen.getByText("€ 0")).toBeInTheDocument();
+  });
+
+  it("renders exactly 3 gridlines", () => {
+    const { container } = render(<OmzetTrendCard items={items} />);
+    const gridlines = container.querySelectorAll('line[stroke="#d9d9d9"]');
+    expect(gridlines).toHaveLength(3);
+    for (const gridline of gridlines) {
+      expect(gridline).not.toHaveAttribute("stroke-dasharray");
+    }
+  });
+
+  it("svg viewBox reflects widened layout", () => {
+    const { container } = render(<OmzetTrendCard items={items} />);
+    const svg = container.querySelector("svg");
+    expect(svg).toHaveAttribute("viewBox", "0 0 340 70");
+  });
 });
