@@ -16,6 +16,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EntityDetailHeader } from "@/components/ui/entity-detail-header";
 import { FlagGrid } from "@/components/ui/flag-grid";
@@ -118,6 +119,15 @@ type BonFormState = {
   opm: string;
   geparkeerd: boolean;
   verzonden: boolean;
+  klnr2: string;
+  klnr3: string;
+  lnaam: string;
+  lnaam1: string;
+  ladres: string;
+  lpostnr: string;
+  lstad: string;
+  recupelBedrag: string;
+  aBedrag: string;
 };
 
 function toBonFormState(bon: BonItem): BonFormState {
@@ -135,6 +145,15 @@ function toBonFormState(bon: BonItem): BonFormState {
     opm: bon.opm,
     geparkeerd: bon.geparkeerd,
     verzonden: bon.verzonden,
+    klnr2: String(bon.klnr2),
+    klnr3: String(bon.klnr3),
+    lnaam: bon.lnaam,
+    lnaam1: bon.lnaam1,
+    ladres: bon.ladres,
+    lpostnr: bon.lpostnr,
+    lstad: bon.lstad,
+    recupelBedrag: String(bon.recupelBedrag),
+    aBedrag: String(bon.aBedrag),
   };
 }
 
@@ -159,6 +178,11 @@ export function BonDetailPage({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isHerstelling = bon.type === "HERSTELLING";
+
+  const heeftExtraKlantnrs = Boolean(bon.klnr2) || Boolean(bon.klnr3);
+  const heeftAfleveradres = Boolean(
+    bon.lnaam || bon.lnaam1 || bon.ladres || bon.lpostnr || bon.lstad
+  );
 
   // Auto-enter edit mode when redirected here from a successful
   // offerte -> order conversion (offerte-detail-page's "Omzetten naar
@@ -197,6 +221,19 @@ export function BonDetailPage({
   }
 
   async function handleSave() {
+    const numericFields = {
+      klnr2: form.klnr2 === "" ? 0 : Number(form.klnr2),
+      klnr3: form.klnr3 === "" ? 0 : Number(form.klnr3),
+      recupelBedrag: form.recupelBedrag === "" ? 0 : Number(form.recupelBedrag),
+      aBedrag: form.aBedrag === "" ? 0 : Number(form.aBedrag),
+    };
+    if (Object.values(numericFields).some((n) => Number.isNaN(n))) {
+      setError(
+        "Alle numerieke velden (Klnr2, Klnr3, Recupel bedrag, A-bedrag) moeten geldige getallen zijn."
+      );
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -214,6 +251,12 @@ export function BonDetailPage({
         opm: form.opm,
         geparkeerd: form.geparkeerd,
         verzonden: form.verzonden,
+        ...numericFields,
+        lnaam: form.lnaam,
+        lnaam1: form.lnaam1,
+        ladres: form.ladres,
+        lpostnr: form.lpostnr,
+        lstad: form.lstad,
       };
       await updateBon(bon.bonnr, payload);
       setEditing(false);
@@ -342,6 +385,74 @@ export function BonDetailPage({
                 />
               </div>
 
+              <Separator className="my-4" />
+              <div>
+                <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                  Extra klantnummers
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <EditField
+                    label="Klnr2"
+                    value={form.klnr2}
+                    onChange={(v) => setField("klnr2", v)}
+                    type="number"
+                  />
+                  <EditField
+                    label="Klnr3"
+                    value={form.klnr3}
+                    onChange={(v) => setField("klnr3", v)}
+                    type="number"
+                  />
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+              <div>
+                <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                  Afleveradres
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <EditField label="Naam" value={form.lnaam} onChange={(v) => setField("lnaam", v)} />
+                  <EditField
+                    label="Naam 1"
+                    value={form.lnaam1}
+                    onChange={(v) => setField("lnaam1", v)}
+                  />
+                  <EditField
+                    label="Adres"
+                    value={form.ladres}
+                    onChange={(v) => setField("ladres", v)}
+                  />
+                  <EditField
+                    label="Postnr"
+                    value={form.lpostnr}
+                    onChange={(v) => setField("lpostnr", v)}
+                  />
+                  <EditField label="Stad" value={form.lstad} onChange={(v) => setField("lstad", v)} />
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+              <div>
+                <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                  Bedragen (extra)
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <EditField
+                    label="Recupel bedrag"
+                    value={form.recupelBedrag}
+                    onChange={(v) => setField("recupelBedrag", v)}
+                    type="number"
+                  />
+                  <EditField
+                    label="A-bedrag"
+                    value={form.aBedrag}
+                    onChange={(v) => setField("aBedrag", v)}
+                    type="number"
+                  />
+                </div>
+              </div>
+
               {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
             </>
           ) : (
@@ -385,6 +496,55 @@ export function BonDetailPage({
                     },
                   ]}
                 />
+              </div>
+
+              {heeftExtraKlantnrs && (
+                <>
+                  <Separator className="my-4" />
+                  <div>
+                    <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                      Extra klantnummers
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {Boolean(bon.klnr2) && (
+                        <DetailField label="Klnr2" value={String(bon.klnr2)} />
+                      )}
+                      {Boolean(bon.klnr3) && (
+                        <DetailField label="Klnr3" value={String(bon.klnr3)} />
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {heeftAfleveradres && (
+                <>
+                  <Separator className="my-4" />
+                  <div>
+                    <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                      Afleveradres
+                    </div>
+                    <div className="text-sm text-foreground">
+                      {bon.lnaam && <div>{bon.lnaam}</div>}
+                      {bon.lnaam1 && <div>{bon.lnaam1}</div>}
+                      {bon.ladres && <div>{bon.ladres}</div>}
+                      {(bon.lpostnr || bon.lstad) && (
+                        <div>{[bon.lpostnr, bon.lstad].filter(Boolean).join(" ")}</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <Separator className="my-4" />
+              <div>
+                <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                  Bedragen (extra)
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <DetailField label="Recupel bedrag" value={formatBedrag(bon.recupelBedrag)} />
+                  <DetailField label="A-bedrag" value={formatBedrag(bon.aBedrag)} />
+                </div>
               </div>
             </>
           )}
