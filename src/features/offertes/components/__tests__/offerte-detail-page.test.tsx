@@ -7,22 +7,27 @@ import type { OfferteItem, OfflijnItem } from "@/lib/api-client";
 const refreshMock = vi.fn();
 const searchParamsMock = vi.fn(() => new URLSearchParams());
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: refreshMock, push: vi.fn() }),
+  useRouter: () => ({ refresh: refreshMock, push: pushMock }),
   useSearchParams: () => searchParamsMock(),
 }));
 
 const updateOfferteMock = vi.fn();
+const omzettenNaarOrderMock = vi.fn();
+const pushMock = vi.fn();
 vi.mock("@/lib/api-client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
   return {
     ...actual,
     updateOfferte: (...args: unknown[]) => updateOfferteMock(...args),
+    omzettenNaarOrder: (...args: unknown[]) => omzettenNaarOrderMock(...args),
   };
 });
 
 beforeEach(() => {
   refreshMock.mockReset();
   updateOfferteMock.mockReset();
+  omzettenNaarOrderMock.mockReset();
+  pushMock.mockReset();
   searchParamsMock.mockReset();
   searchParamsMock.mockReturnValue(new URLSearchParams());
 });
@@ -41,6 +46,7 @@ const mockOfferte: OfferteItem = {
   btw: 108.38,
   offgroep: "STD",
   soort: "DNOM",
+  stempel: "O",
   passief: false,
   verloren: false,
   verkocht: false,
@@ -219,5 +225,54 @@ describe("OfferteDetailPage", () => {
   it("does not show the partial-failure banner without lijnFout=1", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
     expect(screen.queryByText(/Niet alle lijnen zijn opgeslagen/)).not.toBeInTheDocument();
+  });
+
+  it("shows an enabled 'Omzetten naar Order' button when offerte.stempel is 'O'", () => {
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
+    expect(screen.getByRole("button", { name: "Omzetten naar Order" })).toBeEnabled();
+  });
+
+  it("disables the 'Omzetten naar Order' button when offerte.stempel is not 'O'", () => {
+    render(<OfferteDetailPage offerte={{ ...mockOfferte, stempel: "D" }} lijnen={mockLijnen} />);
+    expect(screen.getByRole("button", { name: "Omzetten naar Order" })).toBeDisabled();
+  });
+
+  it("converts the offerte to an order and redirects to the new bon in edit mode", async () => {
+    const user = userEvent.setup();
+    omzettenNaarOrderMock.mockResolvedValue({
+      bonnr: 48213,
+      offnr: 2167769,
+      versie: 1,
+      offerteStempel: "D",
+      aantalLijnenOvergenomen: 7,
+      aantalLedLijnenOvergenomen: 3,
+      totBtw: 214.37,
+      totaalBasis: 887.1,
+      totaalInclBtw: 1101.47,
+    });
+
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
+    await user.click(screen.getByRole("button", { name: "Omzetten naar Order" }));
+
+    await waitFor(() => expect(omzettenNaarOrderMock).toHaveBeenCalledWith(2167769, 1));
+    expect(pushMock).toHaveBeenCalledWith("/orders/48213?edit=1");
+  });
+
+  it("shows an inline error and does not redirect when the conversion fails", async () => {
+    const user = userEvent.setup();
+    omzettenNaarOrderMock.mockRejectedValue(
+      new Error("Offerte 2167769/1 has stempel 'D' and cannot be converted")
+    );
+
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
+    await user.click(screen.getByRole("button", { name: "Omzetten naar Order" }));
+
+    expect(
+      await screen.findByText("Offerte 2167769/1 has stempel 'D' and cannot be converted")
+    ).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { name: "Offerte 2167769/1" })
+    ).toBeInTheDocument();
   });
 });
