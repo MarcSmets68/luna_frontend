@@ -6,6 +6,7 @@ import {
   createOfferte,
   createOfflijn,
   deleteOfflijn,
+  getArtikelScan,
   getBoxOverzicht,
   getLakproductieItems,
   getPakbonnen,
@@ -346,6 +347,64 @@ describe("getBoxOverzicht", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(getBoxOverzicht("garbage")).rejects.toThrow("Onbekend boxlabel");
+  });
+});
+
+describe("getArtikelScan", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("GETs /npp/artikelscan with the scan value URL-encoded", async () => {
+    const result = {
+      status: "resolved",
+      scan: "590123",
+      article: {
+        artnr: "ART-1",
+        nummer: 1,
+        xref: "XREF-1",
+        omschrijving: "Profiel",
+        barcode: "590123",
+        pickingkode: "P1",
+        pickingkleur: "Rood",
+      },
+      empty: false,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const data = await getArtikelScan("590123");
+
+    expect(data).toEqual(result);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/npp/artikelscan?scan=");
+    expect(url).toContain(encodeURIComponent("590123"));
+    expect(url).not.toContain("expectedArtnr");
+    expect(init.method).toBe("GET");
+  });
+
+  it("includes expectedArtnr in the query string when passed", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: "resolved", scan: "1-2", article: null, empty: false }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getArtikelScan("1-2", "ART-1");
+
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`expectedArtnr=${encodeURIComponent("ART-1")}`);
+  });
+
+  it("surfaces the backend's message on a malformed scan", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "Ontbrekende parameter 'scan'" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getArtikelScan("")).rejects.toThrow("Ontbrekende parameter 'scan'");
   });
 });
 
