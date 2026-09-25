@@ -11,6 +11,7 @@
 // goes through the analyst -> architect -> frontend-coder pipeline.
 
 import { useState } from "react";
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   ScanLine,
@@ -36,6 +37,8 @@ type Tile = {
   icon: LucideIcon;
   /** Only relevant/shown for this department, when set. */
   department?: Department;
+  /** When set, the tile navigates there (next/link) instead of being inert. */
+  href?: string;
 };
 
 const TILES: Tile[] = [
@@ -46,7 +49,7 @@ const TILES: Tile[] = [
   { label: "Planning raadplegen", icon: CalendarDays },
   { label: "Reservaties raadplegen", icon: BookmarkCheck },
   { label: "Sikta-assemblage", icon: Puzzle, department: "sikta" },
-  { label: "Boxoverzicht", icon: Boxes },
+  { label: "Boxoverzicht", icon: Boxes, href: "/npp/boxoverzicht" },
 ];
 
 export function NppMenu() {
@@ -89,25 +92,46 @@ export function NppMenu() {
 
       <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {tiles.map((tile) => (
-          <NppTile key={tile.label} label={tile.label} icon={tile.icon} />
+          <NppTile key={tile.label} label={tile.label} icon={tile.icon} href={tile.href} />
         ))}
       </div>
     </div>
   );
 }
 
-function NppTile({ label, icon: Icon }: { label: string; icon: LucideIcon }) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-4 text-center",
-        "transition-colors select-none hover:bg-accent hover:text-accent-foreground active:translate-y-px",
-        "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      )}
-    >
+const tileClassName = cn(
+  "flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-4 text-center",
+  "transition-colors select-none hover:bg-accent hover:text-accent-foreground active:translate-y-px",
+  "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+);
+
+function NppTile({
+  label,
+  icon: Icon,
+  href,
+}: {
+  label: string;
+  icon: LucideIcon;
+  href?: string;
+}) {
+  const content = (
+    <>
       <Icon className="size-10 text-primary-600" strokeWidth={1.75} />
       <span className="text-[15px] leading-snug font-medium text-foreground">{label}</span>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={tileClassName}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" className={tileClassName}>
+      {content}
     </button>
   );
 }

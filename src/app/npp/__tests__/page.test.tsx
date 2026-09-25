@@ -24,4 +24,22 @@ describe("Npp page", () => {
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
     expect(screen.queryByText("Noma")).not.toBeInTheDocument();
   });
+
+  it("renders the Boxoverzicht tile as a navigable link to /npp/boxoverzicht", () => {
+    render(<Npp />);
+    const link = screen.getByRole("link", { name: /Boxoverzicht/ });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/npp/boxoverzicht");
+  });
+
+  it("keeps the other tiles inert (plain buttons, not links)", () => {
+    render(<Npp />);
+    expect(screen.getByRole("button", { name: /Scannen \/ verifiëren/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Stockbeweging boeken/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Productie starten \/ afsluiten/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Kwaliteitscontrole/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Planning raadplegen/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reservaties raadplegen/ })).toBeInTheDocument();
+    expect(screen.queryAllByRole("link")).toHaveLength(1);
+  });
 });
