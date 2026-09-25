@@ -11,7 +11,7 @@ describe("Npp page", () => {
   it("renders the NPP menu heading and task tiles", () => {
     render(<Npp />);
     expect(screen.getByRole("heading", { name: "NPP" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Scannen \/ verifiëren/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Scannen \/ verifiëren/ })).toBeInTheDocument();
   });
 
   it("renders the shared Topbar (logout button present)", () => {
@@ -32,14 +32,20 @@ describe("Npp page", () => {
     expect(link).toHaveAttribute("href", "/npp/boxoverzicht");
   });
 
+  it("renders the Scannen / verifiëren tile as a navigable link to /npp/scannen", () => {
+    render(<Npp />);
+    const link = screen.getByRole("link", { name: /Scannen \/ verifiëren/ });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/npp/scannen");
+  });
+
   it("keeps the other tiles inert (plain buttons, not links)", () => {
     render(<Npp />);
-    expect(screen.getByRole("button", { name: /Scannen \/ verifiëren/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Stockbeweging boeken/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Productie starten \/ afsluiten/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Kwaliteitscontrole/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Planning raadplegen/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Reservaties raadplegen/ })).toBeInTheDocument();
-    expect(screen.queryAllByRole("link")).toHaveLength(1);
+    expect(screen.queryAllByRole("link")).toHaveLength(2);
   });
 });
