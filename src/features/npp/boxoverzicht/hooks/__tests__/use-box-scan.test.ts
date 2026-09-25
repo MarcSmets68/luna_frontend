@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useBoxScan } from "../use-box-scan";
-import { getBoxOverzicht } from "@/lib/api-client";
+import { getBoxOverzicht, type BoxOverzichtResult } from "@/lib/api-client";
 
 vi.mock("@/lib/api-client", () => ({ getBoxOverzicht: vi.fn() }));
 const mockedGetBoxOverzicht = vi.mocked(getBoxOverzicht);
@@ -12,7 +12,7 @@ describe("useBoxScan", () => {
   });
 
   it("sets loading while the request is in flight, then result on success", async () => {
-    let resolve!: (value: unknown) => void;
+    let resolve!: (value: BoxOverzichtResult) => void;
     mockedGetBoxOverzicht.mockReturnValue(new Promise((r) => (resolve = r)));
     const { result } = renderHook(() => useBoxScan());
 
