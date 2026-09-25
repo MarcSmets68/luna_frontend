@@ -424,6 +424,74 @@ describe("BonDetailPage", () => {
     expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
   });
 
+  it("shows a dirty indicator in the header while editing with unsaved changes, and not before editing or when unchanged", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    expect(screen.queryByText("Niet-bewaarde wijzigingen")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    expect(screen.queryByText("Niet-bewaarde wijzigingen")).not.toBeInTheDocument();
+
+    const naamInput = screen.getByRole("textbox", { name: "Klant" });
+    await user.type(naamInput, "!");
+    expect(screen.getByText("Niet-bewaarde wijzigingen")).toBeInTheDocument();
+  });
+
+  it("discards changes back to the original bon when Cancel is clicked", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    const naamInput = screen.getByRole("textbox", { name: "Klant" });
+    await user.clear(naamInput);
+    await user.type(naamInput, "GEWIJZIGDE NAAM");
+    expect(screen.getByText("Niet-bewaarde wijzigingen")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("textbox", { name: "Klant" })).not.toBeInTheDocument();
+    expect(screen.queryByText("GEWIJZIGDE NAAM")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
+    expect(updateBonMock).not.toHaveBeenCalled();
+
+    // Re-entering edit mode should show the original, unedited value again.
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
+  });
+
+  it("keeps the 'Pakbon aanmaken' button and per-row 'Reserveren' action working unchanged while in bon edit mode", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
+    await flush();
+
+    const pakbonButton = screen.getByRole("button", { name: "Pakbon aanmaken" });
+    expect(pakbonButton).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Reserveren" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+
+    expect(screen.getByRole("button", { name: "Pakbon aanmaken" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Reserveren" })).toBeInTheDocument();
+  });
+
+  it("disables 'Pakbon aanmaken' when there are no lijnen, independent of edit mode", async () => {
+    stubFetch();
+    const user = userEvent.setup();
+    render(<BonDetailPage bon={mockBon} lijnen={[]} />);
+    await flush();
+
+    expect(screen.getByRole("button", { name: "Pakbon aanmaken" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    expect(screen.getByRole("button", { name: "Pakbon aanmaken" })).toBeDisabled();
+  });
+
   describe("extra klantnummers / afleveradres / extra bedragen", () => {
     it("does not show 'Extra klantnummers' or 'Afleveradres' read-only sections when the data is empty", async () => {
       stubFetch();
