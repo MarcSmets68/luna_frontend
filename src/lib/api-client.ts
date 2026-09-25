@@ -746,6 +746,141 @@ export async function postStockBeweging(
   });
 }
 
+export type QcItemState = "Te controleren" | "OK" | "N.v.t." | "Fout";
+
+export type QcChecklistItem = {
+  lijnnr: number;
+  omschr: string;
+  swInfo: boolean;
+  controle: QcItemState;
+  info: string;
+};
+
+export type QcQueueItem = {
+  bonnr: number;
+  groepnr: number;
+  lijnnr: number;
+  klant: string;
+  profielgroep: string;
+  montageDatum: string | null;
+  hasInProgressSession: boolean;
+  inProgressByOther: boolean;
+};
+
+export type QcSession = {
+  bonnr: number;
+  groepnr: number;
+  volgnr: number;
+  datum: string;
+  resumed?: boolean;
+  items: QcChecklistItem[];
+};
+
+export type QcAnswerResult = {
+  item: QcChecklistItem;
+  sessionComplete: boolean;
+  outcome?: "approved";
+};
+
+type QcQueueResponse = { items: QcQueueItem[] };
+
+/**
+ * NPP "Kwaliteitscontrole" tile: queue of bon/groep combinations eligible
+ * for QC. `hasInProgressSession`/`inProgressByOther` drive the
+ * "Hervatten" / "In bewerking door X" row treatment - see
+ * queue-list-item.tsx. Requires the caller's session token via the
+ * "X-Auth-Token" header (same convention as postStockBeweging).
+ * Backend: GET /web/npp/kwaliteitscontrole/queue
+ * (Luna.Web.NppKwaliteitscontroleHandler).
+ */
+export async function getKwaliteitscontroleQueue(token: string): Promise<{ items: QcQueueItem[] }> {
+  return apiGet<QcQueueResponse>("/npp/kwaliteitscontrole/queue", { "X-Auth-Token": token });
+}
+
+/**
+ * Starts (or resumes, if one is already open for this operator) a QC
+ * session for a bon/groep. Errors are surfaced verbatim: 403 (self-QC
+ * guard - operator cannot QC their own work), 404 (not eligible for QC),
+ * 409 (already in progress by someone else - message includes their id).
+ * Backend: POST /web/npp/kwaliteitscontrole/{bonnr}/{groepnr}/session
+ * (Luna.Web.NppKwaliteitscontroleHandler).
+ */
+export async function startKwaliteitscontroleSession(
+  bonnr: number,
+  groepnr: number,
+  token: string
+): Promise<QcSession> {
+  return apiPost<QcSession>(
+    `/npp/kwaliteitscontrole/${bonnr}/${groepnr}/session`,
+    {},
+    { "X-Auth-Token": token }
+  );
+}
+
+/**
+ * Reads the currently open QC session for a bon/groep, if any (404 if
+ * none open - not swallowed here, callers get the thrown error like any
+ * other apiGet call).
+ * Backend: GET /web/npp/kwaliteitscontrole/{bonnr}/{groepnr}/session
+ * (Luna.Web.NppKwaliteitscontroleHandler).
+ */
+export async function getKwaliteitscontroleSession(
+  bonnr: number,
+  groepnr: number,
+  token: string
+): Promise<QcSession> {
+  return apiGet<QcSession>(`/npp/kwaliteitscontrole/${bonnr}/${groepnr}/session`, {
+    "X-Auth-Token": token,
+  });
+}
+
+/**
+ * Answers a single checklist item within an open session. `info` is
+ * required by the backend when the item's `swInfo` is true and
+ * `controle` is "OK" (400 otherwise) - callers must collect it before
+ * calling this. 404/409 indicate a stale session (someone else closed
+ * it, or the volgnr no longer matches) - surfaced verbatim.
+ * Backend: PUT
+ * /web/npp/kwaliteitscontrole/{bonnr}/{groepnr}/{volgnr}/items/{lijnnr}
+ * (Luna.Web.NppKwaliteitscontroleHandler).
+ */
+export async function answerKwaliteitscontroleItem(
+  bonnr: number,
+  groepnr: number,
+  volgnr: number,
+  lijnnr: number,
+  payload: { controle: Exclude<QcItemState, "Te controleren">; info?: string },
+  token: string
+): Promise<QcAnswerResult> {
+  return apiPut<QcAnswerResult>(
+    `/npp/kwaliteitscontrole/${bonnr}/${groepnr}/${volgnr}/items/${lijnnr}`,
+    payload,
+    { "X-Auth-Token": token }
+  );
+}
+
+/**
+ * Rejects (afkeurt) the whole QC session with a mandatory remark - the
+ * only way out of a checklist besides completing every item. 400 on a
+ * blank opmerking; 404/409 on a stale session.
+ * Backend: POST
+ * /web/npp/kwaliteitscontrole/{bonnr}/{groepnr}/{volgnr}/afkeur
+ * (Luna.Web.NppKwaliteitscontroleHandler).
+ */
+export async function rejectKwaliteitscontrole(
+  bonnr: number,
+  groepnr: number,
+  volgnr: number,
+  payload: { opmerking: string },
+  token: string
+): Promise<{ outcome: "rejected"; bonnr: number; groepnr: number; volgnr: number }> {
+  return apiPost<{ outcome: "rejected"; bonnr: number; groepnr: number; volgnr: number }>(
+    `/npp/kwaliteitscontrole/${bonnr}/${groepnr}/${volgnr}/afkeur`,
+    payload,
+    { "X-Auth-Token": token }
+  );
+}
+
 export type UpdateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
 
 /**

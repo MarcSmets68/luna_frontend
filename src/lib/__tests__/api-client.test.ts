@@ -1,6 +1,7 @@
 ﻿import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   afhalenPakbon,
+  answerKwaliteitscontroleItem,
   bonHerstelNaarDiagnose,
   createBonLedLijn,
   createOfferte,
@@ -8,13 +9,17 @@ import {
   deleteOfflijn,
   getArtikelScan,
   getBoxOverzicht,
+  getKwaliteitscontroleQueue,
+  getKwaliteitscontroleSession,
   getLakproductieItems,
   getPakbonnen,
   logout,
   postStockBeweging,
+  rejectKwaliteitscontrole,
   reorderOfflijn,
   reserveerBonLijn,
   searchDashboardAi,
+  startKwaliteitscontroleSession,
   updateOfferte,
   updateOfflijn,
 } from "../api-client";
@@ -500,6 +505,267 @@ describe("postStockBeweging", () => {
     await expect(
       postStockBeweging({ artnr: "ART-1", movementType: "transfer_intern", nieuwMagazijn: "M2" }, "tok-expired")
     ).rejects.toThrow("Ongeldige of verlopen sessie");
+  });
+});
+
+// NPP "Kwaliteitscontrole" tile - all calls require the X-Auth-Token
+// header (same PASOE/Tomcat deviation as logout()/postStockBeweging()).
+describe("getKwaliteitscontroleQueue", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("GETs the queue with the X-Auth-Token header", async () => {
+    const items = [
+      {
+        bonnr: 1001,
+        groepnr: 1,
+        lijnnr: 10,
+        klant: "Jansen",
+        profielgroep: "PG1",
+        montageDatum: "2026-02-01",
+        hasInProgressSession: false,
+        inProgressByOther: false,
+      },
+    ];
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const data = await getKwaliteitscontroleQueue("tok-1");
+
+    expect(data).toEqual({ items });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/npp/kwaliteitscontrole/queue");
+    expect(init.method).toBe("GET");
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-Auth-Token"]).toBe("tok-1");
+    expect(headers.Authorization).toBeUndefined();
+  });
+
+  it("surfaces the backend's error message on a non-ok response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { message: "Ongeldige of verlopen sessie" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getKwaliteitscontroleQueue("tok-expired")).rejects.toThrow(
+      "Ongeldige of verlopen sessie"
+    );
+  });
+});
+
+describe("startKwaliteitscontroleSession", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("POSTs an empty body to .../session with the X-Auth-Token header", async () => {
+    const session = {
+      bonnr: 1001,
+      groepnr: 1,
+      volgnr: 1,
+      datum: "2026-02-01",
+      resumed: false,
+      items: [{ lijnnr: 10, omschr: "Kleur controle", swInfo: false, controle: "Te controleren", info: "" }],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => session });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const data = await startKwaliteitscontroleSession(1001, 1, "tok-1");
+
+    expect(data).toEqual(session);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/npp/kwaliteitscontrole/1001/1/session");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({});
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-Auth-Token"]).toBe("tok-1");
+  });
+
+  it("surfaces the backend's 403 self-QC guard message", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => ({ error: { message: "Je kan je eigen werk niet controleren" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(startKwaliteitscontroleSession(1001, 1, "tok-1")).rejects.toThrow(
+      "Je kan je eigen werk niet controleren"
+    );
+  });
+
+  it("surfaces the backend's 409 in-progress-by-other message", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: { message: "Al in bewerking door PIET" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(startKwaliteitscontroleSession(1001, 1, "tok-1")).rejects.toThrow(
+      "Al in bewerking door PIET"
+    );
+  });
+
+  it("surfaces the backend's 404 not-eligible message", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: { message: "Bon/groep niet gevonden of niet gereed voor QC" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(startKwaliteitscontroleSession(1001, 1, "tok-1")).rejects.toThrow(
+      "Bon/groep niet gevonden of niet gereed voor QC"
+    );
+  });
+});
+
+describe("getKwaliteitscontroleSession", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("GETs the open session with the X-Auth-Token header", async () => {
+    const session = {
+      bonnr: 1001,
+      groepnr: 1,
+      volgnr: 1,
+      datum: "2026-02-01",
+      items: [{ lijnnr: 10, omschr: "Kleur controle", swInfo: false, controle: "Te controleren", info: "" }],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => session });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const data = await getKwaliteitscontroleSession(1001, 1, "tok-1");
+
+    expect(data).toEqual(session);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/npp/kwaliteitscontrole/1001/1/session");
+    expect(init.method).toBe("GET");
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-Auth-Token"]).toBe("tok-1");
+  });
+
+  it("surfaces the backend's 404 message when there is no open session", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: { message: "Geen open sessie" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getKwaliteitscontroleSession(1001, 1, "tok-1")).rejects.toThrow(
+      "Geen open sessie"
+    );
+  });
+});
+
+describe("answerKwaliteitscontroleItem", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("PUTs the answer with the X-Auth-Token header", async () => {
+    const result = {
+      item: { lijnnr: 10, omschr: "Kleur controle", swInfo: false, controle: "OK", info: "" },
+      sessionComplete: false,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const data = await answerKwaliteitscontroleItem(1001, 1, 1, 10, { controle: "OK" }, "tok-1");
+
+    expect(data).toEqual(result);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/npp/kwaliteitscontrole/1001/1/1/items/10");
+    expect(init.method).toBe("PUT");
+    expect(JSON.parse(init.body as string)).toEqual({ controle: "OK" });
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-Auth-Token"]).toBe("tok-1");
+  });
+
+  it("surfaces the backend's 400 message when info is missing for a swInfo item", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "Info is verplicht voor deze controle" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      answerKwaliteitscontroleItem(1001, 1, 1, 10, { controle: "OK" }, "tok-1")
+    ).rejects.toThrow("Info is verplicht voor deze controle");
+  });
+
+  it("surfaces the backend's 409 stale-session message", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: { message: "Sessie is niet meer geldig" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      answerKwaliteitscontroleItem(1001, 1, 1, 10, { controle: "Fout", info: "Kras" }, "tok-1")
+    ).rejects.toThrow("Sessie is niet meer geldig");
+  });
+});
+
+describe("rejectKwaliteitscontrole", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("POSTs the opmerking with the X-Auth-Token header", async () => {
+    const result = { outcome: "rejected", bonnr: 1001, groepnr: 1, volgnr: 1 };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const data = await rejectKwaliteitscontrole(
+      1001,
+      1,
+      1,
+      { opmerking: "Verkeerde kleur" },
+      "tok-1"
+    );
+
+    expect(data).toEqual(result);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/npp/kwaliteitscontrole/1001/1/1/afkeur");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ opmerking: "Verkeerde kleur" });
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-Auth-Token"]).toBe("tok-1");
+  });
+
+  it("surfaces the backend's 400 message for a blank opmerking", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "Opmerking is verplicht" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      rejectKwaliteitscontrole(1001, 1, 1, { opmerking: "" }, "tok-1")
+    ).rejects.toThrow("Opmerking is verplicht");
+  });
+
+  it("surfaces the backend's 409 stale-session message", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: { message: "Sessie is niet meer geldig" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      rejectKwaliteitscontrole(1001, 1, 1, { opmerking: "Fout" }, "tok-1")
+    ).rejects.toThrow("Sessie is niet meer geldig");
   });
 });
 
