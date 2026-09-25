@@ -40,7 +40,7 @@ describe("OmzetTrendCard", () => {
 
   it("renders a dashed line between the last two points", () => {
     const { container } = render(<OmzetTrendCard items={items} />);
-    const dashedLine = container.querySelector('line[stroke-dasharray="2 1"]');
+    const dashedLine = container.querySelector('line[stroke-dasharray="9 6"]');
     expect(dashedLine).toBeInTheDocument();
   });
 
@@ -70,6 +70,6 @@ describe("OmzetTrendCard", () => {
   it("svg viewBox reflects widened layout", () => {
     const { container } = render(<OmzetTrendCard items={items} />);
     const svg = container.querySelector("svg");
-    expect(svg).toHaveAttribute("viewBox", "0 0 340 70");
+    expect(svg).toHaveAttribute("viewBox", "0 0 1230 360");
   });
 });
