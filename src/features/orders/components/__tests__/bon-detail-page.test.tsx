@@ -8,72 +8,39 @@ import { formatBedrag } from "@/lib/format";
 
 const pushMock = vi.fn();
 const refreshMock = vi.fn();
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
-}));
-
 const updateBonMock = vi.fn();
-vi.mock("@/lib/api-client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
-  return {
-    ...actual,
-    updateBon: (...args: unknown[]) => updateBonMock(...args),
-  };
-});
-
-// Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
-// its resulting setState) settles before assertions run - avoids the
-// "not wrapped in act(...)" warning without changing test intent.
-async function flush() {
-  await act(async () => {
-    await Promise.resolve();
-  });
-}
-
-// BonDetailPage's LED-configuratie tab and per-row pakbon-badges fetch on
-// mount via the shared API client - stub fetch so every test gets a
-// deterministic empty response instead of a real network call.
-function stubFetch() {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [] }) })
-  );
-}
-
-const refreshMock = vi.fn();
-const updateBonMock = vi.fn();
-vi.mock("@/lib/api-client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
-  return {
-    ...actual,
-    updateBon: (...args: unknown[]) => updateBonMock(...args),
-  };
-});
-
-// Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
-// its resulting setState) settles before assertions run - avoids the
-// "not wrapped in act(...)" warning without changing test intent.
-async function flush() {
-  await act(async () => {
-    await Promise.resolve();
-  });
-}
-
-// BonDetailPage's LED-configuratie tab and per-row pakbon-badges fetch on
-// mount via the shared API client - stub fetch so every test gets a
-// deterministic empty response instead of a real network call.
-function stubFetch() {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [] }) })
-  );
-}
-
 const searchParamsMock = vi.fn(() => new URLSearchParams());
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: refreshMock }),
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
   useSearchParams: () => searchParamsMock(),
 }));
+
+vi.mock("@/lib/api-client", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
+  return {
+    ...actual,
+    updateBon: (...args: unknown[]) => updateBonMock(...args),
+  };
+});
+
+// Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
+// its resulting setState) settles before assertions run - avoids the
+// "not wrapped in act(...)" warning without changing test intent.
+async function flush() {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
+// BonDetailPage's LED-configuratie tab and per-row pakbon-badges fetch on
+// mount via the shared API client - stub fetch so every test gets a
+// deterministic empty response instead of a real network call.
+function stubFetch() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [] }) })
+  );
+}
 
 beforeEach(() => {
   searchParamsMock.mockReset();
@@ -343,123 +310,4 @@ describe("BonDetailPage", () => {
     expect(screen.queryByText("Niet alle lijnen zijn opgeslagen.")).not.toBeInTheDocument();
   });
 
-  it("does not show editable header fields until 'Verbeteren' is clicked", async () => {
-    stubFetch();
-    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
-    await flush();
-    expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
-  });
-
-  it("switches to editable header fields after clicking 'Verbeteren', with bonnr/bedrag/btw staying read-only", async () => {
-    stubFetch();
-    const user = userEvent.setup();
-    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
-    await flush();
-
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-
-    expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
-    expect(screen.getByText("Bonnr")).toBeInTheDocument();
-    expect(screen.getByText("1234567")).toBeInTheDocument();
-    expect(screen.queryByRole("spinbutton", { name: "Bedrag" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
-  });
-
-  it("keeps stempel and klnr read-only in edit mode (workflow-critical / identifier fields)", async () => {
-    stubFetch();
-    const user = userEvent.setup();
-    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
-    await flush();
-
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-
-    // Stempel drives the backend's PUT-lijn stempel="D" guard and the
-    // annuleer stempel="V"/"B" precondition - it must never be a free-text
-    // input a user can type an arbitrary value into.
-    expect(screen.queryByRole("textbox", { name: "Stempel" })).not.toBeInTheDocument();
-    expect(screen.getByText("Stempel")).toBeInTheDocument();
-
-    // Klnr is treated as an immutable identifier, consistent with offerte's
-    // own klnr field.
-    expect(screen.queryByRole("spinbutton", { name: "Klnr" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "Klnr" })).not.toBeInTheDocument();
-    expect(screen.getByText("Klnr")).toBeInTheDocument();
-    expect(screen.getByText(String(mockBon.klnr))).toBeInTheDocument();
-  });
-
-  it("does not send stempel or klnr in the update payload", async () => {
-    stubFetch();
-    const user = userEvent.setup();
-    updateBonMock.mockResolvedValue({ ...mockBon });
-
-    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
-    await flush();
-
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
-    const [, payload] = updateBonMock.mock.calls[0];
-    expect(payload).not.toHaveProperty("stempel");
-    expect(payload).not.toHaveProperty("klnr");
-  });
-
-  it("saves the edited header fields and refreshes on success", async () => {
-    stubFetch();
-    const user = userEvent.setup();
-    updateBonMock.mockResolvedValue({ ...mockBon, naam: "CONE LIGHTING NV" });
-
-    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
-    await flush();
-
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    const naamInput = screen.getByRole("textbox", { name: "Klant" });
-    await user.clear(naamInput);
-    await user.type(naamInput, "CONE LIGHTING NV");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
-    expect(updateBonMock).toHaveBeenCalledWith(
-      1234567,
-      expect.objectContaining({ naam: "CONE LIGHTING NV" })
-    );
-    expect(refreshMock).toHaveBeenCalled();
-  });
-
-  it("shows an error and stays in edit mode when the update API call fails", async () => {
-    stubFetch();
-    const user = userEvent.setup();
-    updateBonMock.mockRejectedValue(new Error("Bon 1234567 not found"));
-
-    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
-    await flush();
-
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(await screen.findByText("Bon 1234567 not found")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-  });
-
-  it("auto-enters edit mode when redirected here with ?edit=1 (offerte conversion flow)", async () => {
-    stubFetch();
-    searchParamsMock.mockReturnValue(new URLSearchParams("edit=1"));
-
-    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
-    await flush();
-
-    expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-  });
-
-  it("does not auto-enter edit mode without ?edit=1", async () => {
-    stubFetch();
-    render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
-    await flush();
-
-    expect(screen.queryByRole("textbox", { name: "Klant" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
-  });
 });

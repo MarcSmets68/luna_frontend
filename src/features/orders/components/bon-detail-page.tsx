@@ -17,6 +17,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EntityDetailHeader } from "@/components/ui/entity-detail-header";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
@@ -29,6 +30,9 @@ import { LedConfigTable } from "./led-config-table";
 import { LedQcTable } from "./led-qc-table";
 import { HerstelDetailPanel } from "./herstel-detail-panel";
 import { BonDetailEditDialog } from "./bon-detail-edit-dialog";
+import { PakbonAanmakenDialog } from "./pakbon-aanmaken-dialog";
+
+const LIJNEN_TABLE_COLUMN_COUNT = 13;
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -56,6 +60,7 @@ export function BonDetailPage({
   const [expandedLijnnr, setExpandedLijnnr] = useState<number | null>(null);
   const [reserveringTarget, setReserveringTarget] = useState<BonLijnItem | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [pakbonDialogOpen, setPakbonDialogOpen] = useState(false);
   const isHerstelling = bon.type === "HERSTELLING";
 
   const heeftExtraKlantnrs = Boolean(bon.klnr2) || Boolean(bon.klnr3);
@@ -80,12 +85,7 @@ export function BonDetailPage({
         Orders &amp; Productie
       </div>
 
-      <EntityDetailHeader
-        title={`Bon ${bon.bonnr}`}
-        subtitle={undefined}
-        dirty={editing && isDirty}
-        actions={headerActions}
-      />
+      <EntityDetailHeader title={`Bon ${bon.bonnr}`} />
 
       <div className="mb-3 -mt-6 text-[13px] text-[#5e5e5e]">
         Klant{" "}
