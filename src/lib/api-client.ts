@@ -17,7 +17,12 @@ async function apiGet<T>(path: string, extraHeaders: ExtraHeaders = {}): Promise
   });
 
   if (!response.ok) {
-    throw new Error(`API request to ${path} failed with status ${response.status}`);
+    const error = (await response.json().catch(() => null)) as {
+      error?: { message?: string };
+    } | null;
+    throw new Error(
+      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+    );
   }
 
   return response.json() as Promise<T>;
@@ -604,6 +609,39 @@ export async function createOfflijn(
   payload: CreateOfflijnPayload
 ): Promise<OfflijnItem> {
   return apiPost<OfflijnItem>(`/offerte/${offnr}/${versie}/lijn`, payload);
+}
+
+export type BoxOverzichtArticle = {
+  artnr: string;
+  omschrijving: string;
+  aantal: number;
+  // May be "" - callers must not render a barcode graphic when empty
+  // (see BoxLabelPrintView).
+  barcode: string;
+};
+
+export type BoxOverzichtResult = {
+  bonnr: number;
+  groepnr: number;
+  klant: string;
+  // "niets" is a normal literal opmerking value, not a special case.
+  opmerking: string;
+  // true = box/groepnr has no matching lines - callers must branch on
+  // this field, not on articles.length.
+  empty: boolean;
+  articles: BoxOverzichtArticle[];
+};
+
+/**
+ * NPP "Boxoverzicht" tile: looks up the bon/groep for a scanned box label
+ * (raw scanned string, e.g. "B12345-1" or "12345-1") and returns the
+ * articles packed in that box. Errors ("Ontbrekende parameter 'scan'",
+ * "Onbekend boxlabel", "Bon niet gevonden") are surfaced verbatim via
+ * apiGet's error-envelope handling.
+ * Backend: GET /web/npp/boxoverzicht (Luna.Web.NppBoxoverzichtHandler).
+ */
+export async function getBoxOverzicht(scan: string): Promise<BoxOverzichtResult> {
+  return apiGet<BoxOverzichtResult>(`/npp/boxoverzicht?scan=${encodeURIComponent(scan)}`);
 }
 
 export type UpdateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
