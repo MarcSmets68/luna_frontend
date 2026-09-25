@@ -6,6 +6,8 @@ import {
   createOfferte,
   createOfflijn,
   deleteOfflijn,
+  getBoxOverzicht,
+  getLakproductieItems,
   getPakbonnen,
   logout,
   reorderOfflijn,
@@ -14,6 +16,39 @@ import {
   updateOfferte,
   updateOfflijn,
 } from "../api-client";
+
+// apiGet must parse the same {"error":{"message":...}} envelope as
+// apiPost/apiPut/apiDelete instead of throwing a generic status message -
+// GET calls were the one verb missing this until this fix.
+describe("apiGet error handling", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("surfaces the backend's error.message on a non-ok GET response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "Ontbrekende parameter 'scan'" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getLakproductieItems()).rejects.toThrow("Ontbrekende parameter 'scan'");
+  });
+
+  it("falls back to a generic status message when there is no error envelope", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => {
+        throw new Error("not json");
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getLakproductieItems()).rejects.toThrow(/failed with status 500/);
+  });
+});
 
 // logout() must send the session token via the "X-Auth-Token" header, NOT
 // "Authorization: Bearer <token>" - PASOE/Tomcat intercepts the standard
@@ -273,6 +308,44 @@ describe("offerte create/update", () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("/offerte/123/1");
     expect(init.method).toBe("PUT");
+  });
+});
+
+describe("getBoxOverzicht", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("GETs /npp/boxoverzicht with the scan value URL-encoded", async () => {
+    const result = {
+      bonnr: 12345,
+      groepnr: 1,
+      klant: "CONE LIGHTING BV",
+      opmerking: "niets",
+      empty: false,
+      articles: [{ artnr: "ART-1", omschrijving: "Profiel", aantal: 3, barcode: "590123" }],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const data = await getBoxOverzicht("B12345-1");
+
+    expect(data).toEqual(result);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/npp/boxoverzicht?scan=");
+    expect(url).toContain(encodeURIComponent("B12345-1"));
+    expect(init.method).toBe("GET");
+  });
+
+  it("surfaces the backend's message for an unknown boxlabel", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "Onbekend boxlabel" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getBoxOverzicht("garbage")).rejects.toThrow("Onbekend boxlabel");
   });
 });
 

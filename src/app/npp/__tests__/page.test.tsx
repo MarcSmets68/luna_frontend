@@ -8,9 +8,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Npp page", () => {
-  it("renders the Dutch placeholder copy", () => {
+  it("renders the NPP menu heading and task tiles", () => {
     render(<Npp />);
-    expect(screen.getByText(/NPP \(atelier\) — binnenkort beschikbaar/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "NPP" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Scannen \/ verifiëren/ })).toBeInTheDocument();
   });
 
   it("renders the shared Topbar (logout button present)", () => {
@@ -22,5 +23,23 @@ describe("Npp page", () => {
     render(<Npp />);
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
     expect(screen.queryByText("Noma")).not.toBeInTheDocument();
+  });
+
+  it("renders the Boxoverzicht tile as a navigable link to /npp/boxoverzicht", () => {
+    render(<Npp />);
+    const link = screen.getByRole("link", { name: /Boxoverzicht/ });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/npp/boxoverzicht");
+  });
+
+  it("keeps the other tiles inert (plain buttons, not links)", () => {
+    render(<Npp />);
+    expect(screen.getByRole("button", { name: /Scannen \/ verifiëren/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Stockbeweging boeken/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Productie starten \/ afsluiten/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Kwaliteitscontrole/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Planning raadplegen/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reservaties raadplegen/ })).toBeInTheDocument();
+    expect(screen.queryAllByRole("link")).toHaveLength(1);
   });
 });
