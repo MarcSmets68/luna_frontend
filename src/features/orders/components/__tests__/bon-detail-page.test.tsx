@@ -7,6 +7,7 @@ import type { BonItem, BonLijnItem } from "@/lib/api-client";
 
 const pushMock = vi.fn();
 const refreshMock = vi.fn();
+<<<<<<< Updated upstream
 const updateBonMock = vi.fn();
 vi.mock("@/lib/api-client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
@@ -16,12 +17,26 @@ vi.mock("@/lib/api-client", async () => {
   };
 });
 
+=======
+>>>>>>> Stashed changes
 const searchParamsMock = vi.fn(() => new URLSearchParams());
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: refreshMock }),
   useSearchParams: () => searchParamsMock(),
 }));
 
+<<<<<<< Updated upstream
+=======
+const updateBonMock = vi.fn();
+vi.mock("@/lib/api-client", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
+  return {
+    ...actual,
+    updateBon: (...args: unknown[]) => updateBonMock(...args),
+  };
+});
+
+>>>>>>> Stashed changes
 // Flushes the microtask queue so the per-row BonlijnPakbonBadge fetch (and
 // its resulting setState) settles before assertions run - avoids the
 // "not wrapped in act(...)" warning without changing test intent.
