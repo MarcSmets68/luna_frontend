@@ -32,6 +32,7 @@ export const navItems: NavItem[] = [
       { key: "pakbonnen", label: "Pakbonnen", href: "/pakbonnen", available: true },
     ],
   },
+  { key: "plaatsingen", label: "Plaatsingen", href: "/plaatsingen", available: true },
   { key: "bestellingen", label: "Bestellingen", href: "/bestellingen", available: true },
   { key: "inventory", label: "Voorraad", href: "/voorraad", available: true },
   {
