@@ -3,12 +3,12 @@ import type { DashboardOmzetTrendItem } from "@/lib/api-client";
 import { formatBedragKort } from "@/lib/format";
 
 export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) {
-  const width = 758;
-  const height = 240;
-  const plotTop = 16;
-  const plotBottom = 210;
-  const plotLeft = 48;
-  const plotRight = 14;
+  const width = 1137;
+  const height = 360;
+  const plotTop = 24;
+  const plotBottom = 315;
+  const plotLeft = 72;
+  const plotRight = 21;
   const n = items.length;
 
   const values = items.map((d) => d.total);
@@ -33,7 +33,7 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
         <div className="text-[12px] text-muted-foreground">
           tot nu toe {items[items.length - 1]?.label ?? ""}
         </div>
-        <div className="mt-3 w-full max-w-[900px]">
+        <div className="mt-3 w-full max-w-[1350px]">
           <svg
             viewBox={`0 0 ${plotLeft + width + plotRight} ${height}`}
             className="h-auto w-full"
@@ -48,7 +48,7 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
                 x2={plotLeft + width}
                 y2={y(tickValue)}
                 stroke="#d9d9d9"
-                strokeWidth={1}
+                strokeWidth={2}
                 opacity={0.6}
               />
             ))}
@@ -56,11 +56,11 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
             {ticks.map((tickValue, i) => (
               <text
                 key={`tick-label-${i}`}
-                x={plotLeft - 8}
+                x={plotLeft - 12}
                 y={y(tickValue)}
                 textAnchor="end"
                 dominantBaseline="middle"
-                className="fill-muted-foreground text-[11px]"
+                className="fill-muted-foreground text-[17px]"
               >
                 {formatBedragKort(tickValue)}
               </text>
@@ -70,9 +70,9 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
               <text
                 key={`label-${item.year}-${item.month}`}
                 x={x(i)}
-                y={height - 8}
+                y={height - 12}
                 textAnchor="middle"
-                className="fill-muted-foreground text-[12px]"
+                className="fill-muted-foreground text-[18px]"
               >
                 {item.label}
               </text>
@@ -81,7 +81,7 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
             <polyline
               fill="none"
               stroke="#60a172"
-              strokeWidth="3"
+              strokeWidth="5"
               strokeLinecap="round"
               strokeLinejoin="round"
               points={items
@@ -97,8 +97,8 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
                 x2={x(n - 1)}
                 y2={y(items[n - 1].total)}
                 stroke="#60a172"
-                strokeWidth="3"
-                strokeDasharray="6 4"
+                strokeWidth="5"
+                strokeDasharray="9 6"
               />
             )}
 
@@ -109,10 +109,10 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
                   key={`dot-${item.year}-${item.month}`}
                   cx={x(i)}
                   cy={y(item.total)}
-                  r={isLast ? 6 : 4}
+                  r={isLast ? 9 : 6}
                   fill={isLast ? "white" : "#60a172"}
                   stroke="#60a172"
-                  strokeWidth="3"
+                  strokeWidth="5"
                 />
               );
             })}
