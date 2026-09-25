@@ -43,7 +43,7 @@ type Tile = {
 
 const TILES: Tile[] = [
   { label: "Scannen / verifiëren", icon: ScanLine, href: "/npp/scannen" },
-  { label: "Stockbeweging boeken", icon: PackagePlus },
+  { label: "Stockbeweging boeken", icon: PackagePlus, href: "/npp/stockbeweging" },
   { label: "Productie starten / afsluiten", icon: Factory },
   { label: "Kwaliteitscontrole", icon: ClipboardCheck },
   { label: "Planning raadplegen", icon: CalendarDays },

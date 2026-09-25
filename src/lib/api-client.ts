@@ -691,6 +691,61 @@ export async function getArtikelScan(
   return apiGet<ArtikelScanResult>(`/npp/artikelscan?${qs}`);
 }
 
+export type StockBewegingMovementType =
+  | "correctie_plus"
+  | "correctie_min"
+  | "correctie_gelijk"
+  | "ontvangst"
+  | "transfer_extern"
+  | "transfer_intern";
+
+/**
+ * `aantal`/`opm` are required for every movementType except
+ * "transfer_intern" (opm auto-generated server-side for that one);
+ * `nieuwMagazijn` is required only for "transfer_intern". See
+ * NPP "Stockbeweging boeken" contract.
+ */
+export type StockBewegingPayload = {
+  artnr: string;
+  movementType: StockBewegingMovementType;
+  aantal?: number;
+  opm?: string;
+  nieuwMagazijn?: string;
+};
+
+export type StockBewegingResult = {
+  artikel: { artnr: string; voorraad: number; magazijn: string };
+  artlog: {
+    artnr: string;
+    lijnnr: number;
+    datum: string;
+    uur: string;
+    beweging: string;
+    aantal: number;
+    stock: number;
+    opm: string;
+    id: string;
+  };
+};
+
+/**
+ * NPP "Stockbeweging boeken" tile: books a stock movement for an already
+ * resolved artikel. Requires the caller's session token, sent via the
+ * "X-Auth-Token" header (same convention as logout() - PASOE/Tomcat
+ * intercepts a standard "Authorization" header before it reaches the
+ * WebHandler). Error statuses (400/401/404/409) are surfaced verbatim by
+ * apiPost's error-envelope handling - do not reinterpret those messages.
+ * Backend: POST /web/npp/stockbeweging (Luna.Web.NppStockbewegingHandler).
+ */
+export async function postStockBeweging(
+  payload: StockBewegingPayload,
+  token: string
+): Promise<StockBewegingResult> {
+  return apiPost<StockBewegingResult>("/npp/stockbeweging", payload, {
+    "X-Auth-Token": token,
+  });
+}
+
 export type UpdateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
 
 /**

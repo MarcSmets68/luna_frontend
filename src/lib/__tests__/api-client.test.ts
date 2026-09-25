@@ -11,6 +11,7 @@ import {
   getLakproductieItems,
   getPakbonnen,
   logout,
+  postStockBeweging,
   reorderOfflijn,
   reserveerBonLijn,
   searchDashboardAi,
@@ -405,6 +406,100 @@ describe("getArtikelScan", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(getArtikelScan("")).rejects.toThrow("Ontbrekende parameter 'scan'");
+  });
+});
+
+// postStockBeweging() must send the session token via the "X-Auth-Token"
+// header, NOT "Authorization: Bearer <token>" - same PASOE/Tomcat
+// deviation as logout() (docs/architecture/login-auth-ontwerp.md Sec 1.4).
+describe("postStockBeweging", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("POSTs to /npp/stockbeweging with the payload and X-Auth-Token header", async () => {
+    const result = {
+      artikel: { artnr: "ART-1", voorraad: 42, magazijn: "M1" },
+      artlog: {
+        artnr: "ART-1",
+        lijnnr: 1,
+        datum: "2026-01-01",
+        uur: "10:00",
+        beweging: "correctie_plus",
+        aantal: 5,
+        stock: 42,
+        opm: "Correctie na telling",
+        id: "1",
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const data = await postStockBeweging(
+      { artnr: "ART-1", movementType: "correctie_plus", aantal: 5, opm: "Correctie na telling" },
+      "tok-1"
+    );
+
+    expect(data).toEqual(result);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/npp/stockbeweging");
+    expect(init.method).toBe("POST");
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-Auth-Token"]).toBe("tok-1");
+    expect(headers.Authorization).toBeUndefined();
+    expect(JSON.parse(init.body as string)).toEqual({
+      artnr: "ART-1",
+      movementType: "correctie_plus",
+      aantal: 5,
+      opm: "Correctie na telling",
+    });
+  });
+
+  it("surfaces the backend's 409 message on insufficient stock", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        error: { message: "Onvoldoende voorraad voor deze boeking (huidige voorraad: 3)" },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      postStockBeweging(
+        { artnr: "ART-1", movementType: "correctie_min", aantal: 10, opm: "Correctie na telling" },
+        "tok-1"
+      )
+    ).rejects.toThrow("Onvoldoende voorraad voor deze boeking (huidige voorraad: 3)");
+  });
+
+  it("surfaces the backend's 404 message for an unknown artikel", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: { message: "Artikel ART-X not found" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      postStockBeweging(
+        { artnr: "ART-X", movementType: "ontvangst", aantal: 1, opm: "Ontvangst levering" },
+        "tok-1"
+      )
+    ).rejects.toThrow("Artikel ART-X not found");
+  });
+
+  it("surfaces the backend's 401 message for an expired/missing session", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { message: "Ongeldige of verlopen sessie" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      postStockBeweging({ artnr: "ART-1", movementType: "transfer_intern", nieuwMagazijn: "M2" }, "tok-expired")
+    ).rejects.toThrow("Ongeldige of verlopen sessie");
   });
 });
 

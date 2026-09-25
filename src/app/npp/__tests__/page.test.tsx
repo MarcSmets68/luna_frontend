@@ -39,13 +39,19 @@ describe("Npp page", () => {
     expect(link).toHaveAttribute("href", "/npp/scannen");
   });
 
+  it("renders the Stockbeweging boeken tile as a navigable link to /npp/stockbeweging", () => {
+    render(<Npp />);
+    const link = screen.getByRole("link", { name: /Stockbeweging boeken/ });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/npp/stockbeweging");
+  });
+
   it("keeps the other tiles inert (plain buttons, not links)", () => {
     render(<Npp />);
-    expect(screen.getByRole("button", { name: /Stockbeweging boeken/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Productie starten \/ afsluiten/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Kwaliteitscontrole/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Planning raadplegen/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Reservaties raadplegen/ })).toBeInTheDocument();
-    expect(screen.queryAllByRole("link")).toHaveLength(2);
+    expect(screen.queryAllByRole("link")).toHaveLength(3);
   });
 });
