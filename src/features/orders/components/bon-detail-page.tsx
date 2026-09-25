@@ -19,10 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EntityDetailHeader } from "@/components/ui/entity-detail-header";
-<<<<<<< Updated upstream
 import { FlagGrid } from "@/components/ui/flag-grid";
-=======
->>>>>>> Stashed changes
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
@@ -34,19 +31,12 @@ import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
 import { LedConfigTable } from "./led-config-table";
 import { LedQcTable } from "./led-qc-table";
 import { HerstelDetailPanel } from "./herstel-detail-panel";
-<<<<<<< Updated upstream
 import { PakbonAanmakenDialog } from "./pakbon-aanmaken-dialog";
 
 // Number of columns in the Lijnen table (chevron, Lijnnr, Artnr,
 // Omschrijving, Aantal, Te leveren, Gereserveerd, Eff. gereserveerd, Vprijs,
 // Korting, Bedrag, Leverdatum, actie) - used to colspan K00 title-line rows
 // and the expanded productie-sublijnen row so they span the full table width.
-=======
-import { BonDetailEditDialog } from "./bon-detail-edit-dialog";
-import { PakbonAanmakenDialog } from "./pakbon-aanmaken-dialog";
-import { Field } from "./field-input";
-
->>>>>>> Stashed changes
 const LIJNEN_TABLE_COLUMN_COUNT = 13;
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -60,7 +50,6 @@ function DetailField({ label, value }: { label: string; value: string }) {
   );
 }
 
-<<<<<<< Updated upstream
 // Kept 1:1 alongside offerte-detail-page.tsx's own DetailField/EditField
 // pair rather than hoisted to a shared component - see handoff note in the
 // PR: bon's read-only DetailField layout (stacked label/value) differs
@@ -118,16 +107,6 @@ function EditField({
 //   read-only voor consistentie.
 type BonFormState = {
   type: string;
-=======
-// Bewerkbare velden op de "Ordergegevens" kaart via de header-brede
-// Verbeteren/Save/Cancel flow - `bonnr`/`klnr`/`stempel` (identificatie /
-// workflow-kritisch) en `bedrag`/`btw` (server-berekend) horen hier bewust
-// niet bij, net zoals bij OfferteDetailPage. `type` blijft ook read-only:
-// het stuurt de conditionele Herstel-tab en heeft geen geteste edit-flow.
-// De aparte "extra klantnummers"/"afleveradres"/"extra bedragen" secties
-// hieronder blijven via de bestaande BonDetailEditDialog-modaal bewerkt.
-type BonFormState = {
->>>>>>> Stashed changes
   datum: string;
   naam: string;
   adres: string;
@@ -138,7 +117,6 @@ type BonFormState = {
   besteldatum: string;
   levDatum: string;
   opm: string;
-<<<<<<< Updated upstream
   geparkeerd: boolean;
   verzonden: boolean;
   klnr2: string;
@@ -155,12 +133,6 @@ type BonFormState = {
 function toBonFormState(bon: BonItem): BonFormState {
   return {
     type: bon.type,
-=======
-};
-
-function toFormState(bon: BonItem): BonFormState {
-  return {
->>>>>>> Stashed changes
     datum: bon.datum ?? "",
     naam: bon.naam,
     adres: bon.adres,
@@ -171,7 +143,6 @@ function toFormState(bon: BonItem): BonFormState {
     besteldatum: bon.besteldatum ?? "",
     levDatum: bon.levDatum ?? "",
     opm: bon.opm,
-<<<<<<< Updated upstream
     geparkeerd: bon.geparkeerd,
     verzonden: bon.verzonden,
     klnr2: String(bon.klnr2),
@@ -183,8 +154,6 @@ function toFormState(bon: BonItem): BonFormState {
     lstad: bon.lstad,
     recupelBedrag: String(bon.recupelBedrag),
     aBedrag: String(bon.aBedrag),
-=======
->>>>>>> Stashed changes
   };
 }
 
@@ -203,20 +172,11 @@ export function BonDetailPage({
   const [rows, setRows] = useState<BonLijnItem[]>(lijnen);
   const [expandedLijnnr, setExpandedLijnnr] = useState<number | null>(null);
   const [reserveringTarget, setReserveringTarget] = useState<BonLijnItem | null>(null);
-<<<<<<< Updated upstream
   const [pakbonDialogOpen, setPakbonDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<BonFormState>(() => toBonFormState(bon));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-=======
-  const [editOpen, setEditOpen] = useState(false);
-  const [pakbonDialogOpen, setPakbonDialogOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<BonFormState>(() => toFormState(initialBon));
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
->>>>>>> Stashed changes
   const isHerstelling = bon.type === "HERSTELLING";
 
   const heeftExtraKlantnrs = Boolean(bon.klnr2) || Boolean(bon.klnr3);
@@ -224,7 +184,6 @@ export function BonDetailPage({
     bon.lnaam || bon.lnaam1 || bon.ladres || bon.lpostnr || bon.lstad
   );
 
-<<<<<<< Updated upstream
   // Auto-enter edit mode when redirected here from a successful
   // offerte -> order conversion (offerte-detail-page's "Omzetten naar
   // Order" button pushes `/orders/{bonnr}?edit=1`) - a one-time intent
@@ -241,61 +200,27 @@ export function BonDetailPage({
 
   const isDirty = useMemo(() => {
     const original = toBonFormState(bon);
-=======
-  const isDirty = useMemo(() => {
-    const original = toFormState(bon);
->>>>>>> Stashed changes
     return (Object.keys(original) as (keyof BonFormState)[]).some(
       (key) => original[key] !== form[key]
     );
   }, [bon, form]);
 
-<<<<<<< Updated upstream
   const setField = <K extends keyof BonFormState>(key: K, value: BonFormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
   function startEditing() {
     setForm(toBonFormState(bon));
     setError(null);
-=======
-  // Offerte->Order conversie redirect landt hier met ?edit=1 om meteen in
-  // bewerkmodus te starten - zelfde patroon als OfferteDetailPage's
-  // ?lijnFout=1 sessionStorage-read (eenmalige read bij mount, geen
-  // sync-loop op elke render).
-  useEffect(() => {
-    if (searchParams.get("edit") !== "1") return;
-    // One-time read of a redirect query param, not a derived-state sync
-    // loop - see OfferteDetailPage's analogous ?lijnFout=1 effect.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setForm(toFormState(bon));
-    setEditing(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function setField<K extends keyof BonFormState>(key: K, value: BonFormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function startEditing() {
-    setForm(toFormState(bon));
-    setSaveError(null);
->>>>>>> Stashed changes
     setEditing(true);
   }
 
   function cancelEditing() {
-<<<<<<< Updated upstream
     setForm(toBonFormState(bon));
     setError(null);
-=======
-    setForm(toFormState(bon));
-    setSaveError(null);
->>>>>>> Stashed changes
     setEditing(false);
   }
 
   async function handleSave() {
-<<<<<<< Updated upstream
     const numericFields = {
       klnr2: form.klnr2 === "" ? 0 : Number(form.klnr2),
       klnr3: form.klnr3 === "" ? 0 : Number(form.klnr3),
@@ -314,12 +239,6 @@ export function BonDetailPage({
     try {
       const payload: UpdateBonPayload = {
         type: form.type,
-=======
-    setSaving(true);
-    setSaveError(null);
-    try {
-      const payload: UpdateBonPayload = {
->>>>>>> Stashed changes
         datum: form.datum || undefined,
         naam: form.naam,
         adres: form.adres,
@@ -330,7 +249,6 @@ export function BonDetailPage({
         besteldatum: form.besteldatum || undefined,
         levDatum: form.levDatum || undefined,
         opm: form.opm,
-<<<<<<< Updated upstream
         geparkeerd: form.geparkeerd,
         verzonden: form.verzonden,
         ...numericFields,
@@ -345,17 +263,6 @@ export function BonDetailPage({
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Er ging iets mis bij het opslaan van de bon.");
-=======
-      };
-      const updated = await updateBon(bon.bonnr, payload);
-      setBon(updated);
-      setEditing(false);
-      router.refresh();
-    } catch (e) {
-      setSaveError(
-        e instanceof Error ? e.message : "Er ging iets mis bij het opslaan van de ordergegevens."
-      );
->>>>>>> Stashed changes
     } finally {
       setSaving(false);
     }
@@ -415,65 +322,6 @@ export function BonDetailPage({
         </CardHeader>
         <CardContent>
           {editing ? (
-<<<<<<< Updated upstream
-=======
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailField label="Bonnr" value={String(bon.bonnr)} />
-              <DetailField label="Klnr" value={String(bon.klnr)} />
-              <DetailField label="Stempel" value={bon.stempel} />
-              <DetailField label="Type" value={bon.type} />
-              <Field label="Datum" value={form.datum} onChange={(v) => setField("datum", v)} type="date" />
-              <Field label="Klant" value={form.naam} onChange={(v) => setField("naam", v)} />
-              <Field label="Adres" value={form.adres} onChange={(v) => setField("adres", v)} />
-              <Field label="Postnr" value={form.postnr} onChange={(v) => setField("postnr", v)} />
-              <Field label="Stad" value={form.stad} onChange={(v) => setField("stad", v)} />
-              <Field label="Munt" value={form.munt} onChange={(v) => setField("munt", v)} />
-              <DetailField label="Bedrag" value={formatBedrag(bon.bedrag)} />
-              <DetailField label="Btw" value={formatBedrag(bon.btw)} />
-              <Field label="Uw referentie" value={form.uRef} onChange={(v) => setField("uRef", v)} />
-              <Field
-                label="Besteldatum"
-                value={form.besteldatum}
-                onChange={(v) => setField("besteldatum", v)}
-                type="date"
-              />
-              <Field
-                label="Leverdatum"
-                value={form.levDatum}
-                onChange={(v) => setField("levDatum", v)}
-                type="date"
-              />
-              <DetailField label="Geparkeerd" value={bon.geparkeerd ? "Ja" : "Nee"} />
-              <DetailField label="Verzonden" value={bon.verzonden ? "Ja" : "Nee"} />
-              <Field label="Opmerking" value={form.opm} onChange={(v) => setField("opm", v)} />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailField label="Bonnr" value={String(bon.bonnr)} />
-              <DetailField label="Klnr" value={String(bon.klnr)} />
-              <DetailField label="Stempel" value={bon.stempel} />
-              <DetailField label="Type" value={bon.type} />
-              <DetailField label="Datum" value={formatDatum(bon.datum)} />
-              <DetailField label="Klant" value={bon.naam} />
-              <DetailField label="Adres" value={bon.adres} />
-              <DetailField label="Postnr" value={bon.postnr} />
-              <DetailField label="Stad" value={bon.stad} />
-              <DetailField label="Munt" value={bon.munt} />
-              <DetailField label="Bedrag" value={formatBedrag(bon.bedrag)} />
-              <DetailField label="Btw" value={formatBedrag(bon.btw)} />
-              <DetailField label="Uw referentie" value={bon.uRef} />
-              <DetailField label="Besteldatum" value={formatDatum(bon.besteldatum)} />
-              <DetailField label="Leverdatum" value={formatDatum(bon.levDatum)} />
-              <DetailField label="Geparkeerd" value={bon.geparkeerd ? "Ja" : "Nee"} />
-              <DetailField label="Verzonden" value={bon.verzonden ? "Ja" : "Nee"} />
-              <DetailField label="Opmerking" value={bon.opm} />
-            </div>
-          )}
-
-          {saveError && <p className="mt-4 text-sm text-destructive">{saveError}</p>}
-
-          {heeftExtraKlantnrs && (
->>>>>>> Stashed changes
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <DetailField label="Bonnr" value={String(bon.bonnr)} />
@@ -851,18 +699,6 @@ export function BonDetailPage({
           </TabsContent>
         )}
       </Tabs>
-
-      {editOpen && (
-        <BonDetailEditDialog
-          bon={bon}
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          onSaved={(updated) => {
-            setBon(updated);
-            setEditOpen(false);
-          }}
-        />
-      )}
 
       {pakbonDialogOpen && (
         <PakbonAanmakenDialog
