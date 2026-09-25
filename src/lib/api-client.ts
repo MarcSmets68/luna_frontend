@@ -644,6 +644,53 @@ export async function getBoxOverzicht(scan: string): Promise<BoxOverzichtResult>
   return apiGet<BoxOverzichtResult>(`/npp/boxoverzicht?scan=${encodeURIComponent(scan)}`);
 }
 
+export type ArtikelScanArticle = {
+  artnr: string;
+  nummer: number;
+  xref: string;
+  omschrijving: string;
+  barcode: string;
+  pickingkode: string;
+  pickingkleur: string;
+  // Present only when resolved via the nummer-aantal ("<nummer>-<aantal>")
+  // scan form.
+  aantal?: number;
+};
+
+export type ArtikelScanCandidate = { artnr: string; omschrijving: string };
+
+export type ArtikelScanResult = {
+  status: "resolved" | "not_found" | "multiple";
+  scan: string;
+  article: ArtikelScanArticle | null;
+  empty: boolean;
+  // Only present when status === "multiple".
+  candidates?: ArtikelScanCandidate[];
+  // Only present when the caller passed expectedArtnr - not used by the
+  // NPP "Scannen / verifiëren" tile.
+  match?: boolean;
+};
+
+/**
+ * NPP "Scannen / verifiëren" tile: resolves a scanned artikel value
+ * (barcode, artnr, xref, or the "<nummer>-<aantal>" picking form) to the
+ * matching artikel. `status` branches the caller's rendering: "resolved"
+ * (one match, `article` populated), "not_found" (no match), "multiple"
+ * (ambiguous match, see `candidates`). Pass `expectedArtnr` to also verify
+ * the scan against a known artnr (`match` in the response) - not used by
+ * this tile yet.
+ * Backend: GET /web/npp/artikelscan (Luna.Web.NppArtikelscanHandler).
+ */
+export async function getArtikelScan(
+  scan: string,
+  expectedArtnr?: string
+): Promise<ArtikelScanResult> {
+  const qs = expectedArtnr
+    ? `scan=${encodeURIComponent(scan)}&expectedArtnr=${encodeURIComponent(expectedArtnr)}`
+    : `scan=${encodeURIComponent(scan)}`;
+  return apiGet<ArtikelScanResult>(`/npp/artikelscan?${qs}`);
+}
+
 export type UpdateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
 
 /**
