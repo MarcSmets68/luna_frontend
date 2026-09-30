@@ -12,6 +12,8 @@ import {
   getKwaliteitscontroleQueue,
   getKwaliteitscontroleSession,
   getLakproductieItems,
+  getNppReservatieDetail,
+  getNppReservatieQueue,
   getPakbonnen,
   getPlanningQueue,
   logout,
@@ -385,6 +387,59 @@ describe("getPlanningQueue", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(getPlanningQueue()).rejects.toThrow("Boem");
+  });
+});
+
+describe("getNppReservatieQueue / getNppReservatieDetail", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubOk(body: unknown) {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => body });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("GETs the queue with the given mode", async () => {
+    const fetchMock = stubOk({ mode: "productie", dringendDagen: 3, items: [] });
+    await getNppReservatieQueue("productie");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/npp/reservaties?mode=productie");
+    expect(init.method).toBe("GET");
+  });
+
+  it("GETs the queue with mode=direct", async () => {
+    const fetchMock = stubOk({ mode: "direct", dringendDagen: 3, items: [] });
+    await getNppReservatieQueue("direct");
+    expect((fetchMock.mock.calls[0] as [string])[0]).toContain("/npp/reservaties?mode=direct");
+  });
+
+  it("appends groepnr to the detail URL when non-zero", async () => {
+    const fetchMock = stubOk({ bonnr: 5, groepnr: 2, nBedrag: 0, items: [] });
+    await getNppReservatieDetail(5, 2);
+    expect((fetchMock.mock.calls[0] as [string])[0]).toMatch(/\/npp\/reservaties\/5\?groepnr=2$/);
+  });
+
+  it("omits groepnr when undefined or 0", async () => {
+    const fetchMock = stubOk({ bonnr: 5, groepnr: 0, nBedrag: 0, items: [] });
+    await getNppReservatieDetail(5);
+    await getNppReservatieDetail(5, 0);
+    for (const call of fetchMock.mock.calls as [string][]) {
+      expect(call[0]).toMatch(/\/npp\/reservaties\/5$/);
+    }
+  });
+
+  it("surfaces the backend's message on a 404 detail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { message: "Bon niet gevonden" } }),
+      })
+    );
+    await expect(getNppReservatieDetail(999)).rejects.toThrow("Bon niet gevonden");
   });
 });
 
