@@ -29,6 +29,15 @@ const mockItems: BonItem[] = [
     geparkeerd: false,
     verzonden: true,
     opm: "",
+    klnr2: 0,
+    klnr3: 0,
+    lnaam: "",
+    lnaam1: "",
+    ladres: "",
+    lpostnr: "",
+    lstad: "",
+    recupelBedrag: 0,
+    aBedrag: 0,
   },
 ];
 

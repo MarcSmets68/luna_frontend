@@ -39,6 +39,15 @@ const mockBon: BonItem = {
   geparkeerd: false,
   verzonden: false,
   opm: "",
+  klnr2: 0,
+  klnr3: 0,
+  lnaam: "",
+  lnaam1: "",
+  ladres: "",
+  lpostnr: "",
+  lstad: "",
+  recupelBedrag: 0,
+  aBedrag: 0,
 };
 
 function lijn(overrides: Partial<BonLijnItem>): BonLijnItem {

@@ -17,7 +17,12 @@ async function apiGet<T>(path: string, extraHeaders: ExtraHeaders = {}): Promise
   });
 
   if (!response.ok) {
-    throw new Error(`API request to ${path} failed with status ${response.status}`);
+    const error = (await response.json().catch(() => null)) as {
+      error?: { message?: string };
+    } | null;
+    throw new Error(
+      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+    );
   }
 
   return response.json() as Promise<T>;
@@ -604,6 +609,276 @@ export async function createOfflijn(
   payload: CreateOfflijnPayload
 ): Promise<OfflijnItem> {
   return apiPost<OfflijnItem>(`/offerte/${offnr}/${versie}/lijn`, payload);
+}
+
+export type BoxOverzichtArticle = {
+  artnr: string;
+  omschrijving: string;
+  aantal: number;
+  // May be "" - callers must not render a barcode graphic when empty
+  // (see BoxLabelPrintView).
+  barcode: string;
+};
+
+export type BoxOverzichtResult = {
+  bonnr: number;
+  groepnr: number;
+  klant: string;
+  // "niets" is a normal literal opmerking value, not a special case.
+  opmerking: string;
+  // true = box/groepnr has no matching lines - callers must branch on
+  // this field, not on articles.length.
+  empty: boolean;
+  articles: BoxOverzichtArticle[];
+};
+
+/**
+ * NPP "Boxoverzicht" tile: looks up the bon/groep for a scanned box label
+ * (raw scanned string, e.g. "B12345-1" or "12345-1") and returns the
+ * articles packed in that box. Errors ("Ontbrekende parameter 'scan'",
+ * "Onbekend boxlabel", "Bon niet gevonden") are surfaced verbatim via
+ * apiGet's error-envelope handling.
+ * Backend: GET /web/npp/boxoverzicht (Luna.Web.NppBoxoverzichtHandler).
+ */
+export async function getBoxOverzicht(scan: string): Promise<BoxOverzichtResult> {
+  return apiGet<BoxOverzichtResult>(`/npp/boxoverzicht?scan=${encodeURIComponent(scan)}`);
+}
+
+export type ArtikelScanArticle = {
+  artnr: string;
+  nummer: number;
+  xref: string;
+  omschrijving: string;
+  barcode: string;
+  pickingkode: string;
+  pickingkleur: string;
+  // Present only when resolved via the nummer-aantal ("<nummer>-<aantal>")
+  // scan form.
+  aantal?: number;
+};
+
+export type ArtikelScanCandidate = { artnr: string; omschrijving: string };
+
+export type ArtikelScanResult = {
+  status: "resolved" | "not_found" | "multiple";
+  scan: string;
+  article: ArtikelScanArticle | null;
+  empty: boolean;
+  // Only present when status === "multiple".
+  candidates?: ArtikelScanCandidate[];
+  // Only present when the caller passed expectedArtnr - not used by the
+  // NPP "Scannen / verifiëren" tile.
+  match?: boolean;
+};
+
+/**
+ * NPP "Scannen / verifiëren" tile: resolves a scanned artikel value
+ * (barcode, artnr, xref, or the "<nummer>-<aantal>" picking form) to the
+ * matching artikel. `status` branches the caller's rendering: "resolved"
+ * (one match, `article` populated), "not_found" (no match), "multiple"
+ * (ambiguous match, see `candidates`). Pass `expectedArtnr` to also verify
+ * the scan against a known artnr (`match` in the response) - not used by
+ * this tile yet.
+ * Backend: GET /web/npp/artikelscan (Luna.Web.NppArtikelscanHandler).
+ */
+export async function getArtikelScan(
+  scan: string,
+  expectedArtnr?: string
+): Promise<ArtikelScanResult> {
+  const qs = expectedArtnr
+    ? `scan=${encodeURIComponent(scan)}&expectedArtnr=${encodeURIComponent(expectedArtnr)}`
+    : `scan=${encodeURIComponent(scan)}`;
+  return apiGet<ArtikelScanResult>(`/npp/artikelscan?${qs}`);
+}
+
+export type StockBewegingMovementType =
+  | "correctie_plus"
+  | "correctie_min"
+  | "correctie_gelijk"
+  | "ontvangst"
+  | "transfer_extern"
+  | "transfer_intern";
+
+/**
+ * `aantal`/`opm` are required for every movementType except
+ * "transfer_intern" (opm auto-generated server-side for that one);
+ * `nieuwMagazijn` is required only for "transfer_intern". See
+ * NPP "Stockbeweging boeken" contract.
+ */
+export type StockBewegingPayload = {
+  artnr: string;
+  movementType: StockBewegingMovementType;
+  aantal?: number;
+  opm?: string;
+  nieuwMagazijn?: string;
+};
+
+export type StockBewegingResult = {
+  artikel: { artnr: string; voorraad: number; magazijn: string };
+  artlog: {
+    artnr: string;
+    lijnnr: number;
+    datum: string;
+    uur: string;
+    beweging: string;
+    aantal: number;
+    stock: number;
+    opm: string;
+    id: string;
+  };
+};
+
+/**
+ * NPP "Stockbeweging boeken" tile: books a stock movement for an already
+ * resolved artikel. Requires the caller's session token, sent via the
+ * "X-Auth-Token" header (same convention as logout() - PASOE/Tomcat
+ * intercepts a standard "Authorization" header before it reaches the
+ * WebHandler). Error statuses (400/401/404/409) are surfaced verbatim by
+ * apiPost's error-envelope handling - do not reinterpret those messages.
+ * Backend: POST /web/npp/stockbeweging (Luna.Web.NppStockbewegingHandler).
+ */
+export async function postStockBeweging(
+  payload: StockBewegingPayload,
+  token: string
+): Promise<StockBewegingResult> {
+  return apiPost<StockBewegingResult>("/npp/stockbeweging", payload, {
+    "X-Auth-Token": token,
+  });
+}
+
+export type QcItemState = "Te controleren" | "OK" | "N.v.t." | "Fout";
+
+export type QcChecklistItem = {
+  lijnnr: number;
+  omschr: string;
+  swInfo: boolean;
+  controle: QcItemState;
+  info: string;
+};
+
+export type QcQueueItem = {
+  bonnr: number;
+  groepnr: number;
+  lijnnr: number;
+  klant: string;
+  profielgroep: string;
+  montageDatum: string | null;
+  hasInProgressSession: boolean;
+  inProgressByOther: boolean;
+};
+
+export type QcSession = {
+  bonnr: number;
+  groepnr: number;
+  volgnr: number;
+  datum: string;
+  resumed?: boolean;
+  items: QcChecklistItem[];
+};
+
+export type QcAnswerResult = {
+  item: QcChecklistItem;
+  sessionComplete: boolean;
+  outcome?: "approved";
+};
+
+type QcQueueResponse = { items: QcQueueItem[] };
+
+/**
+ * NPP "Kwaliteitscontrole" tile: queue of bon/groep combinations eligible
+ * for QC. `hasInProgressSession`/`inProgressByOther` drive the
+ * "Hervatten" / "In bewerking door X" row treatment - see
+ * queue-list-item.tsx. Requires the caller's session token via the
+ * "X-Auth-Token" header (same convention as postStockBeweging).
+ * Backend: GET /web/npp/kwaliteitscontrole/queue
+ * (Luna.Web.NppKwaliteitscontroleHandler).
+ */
+export async function getKwaliteitscontroleQueue(token: string): Promise<{ items: QcQueueItem[] }> {
+  return apiGet<QcQueueResponse>("/npp/kwaliteitscontrole/queue", { "X-Auth-Token": token });
+}
+
+/**
+ * Starts (or resumes, if one is already open for this operator) a QC
+ * session for a bon/groep. Errors are surfaced verbatim: 403 (self-QC
+ * guard - operator cannot QC their own work), 404 (not eligible for QC),
+ * 409 (already in progress by someone else - message includes their id).
+ * Backend: POST /web/npp/kwaliteitscontrole/{bonnr}/{groepnr}/session
+ * (Luna.Web.NppKwaliteitscontroleHandler).
+ */
+export async function startKwaliteitscontroleSession(
+  bonnr: number,
+  groepnr: number,
+  token: string
+): Promise<QcSession> {
+  return apiPost<QcSession>(
+    `/npp/kwaliteitscontrole/${bonnr}/${groepnr}/session`,
+    {},
+    { "X-Auth-Token": token }
+  );
+}
+
+/**
+ * Reads the currently open QC session for a bon/groep, if any (404 if
+ * none open - not swallowed here, callers get the thrown error like any
+ * other apiGet call).
+ * Backend: GET /web/npp/kwaliteitscontrole/{bonnr}/{groepnr}/session
+ * (Luna.Web.NppKwaliteitscontroleHandler).
+ */
+export async function getKwaliteitscontroleSession(
+  bonnr: number,
+  groepnr: number,
+  token: string
+): Promise<QcSession> {
+  return apiGet<QcSession>(`/npp/kwaliteitscontrole/${bonnr}/${groepnr}/session`, {
+    "X-Auth-Token": token,
+  });
+}
+
+/**
+ * Answers a single checklist item within an open session. `info` is
+ * required by the backend when the item's `swInfo` is true and
+ * `controle` is "OK" (400 otherwise) - callers must collect it before
+ * calling this. 404/409 indicate a stale session (someone else closed
+ * it, or the volgnr no longer matches) - surfaced verbatim.
+ * Backend: PUT
+ * /web/npp/kwaliteitscontrole/{bonnr}/{groepnr}/{volgnr}/items/{lijnnr}
+ * (Luna.Web.NppKwaliteitscontroleHandler).
+ */
+export async function answerKwaliteitscontroleItem(
+  bonnr: number,
+  groepnr: number,
+  volgnr: number,
+  lijnnr: number,
+  payload: { controle: Exclude<QcItemState, "Te controleren">; info?: string },
+  token: string
+): Promise<QcAnswerResult> {
+  return apiPut<QcAnswerResult>(
+    `/npp/kwaliteitscontrole/${bonnr}/${groepnr}/${volgnr}/items/${lijnnr}`,
+    payload,
+    { "X-Auth-Token": token }
+  );
+}
+
+/**
+ * Rejects (afkeurt) the whole QC session with a mandatory remark - the
+ * only way out of a checklist besides completing every item. 400 on a
+ * blank opmerking; 404/409 on a stale session.
+ * Backend: POST
+ * /web/npp/kwaliteitscontrole/{bonnr}/{groepnr}/{volgnr}/afkeur
+ * (Luna.Web.NppKwaliteitscontroleHandler).
+ */
+export async function rejectKwaliteitscontrole(
+  bonnr: number,
+  groepnr: number,
+  volgnr: number,
+  payload: { opmerking: string },
+  token: string
+): Promise<{ outcome: "rejected"; bonnr: number; groepnr: number; volgnr: number }> {
+  return apiPost<{ outcome: "rejected"; bonnr: number; groepnr: number; volgnr: number }>(
+    `/npp/kwaliteitscontrole/${bonnr}/${groepnr}/${volgnr}/afkeur`,
+    payload,
+    { "X-Auth-Token": token }
+  );
 }
 
 export type UpdateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
