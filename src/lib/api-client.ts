@@ -644,6 +644,26 @@ export async function getBoxOverzicht(scan: string): Promise<BoxOverzichtResult>
   return apiGet<BoxOverzichtResult>(`/npp/boxoverzicht?scan=${encodeURIComponent(scan)}`);
 }
 
+export type PlanningQueueItem = {
+  bonnr: number;
+  groepnr: number;
+  lijnnr: number;
+  klant: string;
+  artnr: string;
+  omschrijving: string;
+  aantal: number;
+  levDatum: string | null; // "YYYY-MM-DD" or null
+};
+
+/**
+ * Production queue for the NPP "Planning raadplegen" tile, already sorted
+ * by the backend (levDatum ascending, nulls last). No auth needed.
+ * Backend: GET /web/npp/planning.
+ */
+export async function getPlanningQueue(): Promise<{ items: PlanningQueueItem[] }> {
+  return apiGet<{ items: PlanningQueueItem[] }>("/npp/planning");
+}
+
 export type ArtikelScanArticle = {
   artnr: string;
   nummer: number;
