@@ -53,11 +53,17 @@ describe("Npp page", () => {
     expect(link).toHaveAttribute("href", "/npp/kwaliteitscontrole");
   });
 
+  it("renders the Planning raadplegen tile as a navigable link to /npp/planning", () => {
+    render(<Npp />);
+    const link = screen.getByRole("link", { name: /Planning raadplegen/ });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/npp/planning");
+  });
+
   it("keeps the other tiles inert (plain buttons, not links)", () => {
     render(<Npp />);
     expect(screen.getByRole("button", { name: /Productie starten \/ afsluiten/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Planning raadplegen/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Reservaties raadplegen/ })).toBeInTheDocument();
-    expect(screen.queryAllByRole("link")).toHaveLength(4);
+    expect(screen.queryAllByRole("link")).toHaveLength(5);
   });
 });

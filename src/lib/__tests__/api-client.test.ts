@@ -13,6 +13,7 @@ import {
   getKwaliteitscontroleSession,
   getLakproductieItems,
   getPakbonnen,
+  getPlanningQueue,
   logout,
   postStockBeweging,
   rejectKwaliteitscontrole,
@@ -353,6 +354,37 @@ describe("getBoxOverzicht", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(getBoxOverzicht("garbage")).rejects.toThrow("Onbekend boxlabel");
+  });
+});
+
+describe("getPlanningQueue", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("GETs /npp/planning without auth headers and returns the body", async () => {
+    const result = { items: [] };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const data = await getPlanningQueue();
+
+    expect(data).toEqual(result);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/npp/planning");
+    expect(init.method).toBe("GET");
+    expect(init.headers).not.toHaveProperty("X-Auth-Token");
+  });
+
+  it("surfaces the error envelope message", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: { message: "Boem" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getPlanningQueue()).rejects.toThrow("Boem");
   });
 });
 

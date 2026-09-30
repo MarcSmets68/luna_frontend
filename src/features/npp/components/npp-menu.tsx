@@ -46,7 +46,7 @@ const TILES: Tile[] = [
   { label: "Stockbeweging boeken", icon: PackagePlus, href: "/npp/stockbeweging" },
   { label: "Productie starten / afsluiten", icon: Factory },
   { label: "Kwaliteitscontrole", icon: ClipboardCheck, href: "/npp/kwaliteitscontrole" },
-  { label: "Planning raadplegen", icon: CalendarDays },
+  { label: "Planning raadplegen", icon: CalendarDays, href: "/npp/planning" },
   { label: "Reservaties raadplegen", icon: BookmarkCheck },
   { label: "Sikta-assemblage", icon: Puzzle, department: "sikta" },
   { label: "Boxoverzicht", icon: Boxes, href: "/npp/boxoverzicht" },
