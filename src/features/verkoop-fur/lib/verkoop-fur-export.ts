@@ -6,6 +6,7 @@
 // See docs/architecture/verkoop-fur-export-ontwerp.md for the full spec.
 
 import type { VerkoopFurItem } from "@/lib/api-client";
+import { CSV_BOM, CSV_DELIMITER, escapeCsvField } from "@/lib/export/csv";
 import { formatDate, formatStuks } from "./verkoop-fur-format";
 
 export const CSV_HEADERS = [
@@ -24,20 +25,9 @@ export const PDF_TABLE_HEADERS = [
   "Laatste besteldatum",
 ] as const;
 
-const CSV_DELIMITER = ";";
-const CSV_BOM = "\uFEFF";
-
-/**
- * Escapes a single CSV field per RFC 4180-style rules: wrap in double quotes
- * if the value contains the delimiter, a double quote, or a newline; any
- * double quote inside is escaped by doubling it.
- */
-export function escapeCsvField(value: string): string {
-  const needsQuoting =
-    value.includes(CSV_DELIMITER) || value.includes('"') || value.includes("\n") || value.includes("\r");
-  if (!needsQuoting) return value;
-  return `"${value.replace(/"/g, '""')}"`;
-}
+// Shared CSV helpers live in src/lib/export/csv.ts; re-exported here so
+// existing imports keep working.
+export { escapeCsvField };
 
 /**
  * Builds the full CSV file content (including UTF-8 BOM, period-info
