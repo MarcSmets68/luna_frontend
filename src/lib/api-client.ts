@@ -795,6 +795,90 @@ export async function getPlanningQueue(): Promise<{ items: PlanningQueueItem[] }
   return apiGet<{ items: PlanningQueueItem[] }>("/npp/planning");
 }
 
+export type ReservatieMode = "direct" | "productie";
+
+export type ReservatieQueueItem = {
+  bonnr: number;
+  /** 0 in "direct" mode (one row per bon), LVB-groepnr in "productie" mode. */
+  groepnr: number;
+  datum: string | null; // "YYYY-MM-DD" or null
+  /** Leverdatum ("direct") or berekende productiedatum ("productie"). */
+  levDatum: string | null;
+  naam: string;
+  plaatsingWijze: string;
+  transport: string;
+  stempel: string;
+  lockId: string;
+  dringend: boolean;
+  swReservatie: boolean;
+  /** Onvoldoende gereserveerde componenten om samengesteld te produceren. */
+  swProductie: boolean;
+  swNomaled: boolean;
+  verwijderd: boolean;
+  deleteOpm: string | null;
+};
+
+export type ReservatieQueue = {
+  mode: ReservatieMode;
+  dringendDagen: number;
+  items: ReservatieQueueItem[];
+};
+
+/**
+ * Queue for the NPP "Reservaties raadplegen" tile - bons ("direct") or
+ * bon/LVB-groepen ("productie") with open reservation follow-up, plus
+ * deleted reservations (`verwijderd`, sorted last). No auth needed.
+ * Backend: GET /web/npp/reservaties?mode=direct|productie
+ * (Luna.Web.NPPReservatieHandler).
+ */
+export async function getReservatieQueue(mode: ReservatieMode): Promise<ReservatieQueue> {
+  return apiGet<ReservatieQueue>(`/npp/reservaties?mode=${mode}`);
+}
+
+export type ReservatieEffectiefStatus =
+  | "niet_effectief"
+  | "volledig_effectief"
+  | "geen_effectief"
+  | "gedeeltelijk_effectief";
+
+export type ReservatieDetailItem = {
+  lijnnr: number;
+  groepnr: number;
+  /** artikel x-ref when present, otherwise bonlijn artnr. */
+  artnr: string;
+  omschrijving: string;
+  teLeveren: number;
+  gereserv: number;
+  effectiefGereserv: number;
+  swEffectief: boolean;
+  /** null for non-article lines (kolomtitel/infolijn/subtotaal). */
+  effectiefStatus: ReservatieEffectiefStatus | null;
+  kolomtitel: boolean;
+  infolijn: boolean;
+  subtotaal: boolean;
+};
+
+export type ReservatieDetail = {
+  bonnr: number;
+  groepnr: number;
+  nBedrag: number;
+  items: ReservatieDetailItem[];
+};
+
+/**
+ * Bonlijnen of one bon (optionally one LVB-groep, groepnr > 0) with their
+ * effective-reservation status. 404 "Bon {bonnr} not found".
+ * Backend: GET /web/npp/reservaties/{bonnr}?groepnr=<int>
+ * (Luna.Web.NPPReservatieHandler).
+ */
+export async function getReservatieDetail(
+  bonnr: number,
+  groepnr: number
+): Promise<ReservatieDetail> {
+  const qs = groepnr > 0 ? `?groepnr=${groepnr}` : "";
+  return apiGet<ReservatieDetail>(`/npp/reservaties/${bonnr}${qs}`);
+}
+
 export type ArtikelScanArticle = {
   artnr: string;
   nummer: number;
