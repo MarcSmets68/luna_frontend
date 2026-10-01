@@ -1,21 +1,20 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { NppReservatieQueueItem } from "../../types";
 import { ReservatieQueueRow } from "../reservatie-queue-row";
-import type { ReservatieQueueItem } from "../../types";
 
-const ITEM: ReservatieQueueItem = {
-  bonnr: 20345,
+const base: NppReservatieQueueItem = {
+  bonnr: 100,
   groepnr: 0,
-  datum: "2026-09-01",
-  levDatum: "2026-09-10",
-  naam: "Jansen",
-  plaatsingWijze: "Montage",
-  transport: "Eigen vervoer",
-  stempel: "",
+  datum: "2026-01-02",
+  levDatum: null,
+  naam: "ACME",
+  plaatsingWijze: "Afhaling",
+  transport: "Eigen",
+  stempel: "B",
   lockId: "",
   dringend: false,
-  swReservatie: true,
+  swReservatie: false,
   swProductie: false,
   swNomaled: false,
   verwijderd: false,
@@ -23,49 +22,58 @@ const ITEM: ReservatieQueueItem = {
 };
 
 describe("ReservatieQueueRow", () => {
-  it("renders bon, klant, meta and leverdatum in direct mode and forwards onOpen", async () => {
-    const user = userEvent.setup();
-    const onOpen = vi.fn();
-    render(<ReservatieQueueRow item={ITEM} mode="direct" onOpen={onOpen} />);
-    expect(screen.getByText("Bon 20345")).toBeInTheDocument();
-    expect(screen.getByText("Jansen")).toBeInTheDocument();
-    expect(screen.getByText("Montage \u00b7 Eigen vervoer")).toBeInTheDocument();
-    expect(screen.getByText("Lev: 10/09/2026")).toBeInTheDocument();
-    await user.click(screen.getByRole("button"));
-    expect(onOpen).toHaveBeenCalled();
+  it("renders a live row as a link, with dash for missing levDatum", () => {
+    render(<ReservatieQueueRow item={base} />);
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/npp/reservaties/100",
+    );
+    expect(screen.getByText(/02\/01\/2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Lev: \u2013/)).toBeInTheDocument();
+    expect(screen.queryByText(/LVB/)).not.toBeInTheDocument();
   });
 
-  it("shows groepnr and productiedatum in productie mode", () => {
-    render(<ReservatieQueueRow item={{ ...ITEM, groepnr: 3 }} mode="productie" onOpen={() => {}} />);
-    expect(screen.getByText("Bon 20345 / 3")).toBeInTheDocument();
-    expect(screen.getByText("Productie: 10/09/2026")).toBeInTheDocument();
+  it("appends groepnr and shows LVB in productie mode", () => {
+    render(<ReservatieQueueRow item={{ ...base, groepnr: 3 }} productie />);
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/npp/reservaties/100?groepnr=3",
+    );
+    expect(screen.getByText(/LVB 3/)).toBeInTheDocument();
   });
 
-  it("shows the status badges and the delete remark", () => {
+  it("shows all badges and lock text", () => {
     render(
       <ReservatieQueueRow
         item={{
-          ...ITEM,
+          ...base,
           dringend: true,
-          swProductie: true,
           swNomaled: true,
-          verwijderd: true,
-          deleteOpm: "Klant annuleerde",
+          swProductie: true,
+          swReservatie: true,
+          lockId: "JAN",
         }}
-        mode="direct"
-        onOpen={() => {}}
-      />
+      />,
     );
-    expect(screen.getByText("Dringend")).toBeInTheDocument();
-    expect(screen.getByText("Onvoldoende voor productie")).toBeInTheDocument();
-    expect(screen.getByText("Nomaled")).toBeInTheDocument();
-    expect(screen.getByText("Verwijderd")).toBeInTheDocument();
-    expect(screen.getByText("Opmerking: Klant annuleerde")).toBeInTheDocument();
+    for (const t of [
+      "Dringend",
+      "In de min",
+      "Productie niet mogelijk",
+      "Reservatie",
+    ]) {
+      expect(screen.getByText(t)).toBeInTheDocument();
+    }
+    expect(screen.getByText("Vergrendeld door JAN")).toBeInTheDocument();
   });
 
-  it("hides the badges when no flags are set", () => {
-    render(<ReservatieQueueRow item={ITEM} mode="direct" onOpen={() => {}} />);
-    expect(screen.queryByText("Dringend")).not.toBeInTheDocument();
-    expect(screen.queryByText("Verwijderd")).not.toBeInTheDocument();
+  it("renders deleted rows as non-links with the delete reason", () => {
+    render(
+      <ReservatieQueueRow
+        item={{ ...base, verwijderd: true, deleteOpm: "Dubbel" }}
+      />,
+    );
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getByText("Verwijderd")).toBeInTheDocument();
+    expect(screen.getByText("Dubbel")).toBeInTheDocument();
   });
 });

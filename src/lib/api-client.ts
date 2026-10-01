@@ -9,7 +9,10 @@ const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:8080/web";
 // signature of existing call sites that don't pass any.
 type ExtraHeaders = Record<string, string>;
 
-async function apiGet<T>(path: string, extraHeaders: ExtraHeaders = {}): Promise<T> {
+async function apiGet<T>(
+  path: string,
+  extraHeaders: ExtraHeaders = {},
+): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "GET",
     headers: { Accept: "application/json", ...extraHeaders },
@@ -21,7 +24,8 @@ async function apiGet<T>(path: string, extraHeaders: ExtraHeaders = {}): Promise
       error?: { message?: string };
     } | null;
     throw new Error(
-      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+      error?.error?.message ??
+        `API request to ${path} failed with status ${response.status}`,
     );
   }
 
@@ -31,11 +35,15 @@ async function apiGet<T>(path: string, extraHeaders: ExtraHeaders = {}): Promise
 async function apiPost<T>(
   path: string,
   body: unknown,
-  extraHeaders: ExtraHeaders = {}
+  extraHeaders: ExtraHeaders = {},
 ): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json", ...extraHeaders },
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...extraHeaders,
+    },
     body: JSON.stringify(body),
   });
 
@@ -44,7 +52,8 @@ async function apiPost<T>(
       error?: { message?: string };
     } | null;
     throw new Error(
-      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+      error?.error?.message ??
+        `API request to ${path} failed with status ${response.status}`,
     );
   }
 
@@ -54,11 +63,15 @@ async function apiPost<T>(
 async function apiPut<T>(
   path: string,
   body: unknown,
-  extraHeaders: ExtraHeaders = {}
+  extraHeaders: ExtraHeaders = {},
 ): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "PUT",
-    headers: { Accept: "application/json", "Content-Type": "application/json", ...extraHeaders },
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...extraHeaders,
+    },
     body: JSON.stringify(body),
   });
 
@@ -67,14 +80,18 @@ async function apiPut<T>(
       error?: { message?: string };
     } | null;
     throw new Error(
-      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+      error?.error?.message ??
+        `API request to ${path} failed with status ${response.status}`,
     );
   }
 
   return response.json() as Promise<T>;
 }
 
-async function apiDelete<T>(path: string, extraHeaders: ExtraHeaders = {}): Promise<T> {
+async function apiDelete<T>(
+  path: string,
+  extraHeaders: ExtraHeaders = {},
+): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "DELETE",
     headers: { Accept: "application/json", ...extraHeaders },
@@ -85,7 +102,8 @@ async function apiDelete<T>(path: string, extraHeaders: ExtraHeaders = {}): Prom
       error?: { message?: string };
     } | null;
     throw new Error(
-      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+      error?.error?.message ??
+        `API request to ${path} failed with status ${response.status}`,
     );
   }
 
@@ -125,20 +143,14 @@ export async function login(payload: LoginRequest): Promise<LoginResult> {
  * docs/architecture/login-auth-ontwerp.md §1.4).
  */
 export async function logout(token: string): Promise<{ message: string }> {
-  return apiPost<{ message: string }>(
-    "/logout",
-    {},
-    { "X-Auth-Token": token }
-  );
+  return apiPost<{ message: string }>("/logout", {}, { "X-Auth-Token": token });
 }
 
-export type LakproductieBron = "lopende-orders" | "lopende-productielijnen" | "min-max-voorraad";
+export type LakproductieBron =
+  "lopende-orders" | "lopende-productielijnen" | "min-max-voorraad";
 
 export type LakproductieStatus =
-  | "Gereserveerd"
-  | "Deels gereserveerd"
-  | "Besteld"
-  | "Nog te bestellen";
+  "Gereserveerd" | "Deels gereserveerd" | "Besteld" | "Nog te bestellen";
 
 /**
  * Every field is always present; fields that don't apply to a given `bron`
@@ -258,7 +270,7 @@ export type BestellingResult = {
  * + Luna.BusinessLogic.LakproductieBestellingBE).
  */
 export async function createLakproductieBestelling(
-  payload: CreateBestellingRequest
+  payload: CreateBestellingRequest,
 ): Promise<BestellingResult> {
   return apiPost<BestellingResult>("/lakproduktie/bestelling", payload);
 }
@@ -306,7 +318,7 @@ type ArtikelenResponse = {
 export async function getArtikelen(
   page = 1,
   pageSize = 25,
-  options: { lageVoorraad?: boolean; geblokkeerd?: boolean } = {}
+  options: { lageVoorraad?: boolean; geblokkeerd?: boolean } = {},
 ): Promise<ArtikelenResponse> {
   const { lageVoorraad, geblokkeerd } = options;
   const query = new URLSearchParams();
@@ -343,7 +355,9 @@ export async function getArtikel(artnr: string): Promise<ArtikelItem | null> {
   const query = `artnr=${encodeURIComponent(target)}&pageSize=5`;
 
   const data = await apiGet<ArtikelenResponse>(`/artikel?${query}`);
-  const match = data.items.find((item) => item.artnr.toUpperCase() === target.toUpperCase());
+  const match = data.items.find(
+    (item) => item.artnr.toUpperCase() === target.toUpperCase(),
+  );
   return match ?? null;
 }
 
@@ -396,7 +410,12 @@ type KlantenResponse = {
  * Backend: GET /web/klant (Luna.Web.KlantHandler).
  */
 export async function getKlanten(
-  params: { naam?: string; page?: number; pageSize?: number; nomaled?: boolean } = {}
+  params: {
+    naam?: string;
+    page?: number;
+    pageSize?: number;
+    nomaled?: boolean;
+  } = {},
 ): Promise<KlantenResponse> {
   const { naam, page = 1, pageSize = 25, nomaled = false } = params;
   const query = new URLSearchParams();
@@ -454,7 +473,13 @@ type OffertenResponse = {
  * Backend: GET /web/offerte (Luna.Web.OfferteHandler, read-only for now).
  */
 export async function getOffertes(
-  params: { klnr?: number; offnr?: string; naam?: string; page?: number; pageSize?: number } = {}
+  params: {
+    klnr?: number;
+    offnr?: string;
+    naam?: string;
+    page?: number;
+    pageSize?: number;
+  } = {},
 ): Promise<OffertenResponse> {
   const { klnr, offnr, naam, page = 1, pageSize = 25 } = params;
   const query = new URLSearchParams();
@@ -503,7 +528,10 @@ type OfflijnenResponse = {
  * throws, mirroring `apiGet`'s error format.
  * Backend: GET /web/offerte/{offnr}/{versie} (Luna.Web.OfferteHandler).
  */
-export async function getOfferte(offnr: number, versie: number): Promise<OfferteItem | null> {
+export async function getOfferte(
+  offnr: number,
+  versie: number,
+): Promise<OfferteItem | null> {
   const path = `/offerte/${offnr}/${versie}`;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "GET",
@@ -516,7 +544,9 @@ export async function getOfferte(offnr: number, versie: number): Promise<Offerte
   }
 
   if (!response.ok) {
-    throw new Error(`API request to ${path} failed with status ${response.status}`);
+    throw new Error(
+      `API request to ${path} failed with status ${response.status}`,
+    );
   }
 
   return response.json() as Promise<OfferteItem>;
@@ -528,12 +558,19 @@ export async function getOfferte(offnr: number, versie: number): Promise<Offerte
  * Backend: GET /web/offerte/{offnr}/{versie}/lijn (Luna.Web.OfferteHandler,
  * read-only).
  */
-export async function getOfferteLijnen(offnr: number, versie: number): Promise<OfflijnItem[]> {
-  const data = await apiGet<OfflijnenResponse>(`/offerte/${offnr}/${versie}/lijn`);
+export async function getOfferteLijnen(
+  offnr: number,
+  versie: number,
+): Promise<OfflijnItem[]> {
+  const data = await apiGet<OfflijnenResponse>(
+    `/offerte/${offnr}/${versie}/lijn`,
+  );
   return data.items;
 }
 
-export type CreateOffertePayload = Partial<Omit<OfferteItem, "offnr" | "versie" | "klnr">> & {
+export type CreateOffertePayload = Partial<
+  Omit<OfferteItem, "offnr" | "versie" | "klnr">
+> & {
   klnr: number;
 };
 
@@ -542,7 +579,9 @@ export type CreateOffertePayload = Partial<Omit<OfferteItem, "offnr" | "versie" 
  * send them in the payload.
  * Backend: POST /web/offerte (Luna.Web.OfferteHandler).
  */
-export async function createOfferte(payload: CreateOffertePayload): Promise<OfferteItem> {
+export async function createOfferte(
+  payload: CreateOffertePayload,
+): Promise<OfferteItem> {
   return apiPost<OfferteItem>("/offerte", payload);
 }
 
@@ -551,7 +590,9 @@ export async function createOfferte(payload: CreateOffertePayload): Promise<Offe
  * fields present are changed) and `offnr`/`versie`/`klnr` are deliberately
  * excluded (immutable identifiers).
  */
-export type UpdateOffertePayload = Partial<Omit<OfferteItem, "offnr" | "versie" | "klnr">>;
+export type UpdateOffertePayload = Partial<
+  Omit<OfferteItem, "offnr" | "versie" | "klnr">
+>;
 
 /**
  * Updates an offerte. Only the fields present in `payload` are changed.
@@ -562,7 +603,7 @@ export type UpdateOffertePayload = Partial<Omit<OfferteItem, "offnr" | "versie" 
 export async function updateOfferte(
   offnr: number,
   versie: number,
-  payload: UpdateOffertePayload
+  payload: UpdateOffertePayload,
 ): Promise<OfferteItem> {
   return apiPut<OfferteItem>(`/offerte/${offnr}/${versie}`, payload);
 }
@@ -591,12 +632,17 @@ export type OmzettenNaarOrderResult = {
  */
 export async function omzettenNaarOrder(
   offnr: number,
-  versie: number
+  versie: number,
 ): Promise<OmzettenNaarOrderResult> {
-  return apiPost<OmzettenNaarOrderResult>(`/offerte/${offnr}/${versie}/omzetten-naar-order`, {});
+  return apiPost<OmzettenNaarOrderResult>(
+    `/offerte/${offnr}/${versie}/omzetten-naar-order`,
+    {},
+  );
 }
 
-export type CreateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
+export type CreateOfflijnPayload = Partial<
+  Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">
+>;
 
 /**
  * Creates a new offlijn (quote line) under an offerte. `lijnnr` is
@@ -606,7 +652,7 @@ export type CreateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" 
 export async function createOfflijn(
   offnr: number,
   versie: number,
-  payload: CreateOfflijnPayload
+  payload: CreateOfflijnPayload,
 ): Promise<OfflijnItem> {
   return apiPost<OfflijnItem>(`/offerte/${offnr}/${versie}/lijn`, payload);
 }
@@ -640,8 +686,93 @@ export type BoxOverzichtResult = {
  * apiGet's error-envelope handling.
  * Backend: GET /web/npp/boxoverzicht (Luna.Web.NppBoxoverzichtHandler).
  */
-export async function getBoxOverzicht(scan: string): Promise<BoxOverzichtResult> {
-  return apiGet<BoxOverzichtResult>(`/npp/boxoverzicht?scan=${encodeURIComponent(scan)}`);
+export async function getBoxOverzicht(
+  scan: string,
+): Promise<BoxOverzichtResult> {
+  return apiGet<BoxOverzichtResult>(
+    `/npp/boxoverzicht?scan=${encodeURIComponent(scan)}`,
+  );
+}
+
+export type NppReservatieMode = "direct" | "productie";
+
+export type EffectiefStatus =
+  | "niet_effectief"
+  | "gedeeltelijk_effectief"
+  | "geen_effectief"
+  | "volledig_effectief";
+
+export interface NppReservatieQueueItem {
+  bonnr: number;
+  groepnr: number;
+  datum: string | null;
+  levDatum: string | null;
+  naam: string;
+  plaatsingWijze: string;
+  transport: string;
+  stempel: string;
+  lockId: string;
+  dringend: boolean;
+  swReservatie: boolean;
+  swProductie: boolean;
+  swNomaled: boolean;
+  verwijderd: boolean;
+  deleteOpm: string | null;
+}
+
+export interface NppReservatieQueue {
+  mode: NppReservatieMode;
+  dringendDagen: number;
+  items: NppReservatieQueueItem[];
+}
+
+export interface NppReservatieDetailItem {
+  lijnnr: number;
+  groepnr: number;
+  artnr: string;
+  omschrijving: string;
+  teLeveren: number;
+  gereserv: number;
+  effectiefGereserv: number;
+  swEffectief: boolean;
+  effectiefStatus: EffectiefStatus | null;
+  kolomtitel: boolean;
+  infolijn: boolean;
+  subtotaal: boolean;
+}
+
+export interface NppReservatieDetail {
+  bonnr: number;
+  groepnr: number;
+  nBedrag: number;
+  items: NppReservatieDetailItem[];
+}
+
+/**
+ * NPP "Reservaties raadplegen" tile: read-only queue of bons for the given
+ * mode (direct or productie). No auth required.
+ * Backend: GET /web/npp/reservaties?mode=... (Luna.Web.NppReservatiesHandler).
+ */
+export async function getNppReservatieQueue(
+  mode: NppReservatieMode,
+): Promise<NppReservatieQueue> {
+  return apiGet<NppReservatieQueue>(
+    `/npp/reservaties?mode=${encodeURIComponent(mode)}`,
+  );
+}
+
+/**
+ * Read-only reservation detail for one bon. `groepnr` is only sent when
+ * provided and non-zero. 404 when the bon isn't found (message surfaced
+ * verbatim by apiGet).
+ * Backend: GET /web/npp/reservaties/{bonnr}?groepnr=...
+ */
+export async function getNppReservatieDetail(
+  bonnr: number,
+  groepnr?: number,
+): Promise<NppReservatieDetail> {
+  const qs = groepnr ? `?groepnr=${encodeURIComponent(String(groepnr))}` : "";
+  return apiGet<NppReservatieDetail>(`/npp/reservaties/${bonnr}${qs}`);
 }
 
 export type PlanningQueueItem = {
@@ -787,7 +918,7 @@ export type ArtikelScanResult = {
  */
 export async function getArtikelScan(
   scan: string,
-  expectedArtnr?: string
+  expectedArtnr?: string,
 ): Promise<ArtikelScanResult> {
   const qs = expectedArtnr
     ? `scan=${encodeURIComponent(scan)}&expectedArtnr=${encodeURIComponent(expectedArtnr)}`
@@ -843,7 +974,7 @@ export type StockBewegingResult = {
  */
 export async function postStockBeweging(
   payload: StockBewegingPayload,
-  token: string
+  token: string,
 ): Promise<StockBewegingResult> {
   return apiPost<StockBewegingResult>("/npp/stockbeweging", payload, {
     "X-Auth-Token": token,
@@ -897,8 +1028,12 @@ type QcQueueResponse = { items: QcQueueItem[] };
  * Backend: GET /web/npp/kwaliteitscontrole/queue
  * (Luna.Web.NppKwaliteitscontroleHandler).
  */
-export async function getKwaliteitscontroleQueue(token: string): Promise<{ items: QcQueueItem[] }> {
-  return apiGet<QcQueueResponse>("/npp/kwaliteitscontrole/queue", { "X-Auth-Token": token });
+export async function getKwaliteitscontroleQueue(
+  token: string,
+): Promise<{ items: QcQueueItem[] }> {
+  return apiGet<QcQueueResponse>("/npp/kwaliteitscontrole/queue", {
+    "X-Auth-Token": token,
+  });
 }
 
 /**
@@ -912,12 +1047,12 @@ export async function getKwaliteitscontroleQueue(token: string): Promise<{ items
 export async function startKwaliteitscontroleSession(
   bonnr: number,
   groepnr: number,
-  token: string
+  token: string,
 ): Promise<QcSession> {
   return apiPost<QcSession>(
     `/npp/kwaliteitscontrole/${bonnr}/${groepnr}/session`,
     {},
-    { "X-Auth-Token": token }
+    { "X-Auth-Token": token },
   );
 }
 
@@ -931,11 +1066,14 @@ export async function startKwaliteitscontroleSession(
 export async function getKwaliteitscontroleSession(
   bonnr: number,
   groepnr: number,
-  token: string
+  token: string,
 ): Promise<QcSession> {
-  return apiGet<QcSession>(`/npp/kwaliteitscontrole/${bonnr}/${groepnr}/session`, {
-    "X-Auth-Token": token,
-  });
+  return apiGet<QcSession>(
+    `/npp/kwaliteitscontrole/${bonnr}/${groepnr}/session`,
+    {
+      "X-Auth-Token": token,
+    },
+  );
 }
 
 /**
@@ -954,12 +1092,12 @@ export async function answerKwaliteitscontroleItem(
   volgnr: number,
   lijnnr: number,
   payload: { controle: Exclude<QcItemState, "Te controleren">; info?: string },
-  token: string
+  token: string,
 ): Promise<QcAnswerResult> {
   return apiPut<QcAnswerResult>(
     `/npp/kwaliteitscontrole/${bonnr}/${groepnr}/${volgnr}/items/${lijnnr}`,
     payload,
-    { "X-Auth-Token": token }
+    { "X-Auth-Token": token },
   );
 }
 
@@ -976,16 +1114,26 @@ export async function rejectKwaliteitscontrole(
   groepnr: number,
   volgnr: number,
   payload: { opmerking: string },
-  token: string
-): Promise<{ outcome: "rejected"; bonnr: number; groepnr: number; volgnr: number }> {
-  return apiPost<{ outcome: "rejected"; bonnr: number; groepnr: number; volgnr: number }>(
-    `/npp/kwaliteitscontrole/${bonnr}/${groepnr}/${volgnr}/afkeur`,
-    payload,
-    { "X-Auth-Token": token }
-  );
+  token: string,
+): Promise<{
+  outcome: "rejected";
+  bonnr: number;
+  groepnr: number;
+  volgnr: number;
+}> {
+  return apiPost<{
+    outcome: "rejected";
+    bonnr: number;
+    groepnr: number;
+    volgnr: number;
+  }>(`/npp/kwaliteitscontrole/${bonnr}/${groepnr}/${volgnr}/afkeur`, payload, {
+    "X-Auth-Token": token,
+  });
 }
 
-export type UpdateOfflijnPayload = Partial<Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">>;
+export type UpdateOfflijnPayload = Partial<
+  Omit<OfflijnItem, "offnr" | "versie" | "lijnnr">
+>;
 
 /**
  * Updates an offlijn. Only the fields present in `payload` are changed.
@@ -996,12 +1144,20 @@ export async function updateOfflijn(
   offnr: number,
   versie: number,
   lijnnr: number,
-  payload: UpdateOfflijnPayload
+  payload: UpdateOfflijnPayload,
 ): Promise<OfflijnItem> {
-  return apiPut<OfflijnItem>(`/offerte/${offnr}/${versie}/lijn/${lijnnr}`, payload);
+  return apiPut<OfflijnItem>(
+    `/offerte/${offnr}/${versie}/lijn/${lijnnr}`,
+    payload,
+  );
 }
 
-export type DeleteOfflijnResult = { status: string; offnr: number; versie: number; lijnnr: number };
+export type DeleteOfflijnResult = {
+  status: string;
+  offnr: number;
+  versie: number;
+  lijnnr: number;
+};
 
 /**
  * Deletes an offlijn.
@@ -1011,9 +1167,11 @@ export type DeleteOfflijnResult = { status: string; offnr: number; versie: numbe
 export async function deleteOfflijn(
   offnr: number,
   versie: number,
-  lijnnr: number
+  lijnnr: number,
 ): Promise<DeleteOfflijnResult> {
-  return apiDelete<DeleteOfflijnResult>(`/offerte/${offnr}/${versie}/lijn/${lijnnr}`);
+  return apiDelete<DeleteOfflijnResult>(
+    `/offerte/${offnr}/${versie}/lijn/${lijnnr}`,
+  );
 }
 
 export type ReorderDirection = "up" | "down";
@@ -1029,11 +1187,11 @@ export async function reorderOfflijn(
   offnr: number,
   versie: number,
   lijnnr: number,
-  direction: ReorderDirection
+  direction: ReorderDirection,
 ): Promise<OfflijnItem[]> {
   const data = await apiPost<{ items: OfflijnItem[] }>(
     `/offerte/${offnr}/${versie}/lijn/${lijnnr}/reorder`,
-    { direction }
+    { direction },
   );
   return data.items;
 }
@@ -1097,7 +1255,9 @@ export async function getBon(bonnr: number): Promise<BonItem | null> {
   }
 
   if (!response.ok) {
-    throw new Error(`API request to ${path} failed with status ${response.status}`);
+    throw new Error(
+      `API request to ${path} failed with status ${response.status}`,
+    );
   }
 
   return response.json() as Promise<BonItem>;
@@ -1157,17 +1317,24 @@ export type CreateBonPayload = Partial<Omit<BonItem, "bonnr" | "klnr">> & {
  * (immutable identifier / server-computed totals, ignored on write even
  * if sent per docs/backend/bon.md's field map).
  */
-export type UpdateBonPayload = Partial<Omit<BonItem, "bonnr" | "bedrag" | "btw">>;
+export type UpdateBonPayload = Partial<
+  Omit<BonItem, "bonnr" | "bedrag" | "btw">
+>;
 
 /**
  * Updates a bon. Only the fields present in `payload` are changed.
  * Backend: PUT /web/bon/{bonnr} (Luna.Web.BonHandler).
  */
-export async function updateBon(bonnr: number, payload: UpdateBonPayload): Promise<BonItem> {
+export async function updateBon(
+  bonnr: number,
+  payload: UpdateBonPayload,
+): Promise<BonItem> {
   return apiPut<BonItem>(`/bon/${bonnr}`, payload);
 }
 
-export type CreateBonLijnPayload = Partial<Omit<BonLijnItem, "bonnr" | "lijnnr">>;
+export type CreateBonLijnPayload = Partial<
+  Omit<BonLijnItem, "bonnr" | "lijnnr">
+>;
 
 /**
  * Creates a new bon (order/quote confirmation depending on `type`).
@@ -1184,7 +1351,7 @@ export async function createBon(payload: CreateBonPayload): Promise<BonItem> {
  */
 export async function createBonLijn(
   bonnr: number,
-  payload: CreateBonLijnPayload
+  payload: CreateBonLijnPayload,
 ): Promise<BonLijnItem> {
   return apiPost<BonLijnItem>(`/bon/${bonnr}/lijn`, payload);
 }
@@ -1201,9 +1368,11 @@ export async function createBonLijn(
 export async function reserveerBonLijn(
   bonnr: number,
   lijnnr: number,
-  delta: number
+  delta: number,
 ): Promise<BonLijnItem> {
-  return apiPost<BonLijnItem>(`/bon/${bonnr}/lijn/${lijnnr}/reservering`, { delta });
+  return apiPost<BonLijnItem>(`/bon/${bonnr}/lijn/${lijnnr}/reservering`, {
+    delta,
+  });
 }
 
 export type BonLijnProductieItem = {
@@ -1230,9 +1399,11 @@ type BonLijnProductieResponse = {
  */
 export async function getBonLijnProductie(
   bonnr: number,
-  blijnnr: number
+  blijnnr: number,
 ): Promise<BonLijnProductieItem[]> {
-  const data = await apiGet<BonLijnProductieResponse>(`/bon/${bonnr}/lijn/${blijnnr}/productie`);
+  const data = await apiGet<BonLijnProductieResponse>(
+    `/bon/${bonnr}/lijn/${blijnnr}/productie`,
+  );
   return data.items;
 }
 
@@ -1251,9 +1422,12 @@ export type CreateBonLijnProductiePayload = Omit<
 export async function createBonLijnProductie(
   bonnr: number,
   blijnnr: number,
-  payload: CreateBonLijnProductiePayload
+  payload: CreateBonLijnProductiePayload,
 ): Promise<BonLijnProductieItem> {
-  return apiPost<BonLijnProductieItem>(`/bon/${bonnr}/lijn/${blijnnr}/productie`, payload);
+  return apiPost<BonLijnProductieItem>(
+    `/bon/${bonnr}/lijn/${blijnnr}/productie`,
+    payload,
+  );
 }
 
 /**
@@ -1270,11 +1444,11 @@ export async function updateBonLijnProductie(
   bonnr: number,
   blijnnr: number,
   lijnnr: number,
-  payload: UpdateBonLijnProductiePayload
+  payload: UpdateBonLijnProductiePayload,
 ): Promise<BonLijnProductieItem> {
   return apiPut<BonLijnProductieItem>(
     `/bon/${bonnr}/lijn/${blijnnr}/productie/${lijnnr}`,
-    payload
+    payload,
   );
 }
 
@@ -1288,10 +1462,10 @@ export async function updateBonLijnProductie(
 export async function deleteBonLijnProductie(
   bonnr: number,
   blijnnr: number,
-  lijnnr: number
+  lijnnr: number,
 ): Promise<{ status: string; lijnnr: number }> {
   return apiDelete<{ status: string; lijnnr: number }>(
-    `/bon/${bonnr}/lijn/${blijnnr}/productie/${lijnnr}`
+    `/bon/${bonnr}/lijn/${blijnnr}/productie/${lijnnr}`,
   );
 }
 
@@ -1315,9 +1489,11 @@ type BonLijnPakbonnenResponse = {
 
 export async function getBonLijnPakbonnen(
   bonnr: number,
-  lijnnr: number
+  lijnnr: number,
 ): Promise<BonLijnPakbonRef[]> {
-  const data = await apiGet<BonLijnPakbonnenResponse>(`/bon/${bonnr}/lijn/${lijnnr}/pakbonnen`);
+  const data = await apiGet<BonLijnPakbonnenResponse>(
+    `/bon/${bonnr}/lijn/${lijnnr}/pakbonnen`,
+  );
   return data.items;
 }
 
@@ -1404,7 +1580,7 @@ export type CreateBonLedPayload = Omit<
  */
 export async function createBonLedLijn(
   bonnr: number,
-  payload: CreateBonLedPayload
+  payload: CreateBonLedPayload,
 ): Promise<BonLedItem> {
   return apiPost<BonLedItem>(`/bon/${bonnr}/led`, payload);
 }
@@ -1420,9 +1596,12 @@ export async function updateBonLedLijn(
   groepnr: number,
   ledLijn: number,
   lijnnr: number,
-  payload: UpdateBonLedPayload
+  payload: UpdateBonLedPayload,
 ): Promise<BonLedItem> {
-  return apiPut<BonLedItem>(`/bon/${bonnr}/led/${groepnr}/${ledLijn}/${lijnnr}`, payload);
+  return apiPut<BonLedItem>(
+    `/bon/${bonnr}/led/${groepnr}/${ledLijn}/${lijnnr}`,
+    payload,
+  );
 }
 
 /**
@@ -1432,10 +1611,10 @@ export async function deleteBonLedLijn(
   bonnr: number,
   groepnr: number,
   ledLijn: number,
-  lijnnr: number
+  lijnnr: number,
 ): Promise<{ status: string; lijnnr: number }> {
   return apiDelete<{ status: string; lijnnr: number }>(
-    `/bon/${bonnr}/led/${groepnr}/${ledLijn}/${lijnnr}`
+    `/bon/${bonnr}/led/${groepnr}/${ledLijn}/${lijnnr}`,
   );
 }
 
@@ -1472,7 +1651,7 @@ export type CreateBonLedQcPayload = Omit<BonLedQcItem, "bonnr" | "volgnr">;
  */
 export async function createBonLedQc(
   bonnr: number,
-  payload: CreateBonLedQcPayload
+  payload: CreateBonLedQcPayload,
 ): Promise<BonLedQcItem> {
   return apiPost<BonLedQcItem>(`/bon/${bonnr}/led-qc`, payload);
 }
@@ -1487,9 +1666,12 @@ export async function updateBonLedQc(
   groepnr: number,
   volgnr: number,
   lijnnr: number,
-  payload: UpdateBonLedQcPayload
+  payload: UpdateBonLedQcPayload,
 ): Promise<BonLedQcItem> {
-  return apiPut<BonLedQcItem>(`/bon/${bonnr}/led-qc/${groepnr}/${volgnr}/${lijnnr}`, payload);
+  return apiPut<BonLedQcItem>(
+    `/bon/${bonnr}/led-qc/${groepnr}/${volgnr}/${lijnnr}`,
+    payload,
+  );
 }
 
 /**
@@ -1499,19 +1681,15 @@ export async function deleteBonLedQc(
   bonnr: number,
   groepnr: number,
   volgnr: number,
-  lijnnr: number
+  lijnnr: number,
 ): Promise<{ status: string; volgnr: number }> {
   return apiDelete<{ status: string; volgnr: number }>(
-    `/bon/${bonnr}/led-qc/${groepnr}/${volgnr}/${lijnnr}`
+    `/bon/${bonnr}/led-qc/${groepnr}/${volgnr}/${lijnnr}`,
   );
 }
 
 export type HerstelStempel =
-  | "ONTVANGST"
-  | "DIAGNOSE"
-  | "OND.BESTELD"
-  | "IN HERSTELLING"
-  | "HERSTELD";
+  "ONTVANGST" | "DIAGNOSE" | "OND.BESTELD" | "IN HERSTELLING" | "HERSTELD";
 
 export type BonHerstelItem = {
   bonnr: number;
@@ -1547,7 +1725,9 @@ export type BonHerstelItem = {
  * Backend: GET /web/bon/{bonnr}/herstel (Luna.Web.BonHandler). 409 if
  * bon.type is not "HERSTELLING".
  */
-export async function getBonHerstel(bonnr: number): Promise<BonHerstelItem | null> {
+export async function getBonHerstel(
+  bonnr: number,
+): Promise<BonHerstelItem | null> {
   const path = `/bon/${bonnr}/herstel`;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "GET",
@@ -1564,7 +1744,8 @@ export async function getBonHerstel(bonnr: number): Promise<BonHerstelItem | nul
       error?: { message?: string };
     } | null;
     throw new Error(
-      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+      error?.error?.message ??
+        `API request to ${path} failed with status ${response.status}`,
     );
   }
 
@@ -1579,7 +1760,7 @@ export type CreateBonHerstelPayload = Omit<BonHerstelItem, "bonnr">;
  */
 export async function createBonHerstel(
   bonnr: number,
-  payload: CreateBonHerstelPayload
+  payload: CreateBonHerstelPayload,
 ): Promise<BonHerstelItem> {
   return apiPost<BonHerstelItem>(`/bon/${bonnr}/herstel`, payload);
 }
@@ -1591,7 +1772,7 @@ export type UpdateBonHerstelPayload = Partial<CreateBonHerstelPayload>;
  */
 export async function updateBonHerstel(
   bonnr: number,
-  payload: UpdateBonHerstelPayload
+  payload: UpdateBonHerstelPayload,
 ): Promise<BonHerstelItem> {
   return apiPut<BonHerstelItem>(`/bon/${bonnr}/herstel`, payload);
 }
@@ -1604,15 +1785,21 @@ export async function updateBonHerstel(
  * Backend: POST /web/bon/{bonnr}/herstel/diagnose|bestellen|hersteld
  * (Luna.Web.BonHandler).
  */
-export async function bonHerstelNaarDiagnose(bonnr: number): Promise<BonHerstelItem> {
+export async function bonHerstelNaarDiagnose(
+  bonnr: number,
+): Promise<BonHerstelItem> {
   return apiPost<BonHerstelItem>(`/bon/${bonnr}/herstel/diagnose`, {});
 }
 
-export async function bonHerstelOnderdelenBestellen(bonnr: number): Promise<BonHerstelItem> {
+export async function bonHerstelOnderdelenBestellen(
+  bonnr: number,
+): Promise<BonHerstelItem> {
   return apiPost<BonHerstelItem>(`/bon/${bonnr}/herstel/bestellen`, {});
 }
 
-export async function bonHerstelHersteld(bonnr: number): Promise<BonHerstelItem> {
+export async function bonHerstelHersteld(
+  bonnr: number,
+): Promise<BonHerstelItem> {
   return apiPost<BonHerstelItem>(`/bon/${bonnr}/herstel/hersteld`, {});
 }
 
@@ -1632,7 +1819,7 @@ export async function getBonnen(
     naam?: string;
     page?: number;
     pageSize?: number;
-  } = {}
+  } = {},
 ): Promise<BonnenResponse> {
   const { klnr, type, bonnr, naam, page = 1, pageSize = 25 } = params;
   const query = new URLSearchParams();
@@ -1830,9 +2017,17 @@ export async function getBestelorders(
     sortDir?: BestelorderSortDir;
     page?: number;
     pageSize?: number;
-  } = {}
+  } = {},
 ): Promise<BestelordersResponse> {
-  const { levnr, ordnr, naam, sortField, sortDir, page = 1, pageSize = 25 } = params;
+  const {
+    levnr,
+    ordnr,
+    naam,
+    sortField,
+    sortDir,
+    page = 1,
+    pageSize = 25,
+  } = params;
   const query = new URLSearchParams();
   if (levnr !== undefined) query.set("levnr", String(levnr));
   if (ordnr) query.set("ordnr", ordnr);
@@ -1851,7 +2046,9 @@ export async function getBestelorders(
  * throws, mirroring `apiGet`'s error format.
  * Backend: GET /web/bestelorder/{ordnr} (Luna.Web.BestelorderHandler).
  */
-export async function getBestelorder(ordnr: number): Promise<BestelorderItem | null> {
+export async function getBestelorder(
+  ordnr: number,
+): Promise<BestelorderItem | null> {
   const path = `/bestelorder/${ordnr}`;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "GET",
@@ -1864,7 +2061,9 @@ export async function getBestelorder(ordnr: number): Promise<BestelorderItem | n
   }
 
   if (!response.ok) {
-    throw new Error(`API request to ${path} failed with status ${response.status}`);
+    throw new Error(
+      `API request to ${path} failed with status ${response.status}`,
+    );
   }
 
   return response.json() as Promise<BestelorderItem>;
@@ -1901,8 +2100,12 @@ type BestelorderLijnenResponse = {
  * callers that need a not-found state should call `getBestelorder` first.
  * Backend: GET /web/bestelorder/{ordnr}/lijn (Luna.Web.BestelorderHandler).
  */
-export async function getBestelorderLijnen(ordnr: number): Promise<BestelorderLijnItem[]> {
-  const data = await apiGet<BestelorderLijnenResponse>(`/bestelorder/${ordnr}/lijn`);
+export async function getBestelorderLijnen(
+  ordnr: number,
+): Promise<BestelorderLijnItem[]> {
+  const data = await apiGet<BestelorderLijnenResponse>(
+    `/bestelorder/${ordnr}/lijn`,
+  );
   return data.items;
 }
 
@@ -1926,7 +2129,9 @@ export async function getKlant(klnr: number): Promise<KlantItem | null> {
   }
 
   if (!response.ok) {
-    throw new Error(`API request to ${path} failed with status ${response.status}`);
+    throw new Error(
+      `API request to ${path} failed with status ${response.status}`,
+    );
   }
 
   return response.json() as Promise<KlantItem>;
@@ -1940,7 +2145,9 @@ export type CreateKlantPayload = Partial<Omit<KlantItem, "klnr">> & {
  * Creates a new klant.
  * Backend: POST /web/klant (Luna.Web.KlantHandler).
  */
-export async function createKlant(payload: CreateKlantPayload): Promise<KlantItem> {
+export async function createKlant(
+  payload: CreateKlantPayload,
+): Promise<KlantItem> {
   return apiPost<KlantItem>("/klant", payload);
 }
 
@@ -1957,7 +2164,7 @@ export type UpdateKlantPayload = Partial<Omit<KlantItem, "klnr">>;
  */
 export async function updateKlant(
   klnr: number,
-  payload: UpdateKlantPayload
+  payload: UpdateKlantPayload,
 ): Promise<KlantItem> {
   return apiPut<KlantItem>(`/klant/${klnr}`, payload);
 }
@@ -1982,7 +2189,9 @@ type KlantAdressenResponse = {
  * the backend returns every address for the klnr in one response.
  * Backend: GET /web/klant/{klnr}/adres (Luna.Web.KlantHandler, read-only).
  */
-export async function getKlantAdressen(klnr: number): Promise<KlantAdresItem[]> {
+export async function getKlantAdressen(
+  klnr: number,
+): Promise<KlantAdresItem[]> {
   const data = await apiGet<KlantAdressenResponse>(`/klant/${klnr}/adres`);
   return data.items;
 }
@@ -2011,7 +2220,9 @@ type KlantContactenResponse = {
  * contact for the klnr in one response.
  * Backend: GET /web/klant/{klnr}/contact (Luna.Web.KlantHandler, read-only).
  */
-export async function getKlantContacten(klnr: number): Promise<KlantContactItem[]> {
+export async function getKlantContacten(
+  klnr: number,
+): Promise<KlantContactItem[]> {
   const data = await apiGet<KlantContactenResponse>(`/klant/${klnr}/contact`);
   return data.items;
 }
@@ -2033,7 +2244,9 @@ type KlantKortingenResponse = {
  * response. `naam` is server-derived (the artikel's naam) and read-only.
  * Backend: GET /web/klant/{klnr}/korting (Luna.Web.KlantHandler, read-only).
  */
-export async function getKlantKortingen(klnr: number): Promise<KlantKortingItem[]> {
+export async function getKlantKortingen(
+  klnr: number,
+): Promise<KlantKortingItem[]> {
   const data = await apiGet<KlantKortingenResponse>(`/klant/${klnr}/korting`);
   return data.items;
 }
@@ -2086,7 +2299,7 @@ export async function getFacturen(
     projectnr?: number;
     page?: number;
     pageSize?: number;
-  } = {}
+  } = {},
 ): Promise<FacturenResponse> {
   const { klnr, naam, datum, projectnr, page = 1, pageSize = 25 } = params;
   const query = new URLSearchParams();
@@ -2119,7 +2332,9 @@ export async function getFactuur(facnr: number): Promise<FactuurItem | null> {
   }
 
   if (!response.ok) {
-    throw new Error(`API request to ${path} failed with status ${response.status}`);
+    throw new Error(
+      `API request to ${path} failed with status ${response.status}`,
+    );
   }
 
   return response.json() as Promise<FactuurItem>;
@@ -2185,7 +2400,9 @@ export async function getDashboard(): Promise<DashboardResponse> {
   });
 
   if (!response.ok) {
-    throw new Error(`API request to /dashboard failed with status ${response.status}`);
+    throw new Error(
+      `API request to /dashboard failed with status ${response.status}`,
+    );
   }
 
   return response.json() as Promise<DashboardResponse>;
@@ -2200,7 +2417,10 @@ export type AiSearchFilter = {
 export type AiSearchIntent = {
   entity: string;
   filters: AiSearchFilter[];
-  aggregation: { type: "sum" | "avg" | "min" | "max" | "count"; field: string } | null;
+  aggregation: {
+    type: "sum" | "avg" | "min" | "max" | "count";
+    field: string;
+  } | null;
   confidence: number;
 } | null;
 
@@ -2234,7 +2454,9 @@ export type AiSearchResponse = {
  * surface via `apiPost`'s standard `{"error":{"message"}}` handling above.
  * Backend: POST /web/ai-search (Luna.Web.AiSearchHandler).
  */
-export async function searchDashboardAi(prompt: string): Promise<AiSearchResponse> {
+export async function searchDashboardAi(
+  prompt: string,
+): Promise<AiSearchResponse> {
   return apiPost<AiSearchResponse>("/ai-search", { prompt });
 }
 
@@ -2307,14 +2529,16 @@ type LeveranciersResponse = {
  * Backend: GET /web/leverancier (Luna.Web.LeverancierHandler).
  */
 export async function getLeveranciers(
-  params: { naam?: string; page?: number; pageSize?: number } = {}
+  params: { naam?: string; page?: number; pageSize?: number } = {},
 ): Promise<LeveranciersResponse> {
   const { naam, page = 1, pageSize = 25 } = params;
   const query = new URLSearchParams();
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
   const naamPart = naam ? `&naam=${encodeURIComponent(naam)}` : "";
-  return apiGet<LeveranciersResponse>(`/leverancier?${query.toString()}${naamPart}`);
+  return apiGet<LeveranciersResponse>(
+    `/leverancier?${query.toString()}${naamPart}`,
+  );
 }
 
 /**
@@ -2324,7 +2548,9 @@ export async function getLeveranciers(
  * throws, mirroring `apiGet`'s error format.
  * Backend: GET /web/leverancier/{levnr} (Luna.Web.LeverancierHandler).
  */
-export async function getLeverancier(levnr: number): Promise<LeverancierItem | null> {
+export async function getLeverancier(
+  levnr: number,
+): Promise<LeverancierItem | null> {
   const path = `/leverancier/${levnr}`;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "GET",
@@ -2337,7 +2563,9 @@ export async function getLeverancier(levnr: number): Promise<LeverancierItem | n
   }
 
   if (!response.ok) {
-    throw new Error(`API request to ${path} failed with status ${response.status}`);
+    throw new Error(
+      `API request to ${path} failed with status ${response.status}`,
+    );
   }
 
   return response.json() as Promise<LeverancierItem>;
@@ -2347,7 +2575,9 @@ export async function getLeverancier(levnr: number): Promise<LeverancierItem | n
  * Creation payload for a leverancier - `levnr` is required (chosen by the
  * caller, not server-generated) and every other field is optional.
  */
-export type CreateLeverancierPayload = Partial<Omit<LeverancierItem, "levnr">> & {
+export type CreateLeverancierPayload = Partial<
+  Omit<LeverancierItem, "levnr">
+> & {
   levnr: number;
 };
 
@@ -2356,7 +2586,7 @@ export type CreateLeverancierPayload = Partial<Omit<LeverancierItem, "levnr">> &
  * Backend: POST /web/leverancier (Luna.Web.LeverancierHandler).
  */
 export async function createLeverancier(
-  payload: CreateLeverancierPayload
+  payload: CreateLeverancierPayload,
 ): Promise<LeverancierItem> {
   return apiPost<LeverancierItem>("/leverancier", payload);
 }
@@ -2374,7 +2604,7 @@ export type UpdateLeverancierPayload = Partial<Omit<LeverancierItem, "levnr">>;
  */
 export async function updateLeverancier(
   levnr: number,
-  payload: UpdateLeverancierPayload
+  payload: UpdateLeverancierPayload,
 ): Promise<LeverancierItem> {
   return apiPut<LeverancierItem>(`/leverancier/${levnr}`, payload);
 }
@@ -2384,7 +2614,7 @@ export async function updateLeverancier(
  * Backend: DELETE /web/leverancier/{levnr} (Luna.Web.LeverancierHandler).
  */
 export async function deleteLeverancier(
-  levnr: number
+  levnr: number,
 ): Promise<{ status: string; levnr: number }> {
   return apiDelete<{ status: string; levnr: number }>(`/leverancier/${levnr}`);
 }
@@ -2446,9 +2676,17 @@ export async function getPakbonnen(
     projectnr?: number;
     page?: number;
     pageSize?: number;
-  } = {}
+  } = {},
 ): Promise<PakbonnenResponse> {
-  const { klnr, stempel, paknr, naam, projectnr, page = 1, pageSize = 25 } = params;
+  const {
+    klnr,
+    stempel,
+    paknr,
+    naam,
+    projectnr,
+    page = 1,
+    pageSize = 25,
+  } = params;
   const query = new URLSearchParams();
   if (klnr !== undefined) query.set("klnr", String(klnr));
   if (stempel) query.set("stempel", stempel);
@@ -2480,7 +2718,9 @@ export async function getPakbon(paknr: number): Promise<PakbonItem | null> {
   }
 
   if (!response.ok) {
-    throw new Error(`API request to ${path} failed with status ${response.status}`);
+    throw new Error(
+      `API request to ${path} failed with status ${response.status}`,
+    );
   }
 
   return response.json() as Promise<PakbonItem>;
@@ -2498,7 +2738,9 @@ export type CreatePakbonPayload = Partial<Omit<PakbonItem, "paknr">> & {
 /**
  * Backend: POST /web/pakbon (Luna.Web.PakbonHandler).
  */
-export async function createPakbon(payload: CreatePakbonPayload): Promise<PakbonItem> {
+export async function createPakbon(
+  payload: CreatePakbonPayload,
+): Promise<PakbonItem> {
   return apiPost<PakbonItem>("/pakbon", payload);
 }
 
@@ -2509,7 +2751,7 @@ export type UpdatePakbonPayload = Partial<Omit<PakbonItem, "paknr">>;
  */
 export async function updatePakbon(
   paknr: number,
-  payload: UpdatePakbonPayload
+  payload: UpdatePakbonPayload,
 ): Promise<PakbonItem> {
   return apiPut<PakbonItem>(`/pakbon/${paknr}`, payload);
 }
@@ -2517,7 +2759,9 @@ export async function updatePakbon(
 /**
  * Backend: DELETE /web/pakbon/{paknr} (Luna.Web.PakbonHandler).
  */
-export async function deletePakbon(paknr: number): Promise<{ status: string; paknr: number }> {
+export async function deletePakbon(
+  paknr: number,
+): Promise<{ status: string; paknr: number }> {
   return apiDelete<{ status: string; paknr: number }>(`/pakbon/${paknr}`);
 }
 
@@ -2526,7 +2770,10 @@ export async function deletePakbon(paknr: number): Promise<{ status: string; pak
  * Returns the full, updated pakbon.
  * Backend: POST /web/pakbon/{paknr}/afhalen (Luna.Web.PakbonHandler).
  */
-export async function afhalenPakbon(paknr: number, afgehaaldId: string): Promise<PakbonItem> {
+export async function afhalenPakbon(
+  paknr: number,
+  afgehaaldId: string,
+): Promise<PakbonItem> {
   return apiPost<PakbonItem>(`/pakbon/${paknr}/afhalen`, { afgehaaldId });
 }
 
@@ -2579,7 +2826,7 @@ export type CreatePaklijnPayload = Omit<PaklijnItem, "paknr" | "lijnnr">;
  */
 export async function createPaklijn(
   paknr: number,
-  payload: CreatePaklijnPayload
+  payload: CreatePaklijnPayload,
 ): Promise<PaklijnItem> {
   return apiPost<PaklijnItem>(`/pakbon/${paknr}/lijn`, payload);
 }
@@ -2592,7 +2839,7 @@ export type UpdatePaklijnPayload = Partial<CreatePaklijnPayload>;
 export async function updatePaklijn(
   paknr: number,
   lijnnr: number,
-  payload: UpdatePaklijnPayload
+  payload: UpdatePaklijnPayload,
 ): Promise<PaklijnItem> {
   return apiPut<PaklijnItem>(`/pakbon/${paknr}/lijn/${lijnnr}`, payload);
 }
@@ -2602,7 +2849,9 @@ export async function updatePaklijn(
  */
 export async function deletePaklijn(
   paknr: number,
-  lijnnr: number
+  lijnnr: number,
 ): Promise<{ status: string; lijnnr: number }> {
-  return apiDelete<{ status: string; lijnnr: number }>(`/pakbon/${paknr}/lijn/${lijnnr}`);
+  return apiDelete<{ status: string; lijnnr: number }>(
+    `/pakbon/${paknr}/lijn/${lijnnr}`,
+  );
 }

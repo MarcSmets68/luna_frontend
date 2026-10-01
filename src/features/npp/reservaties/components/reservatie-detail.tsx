@@ -1,104 +1,63 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { bonLabel, EFFECTIEF_STATUS_LABEL } from "../lib/format";
-import type {
-  ReservatieDetail as ReservatieDetailData,
-  ReservatieDetailItem,
-  ReservatieEffectiefStatus,
-  ReservatieQueueItem,
-} from "../types";
+import { useReservatieDetail } from "../hooks/use-reservatie-detail";
+import { ReservatieDetailRow } from "./reservatie-detail-row";
 
-const STATUS_CLASS: Record<ReservatieEffectiefStatus, string> = {
-  volledig_effectief: "bg-success-bg text-success-fg",
-  gedeeltelijk_effectief: "bg-warning-bg text-warning-fg",
-  geen_effectief: "bg-error-bg text-error-fg",
-  niet_effectief: "bg-muted text-muted-foreground",
-};
+const EUR = new Intl.NumberFormat("nl-BE", {
+  style: "currency",
+  currency: "EUR",
+});
 
-function DetailRow({ item }: { item: ReservatieDetailItem }) {
-  if (!item.effectiefStatus) {
-    const text = item.omschrijving.trim();
-    if (!text) return null;
-    return (
-      <div className="px-1 pt-2 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-        {text}
-      </div>
-    );
-  }
-
-  const article = [item.artnr.trim(), item.omschrijving.trim()].filter(Boolean).join(" \u00b7 ");
-
-  return (
-    <div className="flex min-h-16 w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card px-4 py-3">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-base font-medium text-foreground">{article}</span>
-        <span className="text-sm text-muted-foreground">
-          Te leveren {item.teLeveren} &middot; Gereserveerd {item.gereserv} &middot; Effectief{" "}
-          {item.effectiefGereserv}
-        </span>
-      </div>
-      <span
-        className={cn(
-          "shrink-0 rounded-full px-3 py-1 text-xs font-medium",
-          STATUS_CLASS[item.effectiefStatus]
-        )}
-      >
-        {EFFECTIEF_STATUS_LABEL[item.effectiefStatus]}
-      </span>
-    </div>
-  );
-}
-
-/** Read-only bonlijn overview for one queue row. */
 export function ReservatieDetail({
-  item,
-  detail,
-  loading,
-  error,
-  onBack,
+  bonnr,
+  groepnr,
 }: {
-  item: ReservatieQueueItem;
-  detail: ReservatieDetailData | null;
-  loading: boolean;
-  error: string | null;
-  onBack: () => void;
+  bonnr: number;
+  groepnr?: number;
 }) {
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" variant="outline" onClick={onBack}>
-          <ArrowLeft />
-          Terug
-        </Button>
-        <div>
-          <h2 className="font-heading text-lg font-semibold text-foreground">
-            {bonLabel(item.bonnr, item.groepnr)}
-          </h2>
-          <p className="text-sm text-muted-foreground">{item.naam}</p>
-        </div>
-      </div>
+  const { data, loading, error } = useReservatieDetail(bonnr, groepnr);
 
+  return (
+    <div className="flex w-full flex-col gap-6 p-6 sm:p-8">
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
 
-      {loading && <p className="text-sm text-muted-foreground">Bonlijnen worden geladen...</p>}
-
-      {detail && detail.items.length === 0 && (
-        <p className="text-sm text-muted-foreground">Deze bon heeft geen lijnen.</p>
+      {loading && (
+        <p className="text-sm text-muted-foreground">
+          Reservatie wordt geladen...
+        </p>
       )}
 
-      {detail && detail.items.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {detail.items.map((line) => (
-            <DetailRow key={line.lijnnr} item={line} />
-          ))}
-        </div>
+      {data && (
+        <>
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 className="font-heading text-xl font-semibold text-foreground">
+              Bon {data.bonnr}
+              {data.groepnr > 0 && <> &middot; LVB {data.groepnr}</>}
+            </h1>
+            <span className="text-base font-medium text-foreground">
+              {EUR.format(data.nBedrag)}
+            </span>
+          </div>
+
+          {data.items.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Geen lijnen gevonden.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {data.items.map((item) => (
+                <ReservatieDetailRow
+                  key={`${item.groepnr}-${item.lijnnr}`}
+                  item={item}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

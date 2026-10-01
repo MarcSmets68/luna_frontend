@@ -1,101 +1,60 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getNppReservatieDetail } from "@/lib/api-client";
 import { ReservatieDetail } from "../reservatie-detail";
-import type { ReservatieDetailItem, ReservatieQueueItem } from "../../types";
 
-const ITEM: ReservatieQueueItem = {
-  bonnr: 20345,
-  groepnr: 2,
-  datum: null,
-  levDatum: null,
-  naam: "Jansen",
-  plaatsingWijze: "",
-  transport: "",
-  stempel: "",
-  lockId: "",
-  dringend: false,
-  swReservatie: true,
-  swProductie: false,
-  swNomaled: false,
-  verwijderd: false,
-  deleteOpm: null,
-};
-
-const LINE: ReservatieDetailItem = {
-  lijnnr: 2,
-  groepnr: 2,
-  artnr: "ART-1",
-  omschrijving: "Profiel",
-  teLeveren: 5,
-  gereserv: 5,
-  effectiefGereserv: 2,
-  swEffectief: true,
-  effectiefStatus: "gedeeltelijk_effectief",
-  kolomtitel: false,
-  infolijn: false,
-  subtotaal: false,
-};
-
-const TITLE: ReservatieDetailItem = {
-  ...LINE,
-  lijnnr: 1,
-  artnr: "",
-  omschrijving: "Keuken",
-  effectiefStatus: null,
-  kolomtitel: true,
-};
+vi.mock("@/lib/api-client", () => ({ getNppReservatieDetail: vi.fn() }));
+const mockGet = vi.mocked(getNppReservatieDetail);
 
 describe("ReservatieDetail", () => {
-  it("renders header, title lines and article lines with their status", () => {
-    render(
-      <ReservatieDetail
-        item={ITEM}
-        detail={{ bonnr: 20345, groepnr: 2, nBedrag: 0, items: [TITLE, LINE] }}
-        loading={false}
-        error={null}
-        onBack={() => {}}
-      />
+  beforeEach(() => vi.clearAllMocks());
+
+  it("renders header with LVB and EUR amount, plus rows", async () => {
+    mockGet.mockResolvedValue({
+      bonnr: 100,
+      groepnr: 2,
+      nBedrag: 1234.5,
+      items: [
+        {
+          lijnnr: 10,
+          groepnr: 2,
+          artnr: "ART-1",
+          omschrijving: "Profiel",
+          teLeveren: 1,
+          gereserv: 1,
+          effectiefGereserv: 1,
+          swEffectief: true,
+          effectiefStatus: "volledig_effectief",
+          kolomtitel: false,
+          infolijn: false,
+          subtotaal: false,
+        },
+      ],
+    });
+    render(<ReservatieDetail bonnr={100} groepnr={2} />);
+    expect(await screen.findByRole("heading")).toHaveTextContent(
+      "Bon 100 \u00b7 LVB 2",
     );
-    expect(screen.getByRole("heading", { name: "Bon 20345 / 2" })).toBeInTheDocument();
-    expect(screen.getByText("Keuken")).toBeInTheDocument();
-    expect(screen.getByText("ART-1 \u00b7 Profiel")).toBeInTheDocument();
-    expect(screen.getByText(/Te leveren 5/)).toHaveTextContent(
-      "Te leveren 5 · Gereserveerd 5 · Effectief 2"
-    );
-    expect(screen.getByText("Gedeeltelijk effectief")).toBeInTheDocument();
+    expect(screen.getByText(/1\.234,50/)).toBeInTheDocument();
+    expect(screen.getByText("Volledig")).toBeInTheDocument();
   });
 
-  it("shows loading, error and empty states", () => {
-    const { rerender } = render(
-      <ReservatieDetail item={ITEM} detail={null} loading={true} error={null} onBack={() => {}} />
-    );
-    expect(screen.getByText("Bonlijnen worden geladen...")).toBeInTheDocument();
-
-    rerender(
-      <ReservatieDetail item={ITEM} detail={null} loading={false} error="Boem" onBack={() => {}} />
-    );
-    expect(screen.getByRole("alert")).toHaveTextContent("Boem");
-
-    rerender(
-      <ReservatieDetail
-        item={ITEM}
-        detail={{ bonnr: 20345, groepnr: 2, nBedrag: 0, items: [] }}
-        loading={false}
-        error={null}
-        onBack={() => {}}
-      />
-    );
-    expect(screen.getByText("Deze bon heeft geen lijnen.")).toBeInTheDocument();
+  it("omits LVB when groepnr is 0", async () => {
+    mockGet.mockResolvedValue({
+      bonnr: 100,
+      groepnr: 0,
+      nBedrag: 0,
+      items: [],
+    });
+    render(<ReservatieDetail bonnr={100} />);
+    expect(await screen.findByRole("heading")).toHaveTextContent(/^Bon 100$/);
   });
 
-  it("calls onBack", async () => {
-    const user = userEvent.setup();
-    const onBack = vi.fn();
-    render(
-      <ReservatieDetail item={ITEM} detail={null} loading={false} error={null} onBack={onBack} />
+  it("shows errors", async () => {
+    mockGet.mockRejectedValue(new Error("Bon niet gevonden"));
+    render(<ReservatieDetail bonnr={1} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Bon niet gevonden",
     );
-    await user.click(screen.getByRole("button", { name: "Terug" }));
-    expect(onBack).toHaveBeenCalled();
   });
 });

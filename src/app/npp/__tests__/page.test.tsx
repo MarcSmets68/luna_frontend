@@ -63,7 +63,6 @@ describe("Npp page", () => {
   it("renders the Reservaties raadplegen tile as a navigable link to /npp/reservaties", () => {
     render(<Npp />);
     const link = screen.getByRole("link", { name: /Reservaties raadplegen/ });
-    expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/npp/reservaties");
   });
 

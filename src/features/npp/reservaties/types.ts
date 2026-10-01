@@ -1,8 +1,9 @@
+// Local type surface for the NPP "Reservaties raadplegen" tile.
 export type {
-  ReservatieDetail,
-  ReservatieDetailItem,
-  ReservatieEffectiefStatus,
-  ReservatieMode,
-  ReservatieQueue,
-  ReservatieQueueItem,
+  EffectiefStatus,
+  NppReservatieDetail,
+  NppReservatieDetailItem,
+  NppReservatieMode,
+  NppReservatieQueue,
+  NppReservatieQueueItem,
 } from "@/lib/api-client";
