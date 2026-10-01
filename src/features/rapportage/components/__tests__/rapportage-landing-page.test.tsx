@@ -15,4 +15,12 @@ describe("RapportageLandingPage", () => {
       screen.getByText(/Overzicht van dealers met NOMALED\.FUR-orders/)
     ).toBeInTheDocument();
   });
+
+  it("renders the Omzetanalyse dealers report card with a link to it", () => {
+    render(<RapportageLandingPage />);
+
+    const link = screen.getByRole("link", { name: /Omzetanalyse dealers/ });
+    expect(link).toHaveAttribute("href", "/rapportage/omzetanalyse-dealers");
+    expect(screen.getByText(/Omzet en aantallen per artikelcategorie/)).toBeInTheDocument();
+  });
 });

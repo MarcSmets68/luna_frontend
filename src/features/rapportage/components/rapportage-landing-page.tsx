@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
-// Statische lijst van beschikbare reports - vandaag enkel Verkoop FUR,
+// Statische lijst van beschikbare reports - Verkoop FUR en Omzetanalyse dealers,
 // future-proof zodat hier later meer report-kaarten bijkomen zonder
 // herontwerp (zie docs/architecture/verkoop-fur-ontwerp.md, Frontend §
 // Route/pagina's).
@@ -12,6 +12,12 @@ const REPORTS = [
     label: "Verkoop FUR",
     description: "Overzicht van dealers met NOMALED.FUR-orders in de laatste 12 maanden.",
     href: "/rapportage/verkoop-fur",
+  },
+  {
+    key: "omzetanalyse-dealers",
+    label: "Omzetanalyse dealers",
+    description: "Omzet en aantallen per artikelcategorie voor dealers, met jaarvergelijking of periode.",
+    href: "/rapportage/omzetanalyse-dealers",
   },
 ];
 

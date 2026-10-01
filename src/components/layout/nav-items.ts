@@ -57,6 +57,12 @@ export const navItems: NavItem[] = [
         href: "/rapportage/verkoop-fur",
         available: true,
       },
+      {
+        key: "reports-omzetanalyse-dealers",
+        label: "Omzetanalyse dealers",
+        href: "/rapportage/omzetanalyse-dealers",
+        available: true,
+      },
     ],
   },
   { key: "dev-users", label: "Users (dev)", href: "/dev-users", available: true },

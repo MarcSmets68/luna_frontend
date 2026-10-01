@@ -1588,6 +1588,117 @@ export async function getVerkoopFurOverzicht(): Promise<VerkoopFurResponse> {
   return apiGet<VerkoopFurResponse>("/rapportage/verkoop-fur");
 }
 
+export type OmzetPeriode = {
+  qtyLos: number | null;
+  qtyProductie: number | null;
+  aantalOrders: number | null;
+  omzetLos: number | null;
+  omzetProductie: number | null;
+  omzetTotaal: number | null;
+  groeiQtyLos: number | null;
+  groeiQtyProductie: number | null;
+  groeiAantalOrders: number | null;
+  groeiOmzetLos: number | null;
+  groeiOmzetProductie: number | null;
+  groeiOmzetTotaal: number | null;
+};
+
+export type OmzetRij = {
+  artnr: string;
+  swBegins: boolean;
+  eenheid: "m" | "st" | null;
+  perioden: OmzetPeriode[];
+};
+
+export type OmzetCategorie = {
+  categorie: string;
+  gemengdeEenheden: boolean;
+  rijen: OmzetRij[];
+  totalen: OmzetPeriode[];
+};
+
+export type OmzetMeters = { ledstripNomatrack: number[]; coverLicht: number[] };
+
+export type OmzetSectie = {
+  dealerKlnr: number | null;
+  dealerNaam: string | null;
+  categorieen: OmzetCategorie[];
+  omzet: OmzetPeriode[];
+  meters: OmzetMeters;
+};
+
+export type OmzetanalyseFilters = {
+  datumVan: string | null;
+  datumTot: string | null;
+  klnr: number | null;
+  klantNaam: string | null;
+  soort: string | null;
+  soortOmschr: string | null;
+  perDealer: boolean;
+  leegRijen: boolean;
+};
+
+export type OmzetanalyseResponse = {
+  modus: "JAREN" | "PERIODE";
+  filters: OmzetanalyseFilters;
+  kolommen: { key: string; label: string }[];
+  secties: OmzetSectie[];
+  generatedAt: string;
+};
+
+export type SoortItem = { kode: string; omschr: string };
+
+export type OmzetanalyseParams = {
+  datumVan?: string;
+  datumTot?: string;
+  klnr?: number;
+  soort?: string;
+  perDealer?: boolean;
+};
+
+/**
+ * Omzetanalyse dealers (Rapportage). Optional filters are omitted when
+ * empty. `leegRijen` is derived: always `false` in per-dealer mode, else
+ * `true`. Cached for 60s (`next.revalidate`, same precedent as
+ * getDashboard) because this can be a heavy query.
+ * Backend: GET /web/rapportage/omzetanalyse-dealers.
+ */
+export async function getOmzetanalyseDealers(
+  params: OmzetanalyseParams = {}
+): Promise<OmzetanalyseResponse> {
+  const { datumVan, datumTot, klnr, soort, perDealer = false } = params;
+  const query = new URLSearchParams();
+  if (datumVan) query.set("datumVan", datumVan);
+  if (datumTot) query.set("datumTot", datumTot);
+  if (klnr !== undefined) query.set("klnr", String(klnr));
+  if (soort) query.set("soort", soort);
+  if (perDealer) query.set("perDealer", "true");
+  query.set("leegRijen", String(!perDealer));
+  const path = `/rapportage/omzetanalyse-dealers?${query.toString()}`;
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    next: { revalidate: 60 },
+  });
+
+  if (!response.ok) {
+    const error = (await response.json().catch(() => null)) as {
+      error?: { message?: string };
+    } | null;
+    throw new Error(
+      error?.error?.message ?? `API request to ${path} failed with status ${response.status}`
+    );
+  }
+
+  return response.json() as Promise<OmzetanalyseResponse>;
+}
+
+/** Soort-dropdown items for the Omzetanalyse dealers filter form. */
+export async function getOmzetanalyseSoorten(): Promise<{ items: SoortItem[] }> {
+  return apiGet<{ items: SoortItem[] }>("/rapportage/omzetanalyse-dealers/soorten");
+}
+
 export type BestelorderItem = {
   ordnr: number;
   stempel: string;
