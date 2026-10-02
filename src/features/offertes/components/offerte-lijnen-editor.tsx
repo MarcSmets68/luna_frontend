@@ -27,6 +27,9 @@ import {
   updateOfflijn,
   type OfflijnItem,
 } from "@/lib/api-client";
+import { ArtikelLookupDropdown } from "./artikel-lookup-dropdown";
+import { artikelPrefillPatch } from "../lib/artikel-prefill";
+import type { ArtikelLookupItem } from "../lib/actions";
 
 export type LocalLijn = {
   clientId: string;
@@ -50,7 +53,7 @@ export type LocalLijn = {
   infolijn: boolean;
 };
 
-type LineFields = Omit<LocalLijn, "clientId">;
+export type LineFields = Omit<LocalLijn, "clientId">;
 
 type OfferteLijnenEditorProps =
   | { mode: "local"; lijnen: LocalLijn[]; onChange: (lijnen: LocalLijn[]) => void }
@@ -129,6 +132,7 @@ function PersistedFieldInput({
   disabled,
   className,
   ariaLabel,
+  onPickArtikel,
 }: {
   value: string | number;
   onCommit: (value: string | number) => Promise<boolean>;
@@ -136,8 +140,17 @@ function PersistedFieldInput({
   disabled?: boolean;
   className?: string;
   ariaLabel?: string;
+  /**
+   * When set, an artikel lookup dropdown is attached to this field. Called
+   * once with the full prefill patch when the user picks an artikel.
+   */
+  onPickArtikel?: (patch: Partial<LineFields>) => Promise<boolean>;
 }) {
   const [localValue, setLocalValue] = useState<string | number>(value);
+  const [lookupOpen, setLookupOpen] = useState(false);
+  // True while a lookup pick is being committed; a blur during that window
+  // must not fire a second, artnr-only commit.
+  const [picking, setPicking] = useState(false);
   const [focused, setFocused] = useState(false);
   // True while there is a local edit that hasn't been successfully
   // committed yet (either the commit is in flight, or it failed and the
@@ -156,7 +169,23 @@ function PersistedFieldInput({
     setLocalValue(value);
   }
 
+  async function pickArtikel(item: ArtikelLookupItem) {
+    if (!onPickArtikel) return;
+    setLookupOpen(false);
+    setLocalValue(item.artnr);
+    setPendingEdit(true);
+    setPicking(true);
+    try {
+      const success = await onPickArtikel(artikelPrefillPatch(item));
+      if (success) setPendingEdit(false);
+      // On failure: keep pendingEdit and the picked value locally (no clobber).
+    } finally {
+      setPicking(false);
+    }
+  }
+
   async function commitIfChanged() {
+    if (picking) return;
     if (localValue === value) {
       setPendingEdit(false);
       return;
@@ -171,7 +200,7 @@ function PersistedFieldInput({
     // silently overwrite the unsaved edit with the stale server value.
   }
 
-  return (
+  const input = (
     <Input
       type={numeric ? "number" : "text"}
       value={localValue}
@@ -181,15 +210,76 @@ function PersistedFieldInput({
       onFocus={() => setFocused(true)}
       onBlur={() => {
         setFocused(false);
+        setLookupOpen(false);
         void commitIfChanged();
       }}
-      onChange={(e) => setLocalValue(numeric ? Number(e.target.value) : e.target.value)}
+      onChange={(e) => {
+        setLocalValue(numeric ? Number(e.target.value) : e.target.value);
+        if (onPickArtikel) setLookupOpen(true);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.currentTarget.blur();
         }
       }}
     />
+  );
+
+  if (!onPickArtikel) return input;
+  return (
+    <div className="relative">
+      {input}
+      <ArtikelLookupDropdown
+        term={String(localValue)}
+        open={lookupOpen}
+        onSelect={(item) => void pickArtikel(item)}
+        onClose={() => setLookupOpen(false)}
+      />
+    </div>
+  );
+}
+
+/** Local-mode artnr input with an artikel lookup dropdown attached. */
+function LocalArtnrLookupInput({
+  value,
+  onFieldChange,
+  disabled,
+  className,
+  ariaLabel,
+}: {
+  value: string;
+  onFieldChange: (patch: Partial<LineFields>) => boolean | Promise<boolean>;
+  disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <Input
+        type="text"
+        value={value}
+        disabled={disabled}
+        className={className}
+        aria-label={ariaLabel}
+        onBlur={() => setOpen(false)}
+        onChange={(e) => {
+          void onFieldChange({ artnr: e.target.value });
+          setOpen(true);
+        }}
+      />
+      <ArtikelLookupDropdown
+        term={value}
+        open={open}
+        onSelect={(item) => {
+          // One call with the full patch - sequential per-field calls would
+          // each rebuild from the same stale lijnen and clobber each other.
+          void onFieldChange(artikelPrefillPatch(item));
+          setOpen(false);
+        }}
+        onClose={() => setOpen(false)}
+      />
+    </div>
   );
 }
 
@@ -208,6 +298,7 @@ function LineField({
   disabled,
   className,
   ariaLabel,
+  artikelLookup = false,
 }: {
   mode: "local" | "persisted";
   fieldKey: keyof LineFields;
@@ -217,7 +308,21 @@ function LineField({
   disabled?: boolean;
   className?: string;
   ariaLabel?: string;
+  /** Attach the artikel lookup dropdown (artnr field of artikel rows only). */
+  artikelLookup?: boolean;
 }) {
+  const withLookup = artikelLookup && fieldKey === "artnr";
+  if (mode === "local" && withLookup) {
+    return (
+      <LocalArtnrLookupInput
+        value={String(value)}
+        onFieldChange={onFieldChange}
+        disabled={disabled}
+        className={className}
+        ariaLabel={ariaLabel}
+      />
+    );
+  }
   if (mode === "persisted") {
     return (
       <PersistedFieldInput
@@ -230,6 +335,11 @@ function LineField({
           Promise.resolve(
             onFieldChange({ [fieldKey]: v } as Partial<LineFields>)
           ) as Promise<boolean>
+        }
+        onPickArtikel={
+          withLookup
+            ? (patch) => Promise.resolve(onFieldChange(patch)) as Promise<boolean>
+            : undefined
         }
       />
     );
@@ -257,6 +367,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [newLineKind, setNewLineKind] = useState<LineKind>("artikel");
   const [newLineFields, setNewLineFields] = useState<LineFields>(emptyLineFields());
+  const [newLineLookupOpen, setNewLineLookupOpen] = useState(false);
 
   function toggleExpanded(key: string) {
     setExpanded((prev) => {
@@ -554,6 +665,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                       ariaLabel={`Artnr lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
                       className="w-28"
+                      artikelLookup={row.kind === "artikel"}
                     />
                   </TableCell>
                   <TableCell className="whitespace-normal">
@@ -762,14 +874,27 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
             {newLineKind === "artikel" ? (
               <>
                 <TableCell>
-                  <Input
-                    value={newLineFields.artnr}
-                    onChange={(e) =>
-                      setNewLineFields((prev) => ({ ...prev, artnr: e.target.value }))
-                    }
-                    aria-label="Artnr nieuwe lijn"
-                    className="w-28"
-                  />
+                  <div className="relative">
+                    <Input
+                      value={newLineFields.artnr}
+                      onChange={(e) => {
+                        setNewLineFields((prev) => ({ ...prev, artnr: e.target.value }));
+                        setNewLineLookupOpen(true);
+                      }}
+                      onBlur={() => setNewLineLookupOpen(false)}
+                      aria-label="Artnr nieuwe lijn"
+                      className="w-28"
+                    />
+                    <ArtikelLookupDropdown
+                      term={newLineFields.artnr}
+                      open={newLineLookupOpen}
+                      onSelect={(item) => {
+                        setNewLineFields((prev) => ({ ...prev, ...artikelPrefillPatch(item) }));
+                        setNewLineLookupOpen(false);
+                      }}
+                      onClose={() => setNewLineLookupOpen(false)}
+                    />
+                  </div>
                 </TableCell>
                 <TableCell className="whitespace-normal">
                   <Input
