@@ -172,6 +172,25 @@ describe("buildPdfModel", () => {
     expect(t.body[0][0]).toBe("LS100...");
   });
 
+  it("replaces a true minus sign (U+2212) with a hyphen, also when it is the whole name", () => {
+    expect(buildPdfModel(withCategorie("\u2212"))[0].tables[0].title).toBe("-");
+    expect(buildPdfModel(withCategorie("A\u2212B"))[0].tables[0].title).toBe("A-B");
+  });
+
+  it("replaces control characters with a single space and does not change case", () => {
+    expect(buildPdfModel(withCategorie("\u0000\tLed\u0085\nstrip\u007F"))[0].tables[0].title).toBe("Led strip");
+    expect(buildPdfModel(withCategorie("\u0001\u007F"))[0].tables[0].title).toBeNull();
+    expect(buildPdfModel(withCategorie("lEdStRiP"))[0].tables[0].title).toBe("lEdStRiP");
+  });
+
+  it("keeps duplicate category names as separate titled tables", () => {
+    const s = sectie(1);
+    s.categorieen = [s.categorieen[0], { ...s.categorieen[0] }];
+    const t = buildPdfModel({ ...periodeResponse, secties: [s] })[0].tables;
+    expect(t[0].title).toBe("Ledstrip");
+    expect(t[1].title).toBe("Ledstrip");
+  });
+
   it("keeps the dealer heading with titles present", () => {
     const m = buildPdfModel({
       ...periodeResponse,
@@ -222,6 +241,11 @@ describe("renderPdf – categorietitel", () => {
     expect(doc.addPage).toHaveBeenCalledTimes(1);
     expect(doc.text).toHaveBeenCalledWith("Ledstrip", 15, 23);
     expect(doc.addPage.mock.invocationCallOrder[0]).toBeLessThan(doc.text.mock.invocationCallOrder[0]);
+  });
+
+  it("threshold boundary: y=165 fits (165+30 = 195 = 210-15), y=166 breaks", () => {
+    expect(run(165, "Ledstrip").addPage).not.toHaveBeenCalled();
+    expect(run(166, "Ledstrip").addPage).toHaveBeenCalledTimes(1);
   });
 
   it("does not add a page when there is enough space", () => {
