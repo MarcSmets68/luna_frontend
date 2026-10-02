@@ -60,10 +60,15 @@ describe("Npp page", () => {
     expect(link).toHaveAttribute("href", "/npp/planning");
   });
 
+  it("renders the Reservaties raadplegen tile as a navigable link to /npp/reservaties", () => {
+    render(<Npp />);
+    const link = screen.getByRole("link", { name: /Reservaties raadplegen/ });
+    expect(link).toHaveAttribute("href", "/npp/reservaties");
+  });
+
   it("keeps the other tiles inert (plain buttons, not links)", () => {
     render(<Npp />);
     expect(screen.getByRole("button", { name: /Productie starten \/ afsluiten/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Reservaties raadplegen/ })).toBeInTheDocument();
-    expect(screen.queryAllByRole("link")).toHaveLength(5);
+    expect(screen.queryAllByRole("link")).toHaveLength(6);
   });
 });
