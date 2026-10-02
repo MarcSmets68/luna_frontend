@@ -320,14 +320,25 @@ export async function getArtikelen(
   pageSize = 25,
   options: { lageVoorraad?: boolean; geblokkeerd?: boolean } = {},
 ): Promise<ArtikelenResponse> {
-  const { lageVoorraad, geblokkeerd } = options;
+  const { lageVoorraad, geblokkeerd, artnr, omschrijving } = options;
   const query = new URLSearchParams();
   query.set("page", String(page));
   query.set("pageSize", String(pageSize));
   if (lageVoorraad) query.set("lageVoorraad", "true");
   if (geblokkeerd !== undefined) query.set("geblokkeerd", String(geblokkeerd));
-  return apiGet<ArtikelenResponse>(`/artikel?${query.toString()}`);
+  // artnr (prefix) / omschrijving (substring) are appended with
+  // encodeURIComponent instead of URLSearchParams: URLSearchParams would
+  // serialize a space as "+", which OpenEdge's query-value decoder does not
+  // treat as a space (same reasoning as getArtikel()/getKlanten()).
+  const artnrTrimmed = artnr?.trim();
+  const omschrijvingTrimmed = omschrijving?.trim();
+  const artnrPart = artnrTrimmed ? `&artnr=${encodeURIComponent(artnrTrimmed)}` : "";
+  const omschrijvingPart = omschrijvingTrimmed
+    ? `&omschrijving=${encodeURIComponent(omschrijvingTrimmed)}`
+    : "";
+  return apiGet<ArtikelenResponse>(`/artikel?${query.toString()}${artnrPart}${omschrijvingPart}`);
 }
+
 
 /**
  * Single artikel lookup by artnr. Returns `null` when no artikel matches

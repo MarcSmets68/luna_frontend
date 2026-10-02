@@ -8,6 +8,7 @@ import {
   createOfflijn,
   deleteOfflijn,
   getArtikelScan,
+  getArtikelen,
   getBoxOverzicht,
   getKwaliteitscontroleQueue,
   getKwaliteitscontroleSession,
@@ -920,5 +921,36 @@ describe("offlijn CRUD", () => {
     expect(url).toContain("/offerte/123/1/lijn/20/reorder");
     expect(JSON.parse(init.body as string)).toEqual({ direction: "up" });
     expect(result).toEqual([{ offnr: 123, versie: 1, lijnnr: 10 }]);
+  });
+});
+
+describe("getArtikelen artnr/omschrijving filters", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("encodes spaces and % as %20/%25 (never '+') and skips blank filters", async () => {
+    const response = { items: [], page: 1, pageSize: 10, hasMore: false };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getArtikelen(1, 10, { geblokkeerd: false, artnr: " 100%.A B ", omschrijving: "   " });
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain("geblokkeerd=false");
+    expect(url).toContain("&artnr=100%25.A%20B");
+    expect(url).not.toContain("+");
+    expect(url).not.toContain("omschrijving");
+  });
+
+  it("appends a trimmed omschrijving filter", async () => {
+    const response = { items: [], page: 1, pageSize: 10, hasMore: false };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getArtikelen(1, 10, { omschrijving: " led strip " });
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain("&omschrijving=led%20strip");
   });
 });
