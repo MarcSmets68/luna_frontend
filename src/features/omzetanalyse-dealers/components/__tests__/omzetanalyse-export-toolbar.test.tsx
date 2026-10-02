@@ -17,6 +17,7 @@ vi.mock("jspdf", () => {
     getTextWidth = vi.fn(() => 10);
     addPage = mockAddPage;
     output = mockOutput;
+    internal = { pageSize: { getHeight: () => 210 } };
   }
   return { jsPDF: MockJsPdf };
 });

@@ -1,11 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import autoTable from "jspdf-autotable";
 import type { OmzetanalyseResponse } from "@/lib/api-client";
+import { drawNomaledHeader } from "@/lib/export/pdf-header";
 import {
   CSV_HEADERS,
   buildCsvContent,
   buildExportFileBaseName,
   buildPdfModel,
+  renderPdf,
 } from "../omzetanalyse-export";
+
+vi.mock("jspdf-autotable", () => ({ default: vi.fn() }));
+vi.mock("@/lib/export/pdf-header", async (orig) => ({
+  ...(await orig<typeof import("@/lib/export/pdf-header")>()),
+  drawNomaledHeader: vi.fn(),
+}));
 import {
   baseFilters,
   jarenResponse,
@@ -121,5 +130,131 @@ describe("buildPdfModel", () => {
     const artikel = m[0].tables[0].body[0];
     expect(artikel[2]).toBe("10,5\n+12,3 %");
     expect(artikel[3]).toBe("");
+  });
+
+  const withCategorie = (name: string): OmzetanalyseResponse => {
+    const s = sectie(1);
+    s.categorieen[0].categorie = name;
+    return { ...periodeResponse, secties: [s] };
+  };
+
+  it("uses the category name literally as table title", () => {
+    expect(buildPdfModel(withCategorie("Ledstrip"))[0].tables[0].title).toBe("Ledstrip");
+  });
+
+  it.each(["2D+", "1D", "3OL"])("keeps %s unchanged as title", (name) => {
+    expect(buildPdfModel(withCategorie(name))[0].tables[0].title).toBe(name);
+  });
+
+  it.each(["", "   ", "\u00A0\u00A0"])("gives null title for blank %j", (name) => {
+    expect(buildPdfModel(withCategorie(name))[0].tables[0].title).toBeNull();
+  });
+
+  it("sanitises nbsp, repeated whitespace and trims", () => {
+    expect(buildPdfModel(withCategorie("  2D\u00A0\u00A0Plus "))[0].tables[0].title).toBe("2D Plus");
+  });
+
+  it("titles every category table but not the omzet/meters tables", () => {
+    const s = sectie(1);
+    s.categorieen = [s.categorieen[0], { ...s.categorieen[0], categorie: "Cover" }];
+    const m = buildPdfModel({ ...periodeResponse, secties: [s] });
+    const t = m[0].tables;
+    expect(t).toHaveLength(4);
+    expect(t[0].title).toBe("Ledstrip");
+    expect(t[1].title).toBe("Cover");
+    expect(t[2].title).toBeUndefined();
+    expect(t[3].title).toBeUndefined();
+  });
+
+  it("keeps head/body of category tables intact", () => {
+    const t = buildPdfModel(withCategorie("Ledstrip"))[0].tables[0];
+    expect(t.head[0][0]).toBe("Artnr");
+    expect(t.body[0][0]).toBe("LS100...");
+  });
+
+  it("replaces a true minus sign (U+2212) with a hyphen, also when it is the whole name", () => {
+    expect(buildPdfModel(withCategorie("\u2212"))[0].tables[0].title).toBe("-");
+    expect(buildPdfModel(withCategorie("A\u2212B"))[0].tables[0].title).toBe("A-B");
+  });
+
+  it("replaces control characters with a single space and does not change case", () => {
+    expect(buildPdfModel(withCategorie("\u0000\tLed\u0085\nstrip\u007F"))[0].tables[0].title).toBe("Led strip");
+    expect(buildPdfModel(withCategorie("\u0001\u007F"))[0].tables[0].title).toBeNull();
+    expect(buildPdfModel(withCategorie("lEdStRiP"))[0].tables[0].title).toBe("lEdStRiP");
+  });
+
+  it("keeps duplicate category names as separate titled tables", () => {
+    const s = sectie(1);
+    s.categorieen = [s.categorieen[0], { ...s.categorieen[0] }];
+    const t = buildPdfModel({ ...periodeResponse, secties: [s] })[0].tables;
+    expect(t[0].title).toBe("Ledstrip");
+    expect(t[1].title).toBe("Ledstrip");
+  });
+
+  it("keeps the dealer heading with titles present", () => {
+    const m = buildPdfModel({
+      ...periodeResponse,
+      secties: [sectie(1, { dealerKlnr: 7, dealerNaam: "Acme" })],
+    });
+    expect(m[0].heading).toBe("Acme (7)");
+    expect(m[0].tables[0].title).toBe("Ledstrip");
+  });
+});
+
+describe("renderPdf – categorietitel", () => {
+  function fakeDoc() {
+    return {
+      setFont: vi.fn(),
+      setFontSize: vi.fn(),
+      setTextColor: vi.fn(),
+      text: vi.fn(),
+      addPage: vi.fn(),
+      internal: { pageSize: { getHeight: () => 210 } },
+    };
+  }
+  function resp(name: string): OmzetanalyseResponse {
+    const s = sectie(1);
+    s.categorieen[0].categorie = name;
+    return { ...periodeResponse, secties: [s] };
+  }
+  function run(startY: number, name: string) {
+    vi.mocked(drawNomaledHeader).mockReturnValue(startY);
+    vi.mocked(autoTable).mockClear();
+    const doc = fakeDoc();
+    renderPdf(doc as never, resp(name), new Date(2026, 0, 1));
+    return doc;
+  }
+
+  it("draws bold 11pt title before the first autoTable", () => {
+    const doc = run(50, "Ledstrip");
+    expect(doc.text).toHaveBeenCalledWith("Ledstrip", 15, 53);
+    expect(doc.setFont).toHaveBeenCalledWith("helvetica", "bold");
+    expect(doc.setFontSize).toHaveBeenCalledWith(11);
+    const textOrder = doc.text.mock.invocationCallOrder[0];
+    const tableOrder = vi.mocked(autoTable).mock.invocationCallOrder[0];
+    expect(textOrder).toBeLessThan(tableOrder);
+    expect(vi.mocked(autoTable).mock.calls[0][1].startY).toBe(56);
+  });
+
+  it("adds a page first when too close to the page bottom", () => {
+    const doc = run(170, "Ledstrip");
+    expect(doc.addPage).toHaveBeenCalledTimes(1);
+    expect(doc.text).toHaveBeenCalledWith("Ledstrip", 15, 23);
+    expect(doc.addPage.mock.invocationCallOrder[0]).toBeLessThan(doc.text.mock.invocationCallOrder[0]);
+  });
+
+  it("threshold boundary: y=165 fits (165+30 = 195 = 210-15), y=166 breaks", () => {
+    expect(run(165, "Ledstrip").addPage).not.toHaveBeenCalled();
+    expect(run(166, "Ledstrip").addPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not add a page when there is enough space", () => {
+    expect(run(50, "Ledstrip").addPage).not.toHaveBeenCalled();
+  });
+
+  it("draws no title and adds no page for an empty category name", () => {
+    const doc = run(170, "");
+    expect(doc.text).not.toHaveBeenCalled();
+    expect(doc.addPage).not.toHaveBeenCalled();
   });
 });
