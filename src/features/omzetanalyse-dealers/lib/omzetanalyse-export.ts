@@ -186,7 +186,19 @@ export function buildExportFileBaseName(now: Date = new Date()): string {
 
 export type PdfCell = string | { content: string; colSpan?: number; styles?: Record<string, unknown> };
 
-export type PdfTableModel = { head: PdfCell[][]; body: PdfCell[][] };
+export type PdfTableModel = { head: PdfCell[][]; body: PdfCell[][]; title?: string | null };
+
+/** Sanitises a category name for Helvetica (WinAnsi); no case/other transformation. */
+export function pdfTitle(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/\u00A0/g, " ")
+    .replace(/\u2212/g, "-")
+    .replace(/[\u0000-\u001F\u007F-\u009F]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned === "" ? null : cleaned;
+}
 
 export type PdfSectionModel = {
   heading: string | null;
@@ -268,7 +280,7 @@ function categorieTable(cat: OmzetCategorie, labels: string[], growth: boolean):
   ];
   body.push([{ content: "Omzet los / productie", colSpan: 2, styles: bold }, ...labels.flatMap((_, i) => omzetCells(cat.totalen[i]))]);
   body.push(span("Omzet totaal", (p) => [blankIfNull(formatMoney(p.omzetTotaal), p.omzetTotaal), p.groeiOmzetTotaal]));
-  return { head, body };
+  return { head, body, title: pdfTitle(cat.categorie) };
 }
 
 function omzetTable(sectie: OmzetSectie, labels: string[], growth: boolean): PdfTableModel {
@@ -335,6 +347,8 @@ export function buildPdfHeaderLines(response: OmzetanalyseResponse): string[] {
   return lines;
 }
 
+const MIN_SPACE_AFTER_TITLE_MM = 30;
+
 /** Renders the whole report into a landscape A4 jsPDF document. */
 export function renderPdf(doc: jsPDF, response: OmzetanalyseResponse, now: Date = new Date()): void {
   const marginLeft = 15;
@@ -369,6 +383,19 @@ export function renderPdf(doc: jsPDF, response: OmzetanalyseResponse, now: Date 
       y += 6;
     }
     for (const table of section.tables) {
+      if (table.title) {
+        // Avoid an orphaned title at the bottom of a page.
+        const pageH = doc.internal.pageSize.getHeight();
+        if (y + MIN_SPACE_AFTER_TITLE_MM > pageH - marginLeft) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(...NOMA_DARK_GREY);
+        doc.text(table.title, marginLeft, y + 3);
+        y += 6;
+      }
       autoTable(doc, {
         startY: y,
         head: table.head as never,
