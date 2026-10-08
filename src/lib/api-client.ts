@@ -318,7 +318,12 @@ type ArtikelenResponse = {
 export async function getArtikelen(
   page = 1,
   pageSize = 25,
-  options: { lageVoorraad?: boolean; geblokkeerd?: boolean } = {},
+  options: {
+    lageVoorraad?: boolean;
+    geblokkeerd?: boolean;
+    artnr?: string;
+    omschrijving?: string;
+  } = {},
 ): Promise<ArtikelenResponse> {
   const { lageVoorraad, geblokkeerd, artnr, omschrijving } = options;
   const query = new URLSearchParams();
