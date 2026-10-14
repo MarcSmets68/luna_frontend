@@ -1,34 +1,25 @@
 import { Suspense } from "react";
-import type { OmzetanalyseParams, SoortItem } from "@/lib/api-client";
-import {
-  OmzetanalyseFilterForm,
-  type OmzetanalyseFilterValues,
-} from "./omzetanalyse-filter-form";
+import type { OmzetanalyseParams } from "@/lib/api-client";
 import { OmzetanalyseResults, OmzetanalyseResultsSkeleton } from "./omzetanalyse-results";
 
+/**
+ * Fixed scope for this page: Nomaled dealers, per dealer, incl. zero-revenue
+ * dealers. Exported so the rapportage landing page can warm the fetch cache
+ * with the exact same request.
+ */
+export const OMZETANALYSE_PARAMS: OmzetanalyseParams = {
+  soort: "DNOM",
+  perDealer: true,
+  inclusiefZonderOmzet: true,
+};
+
 export function OmzetanalyseDealersPage({
-  soorten,
-  filters,
-  uitvoeren,
-  queryString,
   initialFocus,
   initialTab,
 }: {
-  soorten: SoortItem[];
-  filters: OmzetanalyseFilterValues;
-  uitvoeren: boolean;
-  queryString: string;
   initialFocus?: string;
   initialTab?: string;
 }) {
-  const params: OmzetanalyseParams = {
-    datumVan: filters.datumVan || undefined,
-    datumTot: filters.datumTot || undefined,
-    klnr: filters.klnr ?? undefined,
-    soort: filters.soort || undefined,
-    perDealer: filters.soort ? filters.perDealer : false,
-  };
-
   return (
     <div>
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
@@ -38,15 +29,9 @@ export function OmzetanalyseDealersPage({
         <h1 className="text-[26px] font-bold text-foreground">Omzetanalyse dealers</h1>
       </div>
 
-      <OmzetanalyseFilterForm soorten={soorten} initial={filters} />
-
-      {uitvoeren ? (
-        <Suspense key={queryString} fallback={<OmzetanalyseResultsSkeleton />}>
-          <OmzetanalyseResults params={params} initialFocus={initialFocus} initialTab={initialTab} />
-        </Suspense>
-      ) : (
-        <p className="text-sm text-muted-foreground">Kies filters en klik op Toon rapport</p>
-      )}
+      <Suspense fallback={<OmzetanalyseResultsSkeleton />}>
+        <OmzetanalyseResults params={OMZETANALYSE_PARAMS} initialFocus={initialFocus} initialTab={initialTab} />
+      </Suspense>
     </div>
   );
 }

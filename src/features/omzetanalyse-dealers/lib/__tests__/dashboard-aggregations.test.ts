@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { buildDashboardModel } from "../dashboard-model";
 import {
   activeDealerCount,
-  buildHeatScale,
   chronological,
   columnTotals,
   computeHero,
@@ -18,10 +17,13 @@ import {
   pickValue,
   productieAandeel,
   resolveFocusIndex,
+  selectDealers,
   shareSeries,
   sortDealers,
   topNShare,
   topProductieDealers,
+  uitvoeringDealerBreakdown,
+  uitvoeringRows,
 } from "../dashboard-aggregations";
 import {
   jarenResponse,
@@ -108,13 +110,17 @@ describe("dealer helpers", () => {
   it("filterDealers matches name case-insensitively and klnr", () => {
     expect(filterDealers(pd.dealers, "BETA").map((d) => d.klnr)).toEqual([102]);
     expect(filterDealers(pd.dealers, "103").map((d) => d.klnr)).toEqual([103]);
-    expect(filterDealers(pd.dealers, " ")).toHaveLength(3);
+    expect(filterDealers(pd.dealers, " ")).toHaveLength(4);
   });
 
-  it("dealersForTable drops zero-in-focus unless included", () => {
-    const o = { query: "", includeZeroInFocus: false };
-    expect(dealersForTable(pd.dealers, 0, "totaal", o).map((d) => d.klnr)).toEqual([101, 102]);
-    expect(dealersForTable(pd.dealers, 0, "totaal", { ...o, includeZeroInFocus: true })).toHaveLength(3);
+  it("dealersForTable hides dealers with zero omzet in every year unless included", () => {
+    const o = { query: "", includeZero: false };
+    // Gamma has no omzet in 2026 but does in earlier years -> stays visible.
+    expect(dealersForTable(pd.dealers, 0, "totaal", o).map((d) => d.klnr)).toEqual([101, 102, 103]);
+    expect(dealersForTable(pd.dealers, 0, "totaal", { ...o, includeZero: true }).map((d) => d.klnr)).toEqual([
+      101, 102, 103, 104,
+    ]);
+    expect(dealersForTable(pd.dealers, 0, "totaal", { query: "delta", includeZero: true })).toHaveLength(1);
   });
 
   it("sortDealers sorts without mutating and is stable on ties", () => {
@@ -125,8 +131,8 @@ describe("dealer helpers", () => {
     ];
     expect(sortDealers(tied, "focus", "desc", 0, "totaal").map((d) => d.klnr)).toEqual([1, 2, 3]);
     const before = pd.dealers.map((d) => d.klnr);
-    expect(sortDealers(pd.dealers, "naam", "desc", 0, "totaal").map((d) => d.klnr)).toEqual([103, 102, 101]);
-    expect(sortDealers(pd.dealers, "jaar:3", "asc", 0, "totaal").map((d) => d.klnr)).toEqual([101, 103, 102]);
+    expect(sortDealers(pd.dealers, "naam", "desc", 0, "totaal").map((d) => d.klnr)).toEqual([103, 104, 102, 101]);
+    expect(sortDealers(pd.dealers, "jaar:3", "asc", 0, "totaal").map((d) => d.klnr)).toEqual([101, 103, 104, 102]);
     expect(pd.dealers.map((d) => d.klnr)).toEqual(before);
   });
 
@@ -143,23 +149,6 @@ describe("dealer helpers", () => {
     expect(dealerRank(pd.dealers, 103, 0, "totaal")).toBeNull();
     expect(columnTotals(pd.dealers, "totaal", 5)).toEqual([4500, 4000, 2100, 300, 0]);
     expect(columnTotals(pd.dealers, "productie", 2)).toEqual([3000, 2100]);
-  });
-});
-
-describe("buildHeatScale", () => {
-  it("returns 0 for non-positive values", () => {
-    const s = buildHeatScale([0, 5, 10]);
-    expect(s(0)).toBe(0);
-    expect(s(-3)).toBe(0);
-  });
-  it("is percentile based so one outlier does not flatten the rest", () => {
-    const values = [...Array.from({ length: 99 }, (_, i) => i + 1), 1_000_000];
-    const s = buildHeatScale(values);
-    expect(s(1)).toBe(1);
-    expect(s(50)).toBe(3);
-    expect(s(100)).toBe(5);
-    expect(s(1_000_000)).toBe(5);
-    expect(new Set(values.map(s)).size).toBe(5);
   });
 });
 
@@ -187,6 +176,78 @@ describe("computeMovers", () => {
   });
 });
 
+describe("selectDealers", () => {
+  it("returns the same model when the selection is empty or complete", () => {
+    expect(selectDealers(pd, new Set())).toBe(pd);
+    expect(selectDealers(pd, new Set([101, 102, 103, 104]))).toBe(pd);
+  });
+
+  it("narrows dealers, totals, groepen and artikelen to the picked subset", () => {
+    const v = selectDealers(pd, new Set([101]));
+    expect(v.dealers.map((d) => d.klnr)).toEqual([101]);
+    expect(v.totaal[0]).toMatchObject({ los: 1000, productie: 3000, totaal: 4000 });
+    expect(v.totaalGroei).toBeNull();
+    // only Alfa's quantities remain in the report-wide lists
+    expect(v.groepen).toHaveLength(1);
+    expect(v.artikelen.every((a) => a.los[0] === 10.5)).toBe(true);
+  });
+});
+
+describe("uitvoeringen", () => {
+  it("uitvoeringRows falls back to artnr when omschrijving is missing", () => {
+    const rows = uitvoeringRows(pd, "m", 0, { query: "" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].label).toBe("LS100");
+    expect(rows[0].prefix).toBe(true);
+    // 3 dealers with artikelen x 10.5m in the focus year
+    expect(rows[0].los + rows[0].productie).toBeCloseTo(31.5);
+  });
+
+  it("uitvoeringRows groups artikelen with the same omschrijving across categories", () => {
+    const m = {
+      ...pd,
+      artikelen: [
+        {
+          artnr: "A1",
+          omschrijving: "Profiel",
+          swBegins: false,
+          categorie: "C1",
+          eenheid: "m" as const,
+          los: [5, 0],
+          productie: [0, 0],
+        },
+        {
+          artnr: "A2",
+          omschrijving: "Profiel",
+          swBegins: false,
+          categorie: "C2",
+          eenheid: "m" as const,
+          los: [7, 0],
+          productie: [0, 0],
+        },
+        {
+          artnr: "B1",
+          omschrijving: "Kap",
+          swBegins: false,
+          categorie: "C1",
+          eenheid: "m" as const,
+          los: [1, 0],
+          productie: [0, 0],
+        },
+      ],
+    };
+    const rows = uitvoeringRows(m, "m", 0, { query: "" });
+    expect(rows.map((r) => r.label)).toEqual(["Profiel", "Kap"]);
+    expect(rows[0].los).toBe(12);
+  });
+
+  it("uitvoeringDealerBreakdown ranks dealers on the uitvoering quantity", () => {
+    const b = uitvoeringDealerBreakdown(pd, "LS100", "m", 0);
+    expect(b.shown.map((d) => d.klnr)).toEqual([101, 102, 103]);
+    expect(b.rest).toBe(0);
+  });
+});
+
 describe("share / mix / detail", () => {
   it("shareSeries is chronological and JAREN-only", () => {
     const s = shareSeries(pd);
@@ -196,10 +257,11 @@ describe("share / mix / detail", () => {
     expect(shareSeries(buildDashboardModel(perDealerPeriodeResponse))).toEqual([]);
   });
 
-  it("topProductieDealers", () => {
+  it("topProductieDealers ranks on productie omzet, share is of own omzet", () => {
     const t = topProductieDealers(pd.dealers, 1, 6);
     expect(t.map((x) => x.klnr)).toEqual([101, 102]);
-    expect(t[0].share).toBeCloseTo(2000 / 2100);
+    // Alfa: 2000 productie of 2800 eigen omzet
+    expect(t[0].share).toBeCloseTo(2000 / 2800);
   });
 
   it("mixRows keeps units separate", () => {

@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { chronological, dealerDetail } from "../../lib/dashboard-aggregations";
 import type { DashboardModel, OmzetType } from "../../lib/dashboard-types";
 import { formatInteger, formatQty } from "../../lib/omzetanalyse-format";
+import { BarRow } from "./bar-row";
 import { StackedColumns } from "./evolution-chart";
 
 export function DealerDrawer({
@@ -13,12 +14,15 @@ export function DealerDrawer({
   focusIdx,
   type,
   onClose,
+  onFocusChange,
 }: {
   model: DashboardModel;
   klnr: number | null;
   focusIdx: number;
   type: OmzetType;
   onClose: () => void;
+  /** clicking a year in the mini chart refocuses the dashboard */
+  onFocusChange?: (idx: number) => void;
 }) {
   const detail = useMemo(
     () => (klnr === null ? null : dealerDetail(model, klnr, focusIdx, type)),
@@ -27,6 +31,7 @@ export function DealerDrawer({
   const dealer = model.dealers.find((d) => d.klnr === klnr);
   const years = chronological(model.jaren.map((j, idx) => ({ ...j, idx })));
   const heading = "text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase";
+  const maxGroep = Math.max(1, ...(detail?.topGroepen.map((g) => g.qty) ?? [1]));
 
   return (
     <Sheet open={klnr !== null} onOpenChange={(open) => !open && onClose()}>
@@ -37,7 +42,7 @@ export function DealerDrawer({
               <SheetTitle>{dealer.naam}</SheetTitle>
               <SheetDescription>
                 {detail.rank !== null
-                  ? `#${detail.rank} van ${detail.ofTotal}`
+                  ? `#${detail.rank} van ${detail.ofTotal} dealers met omzet`
                   : `Geen omzet in ${model.jaren[focusIdx]?.label ?? ""}`}
               </SheetDescription>
             </SheetHeader>
@@ -50,27 +55,38 @@ export function DealerDrawer({
               ))}
             </div>
             {model.modus === "JAREN" && (
-              <StackedColumns
-                compact
-                jaren={model.jaren}
-                values={detail.perJaar}
-                focusIdx={focusIdx}
-                type={type}
-                ariaLabel={`Omzet per jaar voor ${dealer.naam}`}
-              />
+              <div>
+                <h4 className={heading}>Omzet per jaar - klik om te focussen</h4>
+                <StackedColumns
+                  compact
+                  jaren={model.jaren}
+                  values={detail.perJaar}
+                  focusIdx={focusIdx}
+                  type={type}
+                  onSelect={onFocusChange}
+                  ariaLabel={`Omzet per jaar voor ${dealer.naam}`}
+                />
+              </div>
             )}
             <div>
               <h4 className={heading}>Top productgroepen</h4>
               {detail.topGroepen.length === 0 ? (
                 <p className="mt-1 text-[13px] text-muted-foreground">Geen hoeveelheden.</p>
               ) : (
-                <ul className="mt-1 space-y-0.5 text-[13px]">
+                <ul className="mt-1">
                   {detail.topGroepen.map((g) => (
-                    <li key={`${g.categorie}-${g.unit}`} className="flex justify-between">
-                      <span>{g.categorie}</span>
-                      <span>
-                        {formatQty(g.qty)} {g.unit}
-                      </span>
+                    <li key={`${g.categorie}-${g.unit}`}>
+                      <BarRow
+                        name={g.categorie}
+                        value={g.qty}
+                        max={maxGroep}
+                        color="var(--chart-1)"
+                        sub={
+                          <>
+                            {formatQty(g.qty)} {g.unit}
+                          </>
+                        }
+                      />
                     </li>
                   ))}
                 </ul>
@@ -89,8 +105,11 @@ export function DealerDrawer({
                 </thead>
                 <tbody>
                   {years.map((y) => (
-                    <tr key={y.key}>
-                      <td>{y.label}</td>
+                    <tr key={y.key} className={y.idx === focusIdx ? "font-semibold" : undefined}>
+                      <td>
+                        {y.label}
+                        {y.isYtd && <span className="ml-1 text-[10px] text-muted-foreground">(lopend)</span>}
+                      </td>
                       <td className="text-right">{formatQty(detail.ledstrip[y.idx] ?? 0)}</td>
                       <td className="text-right">{formatQty(detail.cover[y.idx] ?? 0)}</td>
                       <td className="text-right">{formatInteger(detail.orders[y.idx] ?? 0)}</td>

@@ -1836,6 +1836,9 @@ export type OmzetPeriode = {
 
 export type OmzetRij = {
   artnr: string;
+  /** artikel.omschr-n for exact-match rows; absent/null on older backends and
+      for swBegins prefix rows and the Nomacurve spec. */
+  omschrijving?: string | null;
   swBegins: boolean;
   eenheid: "m" | "st" | null;
   perioden: OmzetPeriode[];
@@ -1867,6 +1870,8 @@ export type OmzetanalyseFilters = {
   soortOmschr: string | null;
   perDealer: boolean;
   leegRijen: boolean;
+  /** Absent on backends predating the dashboard-gaps branch. */
+  inclusiefZonderOmzet?: boolean;
 };
 
 export type OmzetanalyseResponse = {
@@ -1885,20 +1890,27 @@ export type OmzetanalyseParams = {
   klnr?: number;
   soort?: string;
   perDealer?: boolean;
+  inclusiefZonderOmzet?: boolean;
 };
 
 /**
  * Omzetanalyse dealers (Rapportage). Optional filters are omitted when
  * empty. `leegRijen` is derived: always `false` in per-dealer mode, else
- * `true`. Cached for 60s (`next.revalidate`, same precedent as
- * getDashboard) because this can be a heavy query.
+ * `true`. Cached for 5min (`next.revalidate`): the backend query takes
+ * ~20s, and the analysis only changes when orders are booked - repeat
+ * visits should be instant. The rapportage landing page warms this cache.
  * Backend: GET /web/rapportage/omzetanalyse-dealers.
  */
 export async function getOmzetanalyseDealers(
   params: OmzetanalyseParams = {}
 ): Promise<OmzetanalyseResponse> {
-  const { datumVan, datumTot, klnr, soort, perDealer = false } = params;
+  const { datumVan, datumTot, klnr, soort, perDealer = false, inclusiefZonderOmzet = false } = params;
   const query = new URLSearchParams();
+  // Backwards compatibility: the backend query parser only treats "&" as a
+  // separator when followed by a KNOWN param name (QueryParamHelper anchors).
+  // Backends predating inclusiefZonderOmzet would otherwise glue it onto the
+  // previous value and return 400 - as the FIRST param it is simply ignored.
+  if (inclusiefZonderOmzet) query.set("inclusiefZonderOmzet", "true");
   if (datumVan) query.set("datumVan", datumVan);
   if (datumTot) query.set("datumTot", datumTot);
   if (klnr !== undefined) query.set("klnr", String(klnr));
@@ -1910,7 +1922,7 @@ export async function getOmzetanalyseDealers(
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
-    next: { revalidate: 60 },
+    next: { revalidate: 300 },
   });
 
   if (!response.ok) {

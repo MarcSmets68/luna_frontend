@@ -46,7 +46,9 @@ describe("buildDashboardModel", () => {
     const m = buildDashboardModel(perDealerJarenResponse);
     expect(m.perDealer).toBe(true);
     expect(m.perDealerHint).toBe("ok");
-    expect(m.dealers).toHaveLength(3);
+    expect(m.dealers).toHaveLength(4);
+    // seeded zero-omzet dealer contributes nothing to the totals
+    expect(m.dealers[3]).toMatchObject({ klnr: 104, naam: "Delta Leegganger", groepen: [], artikelen: [] });
     expect(m.totaal[0].totaal).toBe(4500);
     expect(m.totaal[1].productie).toBe(2100);
     expect(m.totaal[0].orders).toBe(9); // additive across dealers

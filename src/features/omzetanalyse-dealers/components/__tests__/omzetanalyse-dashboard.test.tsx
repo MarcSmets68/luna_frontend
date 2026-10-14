@@ -42,7 +42,9 @@ describe("OmzetanalyseTabs", () => {
 describe("HeroKpis", () => {
   it("shows value, delta, kpis and the caveat footnote", () => {
     const hero = computeHero(pd, 1, "totaal");
-    render(<HeroKpis hero={hero} type="totaal" focusLabel="2025" isYtd={false} />);
+    render(
+      <HeroKpis model={pd} hero={hero} type="totaal" focusLabel="2025" isYtd={false} who="alle 4 dealers" />
+    );
     expect(screen.getByTestId("hero-value").textContent).toContain("4.000");
     expect(screen.getByTestId("hero-delta").textContent).toContain("2024");
     expect(screen.getAllByTestId("hero-kpi")).toHaveLength(4);
@@ -53,16 +55,18 @@ describe("HeroKpis", () => {
 describe("DealersTable", () => {
   const rows = () => screen.getAllByTestId("dealer-row").map((r) => within(r).getAllByRole("button")[0].textContent);
 
-  it("hides dealers without focus omzet, toggles them in, searches and sorts", async () => {
+  it("hides dealers with zero omzet everywhere, toggles them in, searches and sorts", async () => {
     const user = userEvent.setup();
     render(<DealersTable model={pd} focusIdx={0} type="totaal" onSelect={() => {}} />);
-    expect(rows()).toEqual(["Alfa Licht", "Beta Verlichting"]);
+    // Gamma has omzet in earlier years; only Delta (zero everywhere) is hidden.
+    expect(rows()).toEqual(["Alfa Licht", "Beta Verlichting", "Gamma Zonder Omzet Nu"]);
+    expect(screen.getByText(/Verborgen: 1 dealer zonder omzet/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("checkbox"));
-    expect(rows()).toHaveLength(3);
+    expect(rows()).toHaveLength(4);
 
     await user.click(screen.getByRole("button", { name: /^Dealer/ }));
-    expect(rows()).toEqual(["Alfa Licht", "Beta Verlichting", "Gamma Zonder Omzet Nu"]);
+    expect(rows()).toEqual(["Alfa Licht", "Beta Verlichting", "Delta Leegganger", "Gamma Zonder Omzet Nu"]);
     await user.click(screen.getByRole("button", { name: /^Dealer/ }));
     expect(rows()[0]).toBe("Gamma Zonder Omzet Nu");
 
@@ -80,7 +84,7 @@ describe("DealersTable", () => {
 
   it("shows a notice instead of the table without per-dealer data", () => {
     render(<DealersTable model={buildDashboardModel(jarenResponse)} focusIdx={0} type="totaal" onSelect={() => {}} />);
-    expect(screen.getByTestId("section-notice").textContent).toContain("Kies een klantsoort");
+    expect(screen.getByTestId("section-notice").textContent).toContain("Geen per-dealer data");
     expect(screen.queryByTestId("dealers-table")).not.toBeInTheDocument();
   });
 
@@ -95,14 +99,27 @@ describe("OmzetanalyseDashboard", () => {
   it("renders sections for per-dealer data and opens the drawer on row click", async () => {
     const user = userEvent.setup();
     render(<OmzetanalyseDashboard model={pd} initialFocus="2025" />);
-    expect(screen.getByText("Omzetevolutie")).toBeInTheDocument();
-    expect(screen.getByText("Hoeveelheid (LED / niet-LED)")).toBeInTheDocument();
+    expect(screen.getByText("Zo evolueert de omzet")).toBeInTheDocument();
+    expect(screen.getByText("Wat er verkoopt")).toBeInTheDocument();
     const chips = within(screen.getByRole("group", { name: "Focusjaar" }));
     expect(chips.getByRole("button", { name: /^2025/ })).toHaveAttribute("aria-pressed", "true");
     await user.click(chips.getByRole("button", { name: /^2024/ }));
     expect(window.location.search).toContain("focus=2024");
     await user.click(screen.getAllByTestId("dealer-row")[0]);
-    expect(await screen.findByText(/^#\d+ van \d+$/)).toBeInTheDocument();
+    expect(await screen.findByText(/^#\d+ van \d+ dealers met omzet$/)).toBeInTheDocument();
+  });
+
+  it("filters the whole dashboard on a dealer selection", async () => {
+    const user = userEvent.setup();
+    render(<OmzetanalyseDashboard model={pd} initialFocus="2025" />);
+    await user.click(screen.getByRole("button", { name: /^Alle dealers \(/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Alfa Licht/ }));
+    // the picker trigger and the remaining table row both carry the name
+    expect(screen.getAllByRole("button", { name: "Alfa Licht" }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByTestId("dealer-row")).toHaveLength(1);
+    expect(screen.getByText("Wis filters")).toBeInTheDocument();
+    await user.click(screen.getByText("Wis filters"));
+    expect(screen.getAllByTestId("dealer-row").length).toBeGreaterThan(1);
   });
 
   it("PERIODE mode hides the evolution chart behind a notice", () => {

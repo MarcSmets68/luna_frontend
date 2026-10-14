@@ -95,7 +95,7 @@ function sectieGroepen(s: OmzetSectie, colCount: number): DashGroep[] {
   }));
 }
 
-function mergeGroepen(lists: DashGroep[][], colCount: number): DashGroep[] {
+export function mergeGroepen(lists: DashGroep[][], colCount: number): DashGroep[] {
   const map = new Map<string, DashGroep>();
   for (const list of lists) {
     for (const g of list) {
@@ -112,6 +112,56 @@ function mergeGroepen(lists: DashGroep[][], colCount: number): DashGroep[] {
     }
   }
   return [...map.values()];
+}
+
+/**
+ * Per-article quantities of one section, merged by categorie + artnr
+ * (newest first). The same helper feeds both the per-dealer model and the
+ * report-wide aggregate (mergeArtikelen over all sections).
+ */
+function sectieArtikelen(s: OmzetSectie, colCount: number): DashArtikel[] {
+  const map = new Map<string, DashArtikel>();
+  for (const c of s.categorieen) {
+    const catUnit: QtyUnit | null = c.rijen.find((x) => x.eenheid !== null)?.eenheid ?? null;
+    for (const rij of c.rijen) {
+      const eenheid = rij.eenheid ?? (c.gemengdeEenheden ? null : catUnit);
+      const key = `${c.categorie}\u0000${rij.artnr}`;
+      const a = map.get(key) ?? {
+        artnr: rij.artnr,
+        omschrijving: rij.omschrijving ?? null,
+        swBegins: rij.swBegins,
+        categorie: c.categorie,
+        eenheid,
+        los: new Array<number>(colCount).fill(0),
+        productie: new Array<number>(colCount).fill(0),
+      };
+      map.set(key, a);
+      for (let i = 0; i < colCount; i++) {
+        a.los[i] += n(rij.perioden[i]?.qtyLos);
+        a.productie[i] += n(rij.perioden[i]?.qtyProductie);
+      }
+    }
+  }
+  return [...map.values()];
+}
+
+/** Merge per-section article lists into one report-wide list (additive). */
+export function mergeArtikelen(lists: DashArtikel[][]): DashArtikel[] {
+  const map = new Map<string, Map<string, DashArtikel>>();
+  for (const list of lists) {
+    for (const a of list) {
+      let inner = map.get(a.categorie);
+      if (!inner) map.set(a.categorie, (inner = new Map()));
+      const target = inner.get(a.artnr);
+      if (!target) {
+        inner.set(a.artnr, { ...a, los: [...a.los], productie: [...a.productie] });
+        continue;
+      }
+      addInto(target.los, a.los);
+      addInto(target.productie, a.productie);
+    }
+  }
+  return [...map.values()].flatMap((inner) => [...inner.values()]);
 }
 
 function growthFrom(p: OmzetPeriode | undefined): Growth {
@@ -156,16 +206,20 @@ export function buildDashboardModel(r: OmzetanalyseResponse): DashboardModel {
     addInto(cover, pad(s.meters.coverLicht, colCount));
   }
 
+  const sectieArts = r.secties.map((s) => sectieArtikelen(s, colCount));
+
   const dealers: DashDealer[] = perDealer
     ? r.secties
-        .filter((s) => s.dealerKlnr !== null)
-        .map((s) => ({
-          klnr: s.dealerKlnr as number,
-          naam: s.dealerNaam ?? String(s.dealerKlnr),
-          perJaar: Array.from({ length: colCount }, (_, i) => periodeToYearValues(s.omzet[i])),
-          ledstrip: pad(s.meters.ledstripNomatrack, colCount),
-          cover: pad(s.meters.coverLicht, colCount),
-          groepen: sectieGroepen(s, colCount),
+        .map((s, i) => ({ s, artikelen: sectieArts[i] }))
+        .filter((x) => x.s.dealerKlnr !== null)
+        .map((x) => ({
+          klnr: x.s.dealerKlnr as number,
+          naam: x.s.dealerNaam ?? String(x.s.dealerKlnr),
+          perJaar: Array.from({ length: colCount }, (_, i) => periodeToYearValues(x.s.omzet[i])),
+          ledstrip: pad(x.s.meters.ledstripNomatrack, colCount),
+          cover: pad(x.s.meters.coverLicht, colCount),
+          groepen: sectieGroepen(x.s, colCount),
+          artikelen: x.artikelen,
         }))
     : [];
 
@@ -174,30 +228,8 @@ export function buildDashboardModel(r: OmzetanalyseResponse): DashboardModel {
     colCount
   );
 
-  // Articles merged by artnr + categorie (summed across dealers).
-  const artMap = new Map<string, DashArtikel>();
-  for (const s of r.secties) {
-    for (const c of s.categorieen) {
-      const catUnit: QtyUnit | null = c.rijen.find((x) => x.eenheid !== null)?.eenheid ?? null;
-      for (const rij of c.rijen) {
-        const eenheid = rij.eenheid ?? (c.gemengdeEenheden ? null : catUnit);
-        const key = `${c.categorie}\u0000${rij.artnr}`;
-        const a = artMap.get(key) ?? {
-          artnr: rij.artnr,
-          swBegins: rij.swBegins,
-          categorie: c.categorie,
-          eenheid,
-          los: new Array<number>(colCount).fill(0),
-          productie: new Array<number>(colCount).fill(0),
-        };
-        artMap.set(key, a);
-        for (let i = 0; i < colCount; i++) {
-          a.los[i] += n(rij.perioden[i]?.qtyLos);
-          a.productie[i] += n(rij.perioden[i]?.qtyProductie);
-        }
-      }
-    }
-  }
+  // Articles merged by categorie + artnr (summed across dealers/sections).
+  const artikelen = mergeArtikelen(sectieArts);
 
   const totaalGroei: DashboardModel["totaalGroei"] =
     r.modus === "PERIODE" || r.secties.length === 0 || perDealer
@@ -214,7 +246,7 @@ export function buildDashboardModel(r: OmzetanalyseResponse): DashboardModel {
     meters: { ledstrip, cover },
     dealers,
     groepen,
-    artikelen: [...artMap.values()],
+    artikelen,
     generatedAt: r.generatedAt,
     filters: r.filters,
   };

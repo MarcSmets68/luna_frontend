@@ -1,5 +1,7 @@
-import { formatInteger, formatQty } from "./omzetanalyse-format";
+import { DASH, formatGrowth, formatInteger, formatQty } from "./omzetanalyse-format";
+import { mergeArtikelen, mergeGroepen } from "./dashboard-model";
 import type {
+  DashArtikel,
   DashDealer,
   DashboardModel,
   OmzetType,
@@ -182,15 +184,64 @@ export function sortDealers(
   });
 }
 
+/** Dealer has omzet in at least one column (for the chosen omzet type). */
+export function dealerHasAnyOmzet(d: DashDealer, type: OmzetType): boolean {
+  return d.perJaar.some((y) => pickValue(y, type) !== 0);
+}
+
 export function dealersForTable(
   d: DashDealer[],
   focusIdx: number,
   type: OmzetType,
-  opts: { query: string; includeZeroInFocus: boolean }
+  opts: { query: string; includeZero: boolean }
 ): DashDealer[] {
   const filtered = filterDealers(d, opts.query);
-  if (opts.includeZeroInFocus) return filtered;
-  return filtered.filter((x) => x.perJaar[focusIdx] && pickValue(x.perJaar[focusIdx], type) > 0);
+  if (opts.includeZero) return filtered;
+  return filtered.filter((x) => dealerHasAnyOmzet(x, type));
+}
+
+/**
+ * Client-side dealer selection: narrows the whole model to the picked dealers
+ * so every section (hero, chart, movers, share, mix) reflects the subset.
+ * Empty set = all dealers. Growth is only available unfiltered.
+ */
+export function selectDealers(m: DashboardModel, selected: ReadonlySet<number>): DashboardModel {
+  if (selected.size === 0) return m;
+  const dealers = m.dealers.filter((d) => selected.has(d.klnr));
+  if (dealers.length === m.dealers.length) return m;
+  const n = m.jaren.length;
+  const totaal: YearValues[] = Array.from({ length: n }, () => ({
+    los: 0,
+    productie: 0,
+    totaal: 0,
+    orders: 0,
+  }));
+  const ledstrip = new Array<number>(n).fill(0);
+  const cover = new Array<number>(n).fill(0);
+  for (const d of dealers) {
+    for (let i = 0; i < n; i++) {
+      const y = d.perJaar[i];
+      if (!y) continue;
+      totaal[i].los += y.los;
+      totaal[i].productie += y.productie;
+      totaal[i].totaal += y.totaal;
+      totaal[i].orders += y.orders;
+      ledstrip[i] += d.ledstrip[i] ?? 0;
+      cover[i] += d.cover[i] ?? 0;
+    }
+  }
+  return {
+    ...m,
+    dealers,
+    totaal,
+    totaalGroei: null,
+    meters: { ledstrip, cover },
+    groepen: mergeGroepen(
+      dealers.map((d) => d.groepen),
+      n
+    ),
+    artikelen: mergeArtikelen(dealers.map((d) => d.artikelen)),
+  };
 }
 
 export function dealerRank(
@@ -212,23 +263,6 @@ export function columnTotals(d: DashDealer[], type: OmzetType, colCount: number)
   return Array.from({ length: colCount }, (_, i) =>
     d.reduce((s, x) => s + (x.perJaar[i] ? pickValue(x.perJaar[i], type) : 0), 0)
   );
-}
-
-/** Percentile-rank heat level (0 = no value, 1..5) over all positive values. */
-export function buildHeatScale(values: number[]): (v: number) => 0 | 1 | 2 | 3 | 4 | 5 {
-  const sorted = values.filter((v) => v > 0).sort((a, b) => a - b);
-  return (v) => {
-    if (!(v > 0) || sorted.length === 0) return 0;
-    let lo = 0;
-    let hi = sorted.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (sorted[mid] < v) lo = mid + 1;
-      else hi = mid;
-    }
-    const rank = lo / sorted.length;
-    return Math.min(5, 1 + Math.floor(rank * 5)) as 1 | 2 | 3 | 4 | 5;
-  };
 }
 
 export type Mover = {
@@ -293,13 +327,16 @@ export function topProductieDealers(
   idx: number,
   n: number
 ): { klnr: number; naam: string; productie: number; share: number | null }[] {
-  const total = d.reduce((s, x) => s + (x.perJaar[idx]?.productie ?? 0), 0);
   return d
-    .map((x) => ({ klnr: x.klnr, naam: x.naam, productie: x.perJaar[idx]?.productie ?? 0 }))
+    .map((x) => {
+      const y = x.perJaar[idx];
+      const productie = y?.productie ?? 0;
+      const tot = y ? y.los + y.productie : 0;
+      return { klnr: x.klnr, naam: x.naam, productie, share: tot > 0 ? productie / tot : null };
+    })
     .filter((x) => x.productie > 0)
     .sort((a, b) => b.productie - a.productie)
-    .slice(0, n)
-    .map((x) => ({ ...x, share: total > 0 ? x.productie / total : null }));
+    .slice(0, n);
 }
 
 export type MixRow = {
@@ -373,26 +410,81 @@ export function groepDealerBreakdown(
   return { shown: list.slice(0, 6), rest: Math.max(0, list.length - 6) };
 }
 
-export function artikelRows(
+/** Display label for one uitvoering: description when available, else artnr. */
+export function uitvoeringLabel(a: DashArtikel): string {
+  return a.omschrijving || a.artnr;
+}
+
+export type UitvoeringRow = {
+  label: string;
+  /** SwBegins prefix rows have no omschrijving - mark them like the artikel view. */
+  prefix: boolean;
+  los: number;
+  productie: number;
+  spark: number[];
+};
+
+/**
+ * "Uitvoeringen" view of the product mix: articles grouped by their
+ * omschrijving (falling back to artnr for prefix rows), summed across
+ * categories - one row per uitvoering, like the reference page.
+ */
+export function uitvoeringRows(
   m: DashboardModel,
   unit: QtyUnit,
   idx: number,
   opts: { query: string }
-): { artnr: string; swBegins: boolean; categorie: string; los: number; productie: number; spark: number[] }[] {
+): UitvoeringRow[] {
   const q = opts.query.trim().toLowerCase();
-  return m.artikelen
-    .filter((a) => a.eenheid === unit)
-    .filter((a) => sumArr(a.los) + sumArr(a.productie) > 0)
-    .filter((a) => !q || a.artnr.toLowerCase().includes(q) || a.categorie.toLowerCase().includes(q))
-    .map((a) => ({
-      artnr: a.artnr,
-      swBegins: a.swBegins,
-      categorie: a.categorie,
-      los: a.los[idx] ?? 0,
-      productie: a.productie[idx] ?? 0,
-      spark: chronological(a.los.map((v, i) => v + (a.productie[i] ?? 0))),
+  const map = new Map<string, { prefix: boolean; los: number[]; productie: number[] }>();
+  for (const a of m.artikelen) {
+    if (a.eenheid !== unit) continue;
+    if (sumArr(a.los) + sumArr(a.productie) <= 0) continue;
+    const label = uitvoeringLabel(a);
+    if (q && !label.toLowerCase().includes(q) && !a.artnr.toLowerCase().includes(q)) continue;
+    let it = map.get(label);
+    if (!it) {
+      it = {
+        prefix: a.swBegins,
+        los: new Array<number>(a.los.length).fill(0),
+        productie: new Array<number>(a.productie.length).fill(0),
+      };
+      map.set(label, it);
+    }
+    it.prefix = it.prefix && a.swBegins;
+    a.los.forEach((v, i) => (it.los[i] += v));
+    a.productie.forEach((v, i) => (it.productie[i] += v));
+  }
+  return [...map.entries()]
+    .map(([label, it]) => ({
+      label,
+      prefix: it.prefix,
+      los: it.los[idx] ?? 0,
+      productie: it.productie[idx] ?? 0,
+      spark: chronological(it.los.map((v, i) => v + (it.productie[i] ?? 0))),
     }))
     .sort((a, b) => b.los + b.productie - (a.los + a.productie));
+}
+
+/** Which dealers buy one uitvoering (by label), descending on quantity. */
+export function uitvoeringDealerBreakdown(
+  m: DashboardModel,
+  label: string,
+  unit: QtyUnit,
+  idx: number
+): { shown: { klnr: number; naam: string; qty: number }[]; rest: number } {
+  const list = m.dealers
+    .map((d) => {
+      let qty = 0;
+      for (const a of d.artikelen) {
+        if (a.eenheid !== unit || uitvoeringLabel(a) !== label) continue;
+        qty += (a.los[idx] ?? 0) + (a.productie[idx] ?? 0);
+      }
+      return { klnr: d.klnr, naam: d.naam, qty };
+    })
+    .filter((x) => x.qty > 0)
+    .sort((a, b) => b.qty - a.qty);
+  return { shown: list.slice(0, 6), rest: Math.max(0, list.length - 6) };
 }
 
 export type DealerDetail = {
@@ -415,8 +507,10 @@ export function dealerDetail(
   const d = m.dealers.find((x) => x.klnr === klnr);
   if (!d) return null;
   const cur = d.perJaar[focusIdx];
+  const prev = d.perJaar[focusIdx + 1];
   const value = cur ? pickValue(cur, type) : 0;
-  const total = m.totaal[focusIdx] ? pickValue(m.totaal[focusIdx], type) : 0;
+  const prevValue = prev ? pickValue(prev, type) : 0;
+  const delta = prev ? deltaPct(value, prevValue) : null;
   const topGroepen: DealerDetail["topGroepen"] = [];
   for (const g of d.groepen) {
     for (const unit of Object.keys(g.perEenheid) as QtyUnit[]) {
@@ -431,7 +525,11 @@ export function dealerDetail(
     ofTotal: activeDealerCount(m.dealers, focusIdx, type),
     kpis: [
       { key: "omzet", label: "Omzet", value: euro(value) },
-      { key: "aandeel", label: "Aandeel in totaal", value: formatPct(total > 0 ? value / total : null) },
+      {
+        key: "delta",
+        label: prev ? `t.o.v. ${m.jaren[focusIdx + 1]?.label ?? "vorig jaar"}` : "t.o.v. vorig jaar",
+        value: delta !== null ? formatGrowth(delta) : value > 0 ? "nieuw" : DASH,
+      },
       { key: "productie", label: "Productie-aandeel", value: formatPct(cur ? productieAandeel(cur) : null) },
     ],
     perJaar: d.perJaar,
