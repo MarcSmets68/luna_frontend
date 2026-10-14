@@ -3,16 +3,23 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BonDetailPage } from "../bon-detail-page";
-import type { BonItem, BonLijnItem } from "@/lib/api-client";
+import { formatBedrag } from "@/lib/format";
+import { ApiError, type BonItem, type BonLijnItem } from "@/lib/api-client";
 
 const pushMock = vi.fn();
 const refreshMock = vi.fn();
 const updateBonMock = vi.fn();
+const annuleerBonMock = vi.fn();
+const getBonMock = vi.fn();
+const getBonLijnenMock = vi.fn();
 vi.mock("@/lib/api-client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
   return {
     ...actual,
     updateBon: (...args: unknown[]) => updateBonMock(...args),
+    annuleerBon: (...args: unknown[]) => annuleerBonMock(...args),
+    getBon: (...args: unknown[]) => getBonMock(...args),
+    getBonLijnen: (...args: unknown[]) => getBonLijnenMock(...args),
   };
 });
 
@@ -48,6 +55,9 @@ beforeEach(() => {
   pushMock.mockReset();
   refreshMock.mockReset();
   updateBonMock.mockReset();
+  annuleerBonMock.mockReset();
+  getBonMock.mockReset();
+  getBonLijnenMock.mockReset();
 });
 
 const mockBon: BonItem = {
@@ -623,4 +633,190 @@ describe("BonDetailPage", () => {
       );
     });
   });
+
+  describe("annuleer order", () => {
+    const bonV: BonItem = { ...mockBon, stempel: "V" };
+    const annuleerKnop = () =>
+      screen.getByRole("button", { name: "Annuleer order", hidden: true });
+
+    async function cancelVia(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(annuleerKnop());
+      const dialog = await screen.findByRole("dialog");
+      const confirm = Array.from(dialog.querySelectorAll("button")).find(
+        (b) => b.textContent === "Order annuleren"
+      ) as HTMLButtonElement;
+      await user.click(confirm);
+    }
+
+    it.each([
+      ["V", "In verwerking"],
+      ["B", "Besteld"],
+      ["D", "Afgeleverd"],
+      ["O", "Open"],
+    ])("shows the badge for stempel %s as %s", async (stempel, label) => {
+      stubFetch();
+      render(<BonDetailPage bon={{ ...mockBon, stempel }} lijnen={mockLijnen} />);
+      await flush();
+      expect(document.querySelector(`[data-stempel="${stempel}"]`)).toHaveTextContent(label);
+    });
+
+    it("enables the button for V", async () => {
+      stubFetch();
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+      expect(annuleerKnop()).toBeEnabled();
+    });
+
+    it.each([
+      ["O", "Deze order is open en kan niet geannuleerd worden."],
+      ["D", "Deze order is afgeleverd en kan niet meer geannuleerd worden."],
+      ["", "Deze order kan niet geannuleerd worden."],
+    ])("disables the button with visible explanation for stempel %j", async (stempel, tekst) => {
+      stubFetch();
+      render(<BonDetailPage bon={{ ...mockBon, stempel }} lijnen={mockLijnen} />);
+      await flush();
+      expect(annuleerKnop()).toBeDisabled();
+      expect(screen.getByText(tekst)).toBeInTheDocument();
+    });
+
+    it("keeps the button in the DOM but disabled in edit mode, with edit-mode explanation", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+      expect(annuleerKnop()).toBeDisabled();
+      expect(
+        screen.getByText("Sla je wijzigingen op of annuleer het bewerken eerst.")
+      ).toBeInTheDocument();
+    });
+
+    it("cancels a V order: shows Open, zero amount, unchanged btw and reloaded lijnen, without router refresh", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      const cancelled: BonItem = { ...bonV, stempel: "O", bedrag: 0 };
+      const nieuweLijn: BonLijnItem = {
+        ...mockLijnen[0],
+        omschrijving: "Nieuwe lijn na annuleren",
+        gereserv: 0,
+      };
+      annuleerBonMock.mockResolvedValue(cancelled);
+      getBonLijnenMock.mockResolvedValue([nieuweLijn]);
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+
+      await cancelVia(user);
+
+      await waitFor(() => expect(annuleerBonMock).toHaveBeenCalledWith(1234567));
+      await waitFor(() => expect(getBonLijnenMock).toHaveBeenCalledWith(1234567));
+      expect(await screen.findByText("Nieuwe lijn na annuleren")).toBeInTheDocument();
+      expect(screen.queryByText("LED profiel 2m")).not.toBeInTheDocument();
+      expect(document.querySelector('[data-stempel="O"]')).toHaveTextContent("Open");
+      expect(screen.getAllByText(formatBedragForTest(0)).length).toBeGreaterThan(0);
+      expect(screen.getByText(formatBedragForTest(108.38))).toBeInTheDocument();
+      expect(refreshMock).not.toHaveBeenCalled();
+    });
+
+    it("on 409 refetches bon and lijnen, shows the fresh stempel and disables the button", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      annuleerBonMock.mockRejectedValue(new ApiError(409, "msg", "Stempel is niet V of B"));
+      getBonMock.mockResolvedValue({ ...bonV, stempel: "D" });
+      getBonLijnenMock.mockResolvedValue(mockLijnen);
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+
+      await cancelVia(user);
+
+      await waitFor(() => expect(getBonMock).toHaveBeenCalledWith(1234567));
+      await waitFor(() => expect(getBonLijnenMock).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(document.querySelector('[data-stempel="D"]')).toHaveTextContent("Afgeleverd")
+      );
+      expect(annuleerKnop()).toBeDisabled();
+      expect(
+        screen.getByText("De status van deze order is intussen gewijzigd; ververs de pagina.")
+      ).toBeInTheDocument();
+    });
+
+    it("on 409 with getBon -> null keeps the existing bon and still reloads lijnen", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      annuleerBonMock.mockRejectedValue(new ApiError(409, "msg", "conflict"));
+      getBonMock.mockResolvedValue(null);
+      getBonLijnenMock.mockResolvedValue([{ ...mockLijnen[0], omschrijving: "Herladen lijn" }]);
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+
+      await cancelVia(user);
+
+      expect(await screen.findByText("Herladen lijn")).toBeInTheDocument();
+      expect(document.querySelector('[data-stempel="V"]')).toHaveTextContent("In verwerking");
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    it("on 409 with getBon rejecting still reloads lijnen and keeps the dialog message", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      annuleerBonMock.mockRejectedValue(new ApiError(409, "msg", "conflict"));
+      getBonMock.mockRejectedValue(new Error("down"));
+      getBonLijnenMock.mockResolvedValue(mockLijnen);
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+
+      await cancelVia(user);
+
+      await waitFor(() => expect(getBonLijnenMock).toHaveBeenCalled());
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    it("does not reload bon or lijnen on a 500 error", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      annuleerBonMock.mockRejectedValue(new ApiError(500, "msg", "boom"));
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+
+      await cancelVia(user);
+
+      expect(await screen.findByRole("alert")).toBeInTheDocument();
+      expect(getBonMock).not.toHaveBeenCalled();
+      expect(getBonLijnenMock).not.toHaveBeenCalled();
+      expect(refreshMock).not.toHaveBeenCalled();
+    });
+
+    it("can edit after a successful cancel (form is re-seeded, not dirty)", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      annuleerBonMock.mockResolvedValue({ ...bonV, stempel: "O", bedrag: 0 });
+      getBonLijnenMock.mockResolvedValue(mockLijnen);
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+      await cancelVia(user);
+      await waitFor(() => expect(getBonLijnenMock).toHaveBeenCalled());
+      await waitFor(() => expect(annuleerKnop()).toBeDisabled());
+      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    });
+
+    it("shows an error and keeps old rows when reloading lijnen fails after success", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      annuleerBonMock.mockResolvedValue({ ...bonV, stempel: "O", bedrag: 0 });
+      getBonLijnenMock.mockRejectedValue(new Error("down"));
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+
+      await cancelVia(user);
+
+      expect(
+        await screen.findByText("De lijnen konden niet opnieuw geladen worden; ververs de pagina.")
+      ).toBeInTheDocument();
+      expect(screen.getByText("LED profiel 2m")).toBeInTheDocument();
+    });
+  });
 });
+
+function formatBedragForTest(n: number): string {
+  return formatBedrag(n);
+}

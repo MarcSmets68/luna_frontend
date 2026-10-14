@@ -24,7 +24,17 @@ import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
 import { BonLijnFoutBanner } from "./bon-lijn-fout-banner";
-import { updateBon, type BonItem, type BonLijnItem, type UpdateBonPayload } from "@/lib/api-client";
+import {
+  getBon,
+  getBonLijnen,
+  updateBon,
+  type BonItem,
+  type BonLijnItem,
+  type UpdateBonPayload,
+} from "@/lib/api-client";
+import { AnnuleerBonDialog } from "./annuleer-bon-dialog";
+import { BonStatusBadge } from "./bon-status-badge";
+import { annuleerBlokkade } from "../lib/bon-stempel";
 import { BonlijnProductieTable } from "./bonlijn-productie-table";
 import { BonlijnReserveringDialog } from "./bonlijn-reservering-dialog";
 import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
@@ -177,6 +187,7 @@ export function BonDetailPage({
   const [form, setForm] = useState<BonFormState>(() => toBonFormState(bon));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lijnenFout, setLijnenFout] = useState<string | null>(null);
   const isHerstelling = bon.type === "HERSTELLING";
 
   const heeftExtraKlantnrs = Boolean(bon.klnr2) || Boolean(bon.klnr3);
@@ -268,8 +279,55 @@ export function BonDetailPage({
     }
   }
 
+  async function reloadLijnen() {
+    try {
+      setRows(await getBonLijnen(bon.bonnr));
+      setLijnenFout(null);
+    } catch {
+      setLijnenFout("De lijnen konden niet opnieuw geladen worden; ververs de pagina.");
+    }
+  }
+
+  function handleCancelled(updated: BonItem) {
+    setBon(updated);
+    setForm(toBonFormState(updated));
+    setExpandedLijnnr(null);
+    void reloadLijnen();
+  }
+
+  async function handleConflict() {
+    try {
+      const fresh = await getBon(bon.bonnr);
+      if (fresh) {
+        setBon(fresh);
+        setForm(toBonFormState(fresh));
+      }
+    } catch {
+      /* stil; de dialoog toont al de 409-melding */
+    }
+    await reloadLijnen();
+  }
+
+  const annuleerUitlegId = "annuleer-uitleg";
+  const annuleerBlokkadeTekst = editing
+    ? "Sla je wijzigingen op of annuleer het bewerken eerst."
+    : annuleerBlokkade(bon.stempel);
+
+  const annuleerKnop = (
+    <AnnuleerBonDialog
+      bonnr={bon.bonnr}
+      klantNaam={bon.naam}
+      stempel={bon.stempel}
+      disabled={editing}
+      describedById={annuleerUitlegId}
+      onCancelled={handleCancelled}
+      onConflict={handleConflict}
+    />
+  );
+
   const headerActions = editing ? (
     <>
+      {annuleerKnop}
       <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
         Cancel
       </Button>
@@ -278,9 +336,12 @@ export function BonDetailPage({
       </Button>
     </>
   ) : (
-    <Button type="button" size="sm" onClick={startEditing}>
-      Verbeteren
-    </Button>
+    <>
+      {annuleerKnop}
+      <Button type="button" size="sm" onClick={startEditing}>
+        Verbeteren
+      </Button>
+    </>
   );
 
   function handleReserved(updated: BonLijnItem) {
@@ -307,11 +368,19 @@ export function BonDetailPage({
         actions={headerActions}
       />
 
-      <div className="mb-3 -mt-6 text-[13px] text-[#5e5e5e]">
-        Klant{" "}
-        <Link href={`/klanten/${bon.klnr}`} className="underline">
-          {bon.naam}
-        </Link>
+      <div className="mb-3 -mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[#5e5e5e]">
+        <BonStatusBadge stempel={bon.stempel} />
+        <span>
+          Klant{" "}
+          <Link href={`/klanten/${bon.klnr}`} className="underline">
+            {bon.naam}
+          </Link>
+        </span>
+        {annuleerBlokkadeTekst && (
+          <span id={annuleerUitlegId} className="text-xs text-muted-foreground">
+            {annuleerBlokkadeTekst}
+          </span>
+        )}
       </div>
 
       <Card className="mb-6">
@@ -573,6 +642,8 @@ export function BonDetailPage({
               Pakbon aanmaken
             </Button>
           </div>
+
+          {lijnenFout && <p className="mb-2 text-sm text-destructive">{lijnenFout}</p>}
 
           {rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">Geen lijnen gevonden voor deze order.</p>

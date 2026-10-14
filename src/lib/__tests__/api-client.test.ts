@@ -1,6 +1,9 @@
 ﻿import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ApiError,
   afhalenPakbon,
+  annuleerBon,
+  createBon,
   answerKwaliteitscontroleItem,
   bonHerstelNaarDiagnose,
   createBonLedLijn,
@@ -952,5 +955,87 @@ describe("getArtikelen artnr/omschrijving filters", () => {
 
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toContain("&omschrijving=led%20strip");
+  });
+});
+
+describe("annuleerBon / ApiError", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("POSTs to /bon/{bonnr}/annuleer with an empty body and returns the JSON", async () => {
+    const bon = { bonnr: 1234567, stempel: "O" };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => bon });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(annuleerBon(1234567)).resolves.toEqual(bon);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/bon\/1234567\/annuleer$/);
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe("{}");
+  });
+
+  it("throws an ApiError with status 409 and the backend message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: async () => ({ error: { message: "Stempel moet V of B zijn" } }),
+      })
+    );
+    const err = await annuleerBon(1).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.status).toBe(409);
+    expect(err.backendMessage).toBe("Stempel moet V of B zijn");
+    expect(err.message).toBe("Stempel moet V of B zijn");
+  });
+
+  it("throws an ApiError with status 404", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { message: "Bon niet gevonden" } }),
+      })
+    );
+    const err = await annuleerBon(1).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(404);
+  });
+
+  it("falls back to a generic message when the error body is not JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new Error("not json");
+        },
+      })
+    );
+    const err = await annuleerBon(1).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(500);
+    expect(err.backendMessage).toBeUndefined();
+    expect(err.message).toMatch(/failed with status 500/);
+  });
+
+  it("keeps other apiPost callers backward compatible (instanceof Error, same message)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({ error: { message: "Ongeldige bon" } }),
+      })
+    );
+    const err = await createBon({ klnr: 1 }).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toBe("Ongeldige bon");
   });
 });

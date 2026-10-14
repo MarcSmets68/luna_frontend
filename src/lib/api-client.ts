@@ -32,6 +32,22 @@ async function apiGet<T>(
   return response.json() as Promise<T>;
 }
 
+/**
+ * Error thrown by apiPost on a non-OK response. Extends Error (same
+ * `.message` as before) and additionally exposes the HTTP status and the
+ * backend's own error message, so callers can branch on 404/409.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly backendMessage?: string;
+  constructor(status: number, message: string, backendMessage?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.backendMessage = backendMessage;
+  }
+}
+
 async function apiPost<T>(
   path: string,
   body: unknown,
@@ -51,9 +67,12 @@ async function apiPost<T>(
     const error = (await response.json().catch(() => null)) as {
       error?: { message?: string };
     } | null;
-    throw new Error(
-      error?.error?.message ??
+    const backendMessage = error?.error?.message;
+    throw new ApiError(
+      response.status,
+      backendMessage ??
         `API request to ${path} failed with status ${response.status}`,
+      backendMessage,
     );
   }
 
@@ -1193,6 +1212,15 @@ export async function getBon(bonnr: number): Promise<BonItem | null> {
   }
 
   return response.json() as Promise<BonItem>;
+}
+
+/**
+ * Annuleert een order (stempel -> "O", bedragen gewist behalve btw, reservaties vrijgegeven).
+ * Backend: POST /web/bon/{bonnr}/annuleer. Respons = volledige bon (zelfde vorm als GET /web/bon/{bonnr}).
+ * Gooit ApiError (status 404 = niet gevonden, 409 = stempel niet V/B) bij een niet-OK respons.
+ */
+export async function annuleerBon(bonnr: number): Promise<BonItem> {
+  return apiPost<BonItem>(`/bon/${bonnr}/annuleer`, {});
 }
 
 export type BonLijnItem = {
