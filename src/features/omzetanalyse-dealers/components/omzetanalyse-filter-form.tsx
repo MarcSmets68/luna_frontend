@@ -100,7 +100,7 @@ export function OmzetanalyseFilterForm({
       </div>
       <div className="flex flex-col gap-1.5">
         <span id="soort-label" className="text-sm font-medium">
-          Soort
+          Klantsoort
         </span>
         <Select
           items={selectItems}

@@ -10,6 +10,8 @@ type SearchParams = {
   soort?: string;
   perDealer?: string;
   uitvoeren?: string;
+  focus?: string;
+  tab?: string;
 };
 
 export default async function OmzetanalyseDealers({
@@ -38,7 +40,9 @@ export default async function OmzetanalyseDealers({
   };
 
   const queryString = new URLSearchParams(
-    Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string")
+    Object.entries(sp).filter(
+      (e): e is [string, string] => typeof e[1] === "string" && e[0] !== "focus" && e[0] !== "tab"
+    )
   ).toString();
 
   return (
@@ -48,6 +52,8 @@ export default async function OmzetanalyseDealers({
         filters={filters}
         uitvoeren={sp.uitvoeren === "1"}
         queryString={queryString}
+        initialFocus={sp.focus}
+        initialTab={sp.tab}
       />
     </AppShell>
   );

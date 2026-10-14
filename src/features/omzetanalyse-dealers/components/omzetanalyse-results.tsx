@@ -1,12 +1,23 @@
 import { getOmzetanalyseDealers, type OmzetanalyseParams } from "@/lib/api-client";
 import { OmzetanalyseExportToolbar } from "./omzetanalyse-export-toolbar";
 import { OmzetanalyseReport } from "./omzetanalyse-report";
+import { OmzetanalyseTabs } from "./omzetanalyse-tabs";
+import { OmzetanalyseDashboard } from "./dashboard/omzetanalyse-dashboard";
+import { buildDashboardModel } from "../lib/dashboard-model";
 
 /**
  * Async server component: fetches the (potentially slow) analysis. Rendered
  * inside <Suspense> so the filter form stays visible while it loads.
  */
-export async function OmzetanalyseResults({ params }: { params: OmzetanalyseParams }) {
+export async function OmzetanalyseResults({
+  params,
+  initialFocus,
+  initialTab,
+}: {
+  params: OmzetanalyseParams;
+  initialFocus?: string;
+  initialTab?: string;
+}) {
   let response;
   try {
     response = await getOmzetanalyseDealers(params);
@@ -23,7 +34,7 @@ export async function OmzetanalyseResults({ params }: { params: OmzetanalysePara
     );
   }
 
-  return (
+  const detail = (
     <div>
       {response.secties.length > 0 && (
         <div className="mb-4 flex justify-end">
@@ -32,6 +43,18 @@ export async function OmzetanalyseResults({ params }: { params: OmzetanalysePara
       )}
       <OmzetanalyseReport response={response} />
     </div>
+  );
+
+  if (response.secties.length === 0) return detail;
+
+  // Only the slim model crosses the server/client boundary, not the raw per-article response.
+  const model = buildDashboardModel(response);
+  return (
+    <OmzetanalyseTabs
+      initialTab={initialTab}
+      dashboard={<OmzetanalyseDashboard model={model} initialFocus={initialFocus} />}
+      detail={detail}
+    />
   );
 }
 
