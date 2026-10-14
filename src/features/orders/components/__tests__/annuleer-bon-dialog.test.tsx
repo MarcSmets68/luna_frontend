@@ -211,4 +211,67 @@ describe("AnnuleerBonDialog", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(confirmButton()).toBeDisabled();
   });
+  it("ignores a second click on confirm while the first call is in flight", async () => {
+    const user = userEvent.setup();
+    let resolve!: (b: BonItem) => void;
+    annuleerBonMock.mockReturnValue(new Promise<BonItem>((r) => (resolve = r)));
+    setup();
+    await openDialog(user);
+    const btn = confirmButton();
+    await user.click(btn);
+    await user.click(btn);
+    await user.dblClick(btn);
+    expect(annuleerBonMock).toHaveBeenCalledTimes(1);
+    resolve({ bonnr: 1234567, stempel: "O" } as BonItem);
+    await waitFor(() => expect(onCancelled).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not close on overlay click while busy", async () => {
+    const user = userEvent.setup();
+    let resolve!: (b: BonItem) => void;
+    annuleerBonMock.mockReturnValue(new Promise<BonItem>((r) => (resolve = r)));
+    setup();
+    await openDialog(user);
+    await user.click(confirmButton());
+    await screen.findByRole("button", { name: "Bezig..." });
+    const backdrop = document.querySelector("[data-slot='dialog-overlay']");
+    if (backdrop) await user.click(backdrop as Element);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    resolve({ bonnr: 1234567, stempel: "O" } as BonItem);
+    await waitFor(() => expect(onCancelled).toHaveBeenCalled());
+  });
+
+  it("closes on ESC when not busy and clears a previous error", async () => {
+    const user = userEvent.setup();
+    annuleerBonMock.mockRejectedValue(new Error("netwerk"));
+    setup();
+    await openDialog(user);
+    await user.click(confirmButton());
+    await screen.findByRole("alert");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await openDialog(user);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("works without an onConflict callback on 409", async () => {
+    const user = userEvent.setup();
+    annuleerBonMock.mockRejectedValue(new ApiError(409, "msg"));
+    render(
+      <AnnuleerBonDialog bonnr={1} klantNaam="X" stempel="V" onCancelled={onCancelled} />
+    );
+    await openDialog(user);
+    await user.click(confirmButton());
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("shows no detail line when the backend gave no message", async () => {
+    const user = userEvent.setup();
+    annuleerBonMock.mockRejectedValue(new ApiError(404, "API request failed"));
+    setup();
+    await openDialog(user);
+    await user.click(confirmButton());
+    expect(await screen.findByText("Order niet gevonden.")).toBeInTheDocument();
+    expect(screen.queryByText("API request failed")).not.toBeInTheDocument();
+  });
 });

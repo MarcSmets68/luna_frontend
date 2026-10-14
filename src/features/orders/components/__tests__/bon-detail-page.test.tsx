@@ -739,6 +739,66 @@ describe("BonDetailPage", () => {
       ).toBeInTheDocument();
     });
 
+    it("on 409 with getBon -> null keeps the existing bon and still reloads lijnen", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      annuleerBonMock.mockRejectedValue(new ApiError(409, "msg", "conflict"));
+      getBonMock.mockResolvedValue(null);
+      getBonLijnenMock.mockResolvedValue([{ ...mockLijnen[0], omschrijving: "Herladen lijn" }]);
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+
+      await cancelVia(user);
+
+      expect(await screen.findByText("Herladen lijn")).toBeInTheDocument();
+      expect(document.querySelector('[data-stempel="V"]')).toHaveTextContent("In verwerking");
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    it("on 409 with getBon rejecting still reloads lijnen and keeps the dialog message", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      annuleerBonMock.mockRejectedValue(new ApiError(409, "msg", "conflict"));
+      getBonMock.mockRejectedValue(new Error("down"));
+      getBonLijnenMock.mockResolvedValue(mockLijnen);
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+
+      await cancelVia(user);
+
+      await waitFor(() => expect(getBonLijnenMock).toHaveBeenCalled());
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    it("does not reload bon or lijnen on a 500 error", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      annuleerBonMock.mockRejectedValue(new ApiError(500, "msg", "boom"));
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+
+      await cancelVia(user);
+
+      expect(await screen.findByRole("alert")).toBeInTheDocument();
+      expect(getBonMock).not.toHaveBeenCalled();
+      expect(getBonLijnenMock).not.toHaveBeenCalled();
+      expect(refreshMock).not.toHaveBeenCalled();
+    });
+
+    it("can edit after a successful cancel (form is re-seeded, not dirty)", async () => {
+      stubFetch();
+      const user = userEvent.setup();
+      annuleerBonMock.mockResolvedValue({ ...bonV, stempel: "O", bedrag: 0 });
+      getBonLijnenMock.mockResolvedValue(mockLijnen);
+      render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
+      await flush();
+      await cancelVia(user);
+      await waitFor(() => expect(getBonLijnenMock).toHaveBeenCalled());
+      await waitFor(() => expect(annuleerKnop()).toBeDisabled());
+      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    });
+
     it("shows an error and keeps old rows when reloading lijnen fails after success", async () => {
       stubFetch();
       const user = userEvent.setup();
