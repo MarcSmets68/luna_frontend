@@ -1868,8 +1868,9 @@ export type OmzetanalyseParams = {
 /**
  * Omzetanalyse dealers (Rapportage). Optional filters are omitted when
  * empty. `leegRijen` is derived: always `false` in per-dealer mode, else
- * `true`. Cached for 60s (`next.revalidate`, same precedent as
- * getDashboard) because this can be a heavy query.
+ * `true`. Cached for 5min (`next.revalidate`): the backend query takes
+ * ~20s, and the analysis only changes when orders are booked - repeat
+ * visits should be instant. The rapportage landing page warms this cache.
  * Backend: GET /web/rapportage/omzetanalyse-dealers.
  */
 export async function getOmzetanalyseDealers(
@@ -1893,7 +1894,7 @@ export async function getOmzetanalyseDealers(
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
-    next: { revalidate: 60 },
+    next: { revalidate: 300 },
   });
 
   if (!response.ok) {

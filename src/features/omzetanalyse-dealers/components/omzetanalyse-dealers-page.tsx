@@ -2,8 +2,12 @@ import { Suspense } from "react";
 import type { OmzetanalyseParams } from "@/lib/api-client";
 import { OmzetanalyseResults, OmzetanalyseResultsSkeleton } from "./omzetanalyse-results";
 
-/** Fixed scope for this page: Nomaled dealers, per dealer, incl. zero-revenue dealers. */
-const PARAMS: OmzetanalyseParams = {
+/**
+ * Fixed scope for this page: Nomaled dealers, per dealer, incl. zero-revenue
+ * dealers. Exported so the rapportage landing page can warm the fetch cache
+ * with the exact same request.
+ */
+export const OMZETANALYSE_PARAMS: OmzetanalyseParams = {
   soort: "DNOM",
   perDealer: true,
   inclusiefZonderOmzet: true,
@@ -26,7 +30,7 @@ export function OmzetanalyseDealersPage({
       </div>
 
       <Suspense fallback={<OmzetanalyseResultsSkeleton />}>
-        <OmzetanalyseResults params={PARAMS} initialFocus={initialFocus} initialTab={initialTab} />
+        <OmzetanalyseResults params={OMZETANALYSE_PARAMS} initialFocus={initialFocus} initialTab={initialTab} />
       </Suspense>
     </div>
   );
