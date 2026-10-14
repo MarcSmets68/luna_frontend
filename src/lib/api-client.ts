@@ -1808,6 +1808,9 @@ export type OmzetPeriode = {
 
 export type OmzetRij = {
   artnr: string;
+  /** artikel.omschr-n for exact-match rows; absent/null on older backends and
+      for swBegins prefix rows and the Nomacurve spec. */
+  omschrijving?: string | null;
   swBegins: boolean;
   eenheid: "m" | "st" | null;
   perioden: OmzetPeriode[];
@@ -1839,6 +1842,8 @@ export type OmzetanalyseFilters = {
   soortOmschr: string | null;
   perDealer: boolean;
   leegRijen: boolean;
+  /** Absent on backends predating the dashboard-gaps branch. */
+  inclusiefZonderOmzet?: boolean;
 };
 
 export type OmzetanalyseResponse = {
@@ -1857,6 +1862,7 @@ export type OmzetanalyseParams = {
   klnr?: number;
   soort?: string;
   perDealer?: boolean;
+  inclusiefZonderOmzet?: boolean;
 };
 
 /**
@@ -1869,8 +1875,13 @@ export type OmzetanalyseParams = {
 export async function getOmzetanalyseDealers(
   params: OmzetanalyseParams = {}
 ): Promise<OmzetanalyseResponse> {
-  const { datumVan, datumTot, klnr, soort, perDealer = false } = params;
+  const { datumVan, datumTot, klnr, soort, perDealer = false, inclusiefZonderOmzet = false } = params;
   const query = new URLSearchParams();
+  // Backwards compatibility: the backend query parser only treats "&" as a
+  // separator when followed by a KNOWN param name (QueryParamHelper anchors).
+  // Backends predating inclusiefZonderOmzet would otherwise glue it onto the
+  // previous value and return 400 - as the FIRST param it is simply ignored.
+  if (inclusiefZonderOmzet) query.set("inclusiefZonderOmzet", "true");
   if (datumVan) query.set("datumVan", datumVan);
   if (datumTot) query.set("datumTot", datumTot);
   if (klnr !== undefined) query.set("klnr", String(klnr));

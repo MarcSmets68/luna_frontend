@@ -163,6 +163,14 @@ export const perDealerJarenResponse: OmzetanalyseResponse = {
       { los: 0, productie: 0 },
       { los: 0, productie: 0 },
     ]),
+    // Backend-seeded dealer with no omzet at all (inclusiefZonderOmzet):
+    // empty categorieen, all-zero years.
+    {
+      ...sectie(5, { dealerKlnr: 104, dealerNaam: "Delta Leegganger" }),
+      categorieen: [],
+      omzet: Array.from({ length: 5 }, () => periode()),
+      meters: { ledstripNomatrack: [0, 0, 0, 0, 0], coverLicht: [0, 0, 0, 0, 0] },
+    },
   ],
   generatedAt: "2026-09-03T10:00:00",
 };

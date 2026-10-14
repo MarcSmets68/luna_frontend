@@ -18,9 +18,12 @@ export type DashDealer = {
   ledstrip: number[];
   cover: number[];
   groepen: DashGroep[];
+  artikelen: DashArtikel[];
 };
 export type DashArtikel = {
   artnr: string;
+  /** Article description; null on older backends and for swBegins rows. */
+  omschrijving: string | null;
   swBegins: boolean;
   categorie: string;
   eenheid: QtyUnit | null;

@@ -9,11 +9,7 @@ export function SectionNotice({ children }: { children: React.ReactNode }) {
   );
 }
 
-import type { DashboardModel } from "../../lib/dashboard-types";
-
 /** Standard hint for sections that need the per-dealer list. */
-export function perDealerNoticeText(m: DashboardModel): string {
-  return m.perDealerHint === "geenSoort"
-    ? "Kies een klantsoort en vink 'Afzonderlijke lijst per dealer' aan om dealers te vergelijken."
-    : "Vink 'Afzonderlijke lijst per dealer' aan om dealers te vergelijken.";
+export function perDealerNoticeText(): string {
+  return "Geen per-dealer data in deze respons.";
 }
