@@ -11,11 +11,15 @@ export function OmzetanalyseDealersPage({
   filters,
   uitvoeren,
   queryString,
+  initialFocus,
+  initialTab,
 }: {
   soorten: SoortItem[];
   filters: OmzetanalyseFilterValues;
   uitvoeren: boolean;
   queryString: string;
+  initialFocus?: string;
+  initialTab?: string;
 }) {
   const params: OmzetanalyseParams = {
     datumVan: filters.datumVan || undefined,
@@ -38,7 +42,7 @@ export function OmzetanalyseDealersPage({
 
       {uitvoeren ? (
         <Suspense key={queryString} fallback={<OmzetanalyseResultsSkeleton />}>
-          <OmzetanalyseResults params={params} />
+          <OmzetanalyseResults params={params} initialFocus={initialFocus} initialTab={initialTab} />
         </Suspense>
       ) : (
         <p className="text-sm text-muted-foreground">Kies filters en klik op Toon rapport</p>

@@ -42,6 +42,12 @@ describe("buildReportUrl", () => {
 describe("OmzetanalyseFilterForm", () => {
   beforeEach(() => push.mockReset());
 
+  it("labels the soort control as Klantsoort", () => {
+    render(<OmzetanalyseFilterForm soorten={soorten} initial={empty} />);
+    expect(screen.getByText("Klantsoort")).toBeInTheDocument();
+    expect(screen.queryByText("Soort")).not.toBeInTheDocument();
+  });
+
   it("disables the per-dealer toggle without a soort", () => {
     render(<OmzetanalyseFilterForm soorten={soorten} initial={empty} />);
     expect(screen.getByRole("checkbox", { name: /per dealer/ })).toHaveAttribute("aria-disabled", "true");
