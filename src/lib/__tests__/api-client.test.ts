@@ -1039,3 +1039,50 @@ describe("annuleerBon / ApiError", () => {
     expect(err.message).toBe("Ongeldige bon");
   });
 });
+
+describe("API_BASE_URL resolution", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("falls back to localhost outside production", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("API_BASE_URL", "");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getLakproductieItems();
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      "http://localhost:8080/web/lakproduktie",
+    );
+  });
+
+  it("throws a clear error in production when the variable is missing", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("API_BASE_URL", "");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getLakproductieItems()).rejects.toThrow(/API_BASE_URL/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the configured URL in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("API_BASE_URL", "https://api.example.test/web");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getLakproductieItems();
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      "https://api.example.test/web/lakproduktie",
+    );
+  });
+});

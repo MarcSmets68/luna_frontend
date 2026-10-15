@@ -2,7 +2,21 @@
 // call fetch() directly (see root AGENTS.md, frontend constraints).
 
 // Use server-side env var (not NEXT_PUBLIC_) to keep API URL private
-const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:8080/web";
+const LOCAL_API_BASE_URL = "http://localhost:8080/web";
+
+// Resolved lazily (per request) so `next build` does not fail when the
+// variable is only provided at runtime. In production a missing variable is a
+// configuration error; the localhost fallback is for local development only.
+function getApiBaseUrl(): string {
+  const configured = process.env.API_BASE_URL;
+  if (configured) return configured;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "API_BASE_URL environment variable is not set. It is required in production.",
+    );
+  }
+  return LOCAL_API_BASE_URL;
+}
 
 // Optional extra headers merged into every request - added for auth-bearing
 // calls (e.g. logout()'s "X-Auth-Token: <token>") without changing the
@@ -13,7 +27,7 @@ async function apiGet<T>(
   path: string,
   extraHeaders: ExtraHeaders = {},
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { Accept: "application/json", ...extraHeaders },
     cache: "no-store",
@@ -53,7 +67,7 @@ async function apiPost<T>(
   body: unknown,
   extraHeaders: ExtraHeaders = {},
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -84,7 +98,7 @@ async function apiPut<T>(
   body: unknown,
   extraHeaders: ExtraHeaders = {},
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "PUT",
     headers: {
       Accept: "application/json",
@@ -111,7 +125,7 @@ async function apiDelete<T>(
   path: string,
   extraHeaders: ExtraHeaders = {},
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "DELETE",
     headers: { Accept: "application/json", ...extraHeaders },
   });
@@ -568,7 +582,7 @@ export async function getOfferte(
   versie: number,
 ): Promise<OfferteItem | null> {
   const path = `/offerte/${offnr}/${versie}`;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -1195,7 +1209,7 @@ type BonnenResponse = {
  */
 export async function getBon(bonnr: number): Promise<BonItem | null> {
   const path = `/bon/${bonnr}`;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -1689,7 +1703,7 @@ export async function getBonHerstel(
   bonnr: number,
 ): Promise<BonHerstelItem | null> {
   const path = `/bon/${bonnr}/herstel`;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -1919,7 +1933,7 @@ export async function getOmzetanalyseDealers(
   query.set("leegRijen", String(!perDealer));
   const path = `/rapportage/omzetanalyse-dealers?${query.toString()}`;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     next: { revalidate: 300 },
@@ -2022,7 +2036,7 @@ export async function getBestelorder(
   ordnr: number,
 ): Promise<BestelorderItem | null> {
   const path = `/bestelorder/${ordnr}`;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -2090,7 +2104,7 @@ export async function getBestelorderLijnen(
  */
 export async function getKlant(klnr: number): Promise<KlantItem | null> {
   const path = `/klant/${klnr}`;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -2293,7 +2307,7 @@ export async function getFacturen(
  */
 export async function getFactuur(facnr: number): Promise<FactuurItem | null> {
   const path = `/factuur/${facnr}`;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -2365,7 +2379,7 @@ export type DashboardResponse = {
  * Backend: GET /web/dashboard (Luna.Web.DashboardHandler).
  */
 export async function getDashboard(): Promise<DashboardResponse> {
-  const response = await fetch(`${API_BASE_URL}/dashboard`, {
+  const response = await fetch(`${getApiBaseUrl()}/dashboard`, {
     method: "GET",
     headers: { Accept: "application/json" },
     next: { revalidate: 60 },
@@ -2524,7 +2538,7 @@ export async function getLeverancier(
   levnr: number,
 ): Promise<LeverancierItem | null> {
   const path = `/leverancier/${levnr}`;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -2679,7 +2693,7 @@ export async function getPakbonnen(
  */
 export async function getPakbon(paknr: number): Promise<PakbonItem | null> {
   const path = `/pakbon/${paknr}`;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
