@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { ApiErrorMessage } from "@/components/error/api-error-message";
 import { KlantenPage } from "@/features/klanten/components/klanten-page";
@@ -18,6 +19,7 @@ export default async function Klanten({
   try {
     ({ items, hasMore } = await getKlanten({ naam, page, pageSize: PAGE_SIZE, nomaled: nomaledOnly }));
   } catch (error) {
+    unstable_rethrow(error);
     return <ApiErrorMessage error={error} pageName="klanten" />;
   }
 

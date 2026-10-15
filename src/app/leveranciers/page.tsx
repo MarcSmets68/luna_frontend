@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { ApiErrorMessage } from "@/components/error/api-error-message";
 import { LeveranciersPage } from "@/features/leveranciers/components/leveranciers-page";
@@ -17,6 +18,7 @@ export default async function Leveranciers({
   try {
     ({ items, hasMore } = await getLeveranciers({ naam, page, pageSize: PAGE_SIZE }));
   } catch (error) {
+    unstable_rethrow(error);
     return <ApiErrorMessage error={error} pageName="leveranciers" />;
   }
 
