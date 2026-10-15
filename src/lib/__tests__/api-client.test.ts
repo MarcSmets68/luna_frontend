@@ -1086,3 +1086,21 @@ describe("API_BASE_URL resolution", () => {
     );
   });
 });
+
+describe("path segments", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sends the same URLs for numeric path parameters", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await updateOfflijn(12, 3, 4, {});
+    await deleteOfflijn(12, 3, 4);
+    const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+    expect(urls).toEqual([
+      "http://localhost:8080/web/offerte/12/3/lijn/4",
+      "http://localhost:8080/web/offerte/12/3/lijn/4",
+    ]);
+  });
+});
