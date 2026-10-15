@@ -1,6 +1,5 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ApiErrorMessage } from "@/components/error/api-error-message";
-import { RequireSessionBoundary } from "@/features/auth/components/require-session-boundary";
 import { DashboardPage } from "@/features/dashboard/components/dashboard-page";
 import { getDashboard } from "@/lib/api-client";
 
@@ -18,9 +17,7 @@ export default async function Home() {
 
   return (
     <AppShell>
-      <RequireSessionBoundary>
-        <DashboardPage dashboard={dashboard} />
-      </RequireSessionBoundary>
+      <DashboardPage dashboard={dashboard} />
     </AppShell>
   );
 }
