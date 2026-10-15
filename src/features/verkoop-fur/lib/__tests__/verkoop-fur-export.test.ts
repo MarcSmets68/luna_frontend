@@ -208,3 +208,14 @@ describe("buildExportFileBaseName", () => {
     expect(buildExportFileBaseName()).toBe("verkoop-fur_2026-01-05");
   });
 });
+
+describe("buildCsvContent formula injection", () => {
+  it("neutralises formula-like names but keeps numeric columns raw", () => {
+    const csv = buildCsvContent(
+      [{ ...items[0], naam: "=SUM(A1)", aantalFurOrders: -3 }],
+      "2026-01-01",
+      "2026-03-31"
+    );
+    expect(csv).toContain("14644;'=SUM(A1);-3;42;2026-07-15");
+  });
+});
