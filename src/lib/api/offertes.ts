@@ -99,7 +99,7 @@ type OfflijnenResponse = {
  * Single offerte lookup by offnr+versie. Returns `null` when the backend
  * responds with 404 (offerte not found/removed) instead of throwing, so
  * callers can render a not-found state. Any other non-OK status still
- * throws, mirroring `request`'s error format.
+ * throws, with an ApiError carrying the generic "API request to <path> failed with status <n>" message (the error body is not read).
  * Backend: GET /web/offerte/{offnr}/{versie} (Luna.Web.OfferteHandler).
  */
 export async function getOfferte(

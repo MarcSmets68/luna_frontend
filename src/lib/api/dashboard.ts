@@ -99,7 +99,7 @@ export type AiSearchResponse = {
  * into a query intent (entity + filters/aggregation) and returns either a
  * page of results, a "no_results" summary, or a clarification question
  * when the prompt is too ambiguous to resolve. Errors (502/500/network)
- * surface via `request`'s standard `{"error":{"message"}}` handling above.
+ * surface via `request`'s standard `{"error":{"message"}}` handling in http.ts.
  * Backend: POST /web/ai-search (Luna.Web.AiSearchHandler).
  */
 export async function searchDashboardAi(

@@ -42,8 +42,7 @@ type BonnenResponse = {
 /**
  * Single bon lookup by bonnr. Returns `null` when the backend responds
  * with 404 (bon not found/removed) instead of throwing, so callers can
- * render a not-found state. Any other non-OK status still throws, mirroring
- * `request`'s error format.
+ * render a not-found state. Any other non-OK status still throws, with an ApiError carrying the generic "API request to <path> failed with status <n>" message (the error body is not read).
  * Backend: GET /web/bon/{bonnr} (Luna.Web.BonHandler).
  */
 export async function getBon(bonnr: number): Promise<BonItem | null> {

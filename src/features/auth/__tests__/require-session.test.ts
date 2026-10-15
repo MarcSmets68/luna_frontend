@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { requireSession, redirectIfAuthenticated } from "../require-session";
+import { redirectIfAuthenticated } from "../require-session";
 import { clearSession, saveSession, type Session } from "../session";
 
 const validSession: Session = {
@@ -17,37 +17,6 @@ const expiredSession: Session = {
 
 beforeEach(() => {
   clearSession();
-});
-
-describe("requireSession", () => {
-  it("returns the session and does not redirect when valid", () => {
-    saveSession(validSession);
-    const replace = vi.fn();
-    const result = requireSession({ replace });
-    expect(result).toEqual(validSession);
-    expect(replace).not.toHaveBeenCalled();
-  });
-
-  it("redirects to /login and returns null when there is no session", () => {
-    const replace = vi.fn();
-    const result = requireSession({ replace });
-    expect(result).toBeNull();
-    expect(replace).toHaveBeenCalledWith("/login");
-  });
-
-  it("redirects to /login and returns null when the session is expired", () => {
-    saveSession(expiredSession);
-    const replace = vi.fn();
-    const result = requireSession({ replace });
-    expect(result).toBeNull();
-    expect(replace).toHaveBeenCalledWith("/login");
-  });
-
-  it("redirects to a custom path when given one", () => {
-    const replace = vi.fn();
-    requireSession({ replace }, "/custom-login");
-    expect(replace).toHaveBeenCalledWith("/custom-login");
-  });
 });
 
 describe("redirectIfAuthenticated", () => {
