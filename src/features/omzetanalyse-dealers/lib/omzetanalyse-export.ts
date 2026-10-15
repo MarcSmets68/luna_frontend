@@ -129,7 +129,12 @@ export function buildCsvContent(response: OmzetanalyseResponse): string {
       v.metersLed ?? "",
       v.metersCover ?? "",
     ];
-    lines.push(cells.map(escapeCsvField).join(CSV_DELIMITER));
+    // Columns 1-6 (dealer naam .. kolom) are free text; klnr and all value columns are numeric.
+    lines.push(
+      cells
+        .map((cell, i) => escapeCsvField(cell, { numeric: i === 0 || i > 6 }))
+        .join(CSV_DELIMITER),
+    );
   }
 
   for (const sectie of response.secties) {

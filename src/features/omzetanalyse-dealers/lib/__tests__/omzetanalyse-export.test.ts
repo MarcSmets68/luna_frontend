@@ -79,6 +79,18 @@ describe("buildCsvContent", () => {
     expect(l[8].startsWith('12;"Jan ""de"" Man; BV";Ledstrip;LS100*;m;ARTIKEL;')).toBe(true);
   });
 
+  it("neutralises formulas in text columns but keeps negative numbers intact", () => {
+    const res: OmzetanalyseResponse = {
+      ...periodeResponse,
+      filters: { ...baseFilters, perDealer: true },
+      secties: [sectie(1, { dealerKlnr: 12, dealerNaam: "=cmd|' /C calc'!A0" })],
+    };
+    const l = lines(buildCsvContent(res));
+    expect(l[8].startsWith("12;'=cmd|' /C calc'!A0;")).toBe(true);
+    const neg = lines(buildCsvContent(jarenResponse)).find((x) => x.includes("CATEGORIE_TOTAAL"))!;
+    expect(neg.split(";")).toContain("-4");
+  });
+
   it("is valid (preamble + header only) for an empty result", () => {
     const csv = buildCsvContent({ ...periodeResponse, secties: [] });
     const l = lines(csv);

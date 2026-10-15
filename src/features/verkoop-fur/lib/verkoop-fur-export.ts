@@ -44,8 +44,8 @@ export function buildCsvContent(
 ): string {
   const lines: string[] = [];
 
-  lines.push(`Periode van${CSV_DELIMITER}${periodeVan}`);
-  lines.push(`Periode tot${CSV_DELIMITER}${periodeTot}`);
+  lines.push(`Periode van${CSV_DELIMITER}${escapeCsvField(periodeVan)}`);
+  lines.push(`Periode tot${CSV_DELIMITER}${escapeCsvField(periodeTot)}`);
   lines.push("");
   lines.push(CSV_HEADERS.join(CSV_DELIMITER));
 
