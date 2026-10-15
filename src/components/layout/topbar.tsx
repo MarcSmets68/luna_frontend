@@ -4,7 +4,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { logout } from "@/lib/api-client";
+import { logoutAction } from "@/features/auth/actions";
 import { clearSession, useSession, type Session } from "@/features/auth/session";
 import { useInterfaceMode, setInterfaceMode, type InterfaceMode } from "@/features/interface-mode/interface-mode";
 
@@ -41,9 +41,7 @@ export function Topbar({ className }: { className?: string }) {
 
   async function handleLogout() {
     try {
-      if (session?.token) {
-        await logout(session.token);
-      }
+      await logoutAction();
     } catch {
       // Local session is cleared regardless of the API call's outcome -
       // see docs/architecture/login-auth-ontwerp.md §4.2.

@@ -14,7 +14,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "#server-auth": path.resolve(dirname, "./src/lib/api/server-auth.ts"),
+      "#api-runtime": path.resolve(dirname, "./src/lib/api/api-runtime.server.ts"),
       "@": path.resolve(dirname, "./src"),
     },
   },

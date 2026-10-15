@@ -1,4 +1,4 @@
-﻿import { afterEach, describe, expect, it, vi } from "vitest";
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   afhalenPakbon,
@@ -30,6 +30,25 @@ import {
   updateOfferte,
   updateOfflijn,
 } from "../api-client";
+
+// Server-side calls read the token from the httpOnly cookie; these tests set
+// it through the mocked cookie store instead of passing a token argument.
+const auth = vi.hoisted(() => ({ token: undefined as string | undefined }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: () => (auth.token ? { name: "luna.auth.token", value: auth.token } : undefined),
+  }),
+}));
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  },
+  unstable_rethrow: () => {},
+}));
+
+beforeEach(() => {
+  auth.token = undefined;
+});
 
 // apiGet must parse the same {"error":{"message":...}} envelope as
 // apiPost/apiPut/apiDelete instead of throwing a generic status message -
@@ -509,11 +528,15 @@ describe("getArtikelScan", () => {
 // header, NOT "Authorization: Bearer <token>" - same PASOE/Tomcat
 // deviation as logout() (docs/architecture/login-auth-ontwerp.md Sec 1.4).
 describe("postStockBeweging", () => {
+  beforeEach(() => {
+    auth.token = "tok-1";
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("POSTs to /npp/stockbeweging with the payload and X-Auth-Token header", async () => {
+  it("POSTs to /npp/stockbeweging with the payload and the cookie token as X-Auth-Token header", async () => {
     const result = {
       artikel: { artnr: "ART-1", voorraad: 42, magazijn: "M1" },
       artlog: {
@@ -532,8 +555,7 @@ describe("postStockBeweging", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const data = await postStockBeweging(
-      { artnr: "ART-1", movementType: "correctie_plus", aantal: 5, opm: "Correctie na telling" },
-      "tok-1"
+      { artnr: "ART-1", movementType: "correctie_plus", aantal: 5, opm: "Correctie na telling" }
     );
 
     expect(data).toEqual(result);
@@ -563,8 +585,7 @@ describe("postStockBeweging", () => {
 
     await expect(
       postStockBeweging(
-        { artnr: "ART-1", movementType: "correctie_min", aantal: 10, opm: "Correctie na telling" },
-        "tok-1"
+        { artnr: "ART-1", movementType: "correctie_min", aantal: 10, opm: "Correctie na telling" }
       )
     ).rejects.toThrow("Onvoldoende voorraad voor deze boeking (huidige voorraad: 3)");
   });
@@ -579,13 +600,13 @@ describe("postStockBeweging", () => {
 
     await expect(
       postStockBeweging(
-        { artnr: "ART-X", movementType: "ontvangst", aantal: 1, opm: "Ontvangst levering" },
-        "tok-1"
+        { artnr: "ART-X", movementType: "ontvangst", aantal: 1, opm: "Ontvangst levering" }
       )
     ).rejects.toThrow("Artikel ART-X not found");
   });
 
-  it("surfaces the backend's 401 message for an expired/missing session", async () => {
+  it("redirects to the session-expired route on a backend 401 (expired session)", async () => {
+    auth.token = "tok-expired";
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
@@ -594,14 +615,18 @@ describe("postStockBeweging", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      postStockBeweging({ artnr: "ART-1", movementType: "transfer_intern", nieuwMagazijn: "M2" }, "tok-expired")
-    ).rejects.toThrow("Ongeldige of verlopen sessie");
+      postStockBeweging({ artnr: "ART-1", movementType: "transfer_intern", nieuwMagazijn: "M2" })
+    ).rejects.toThrow("NEXT_REDIRECT:/api/auth/session-expired");
   });
 });
 
 // NPP "Kwaliteitscontrole" tile - all calls require the X-Auth-Token
 // header (same PASOE/Tomcat deviation as logout()/postStockBeweging()).
 describe("getKwaliteitscontroleQueue", () => {
+  beforeEach(() => {
+    auth.token = "tok-1";
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -622,7 +647,7 @@ describe("getKwaliteitscontroleQueue", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items }) });
     vi.stubGlobal("fetch", fetchMock);
 
-    const data = await getKwaliteitscontroleQueue("tok-1");
+    const data = await getKwaliteitscontroleQueue();
 
     expect(data).toEqual({ items });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -633,7 +658,8 @@ describe("getKwaliteitscontroleQueue", () => {
     expect(headers.Authorization).toBeUndefined();
   });
 
-  it("surfaces the backend's error message on a non-ok response", async () => {
+  it("redirects to the session-expired route on a backend 401 (expired session)", async () => {
+    auth.token = "tok-expired";
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
@@ -641,13 +667,17 @@ describe("getKwaliteitscontroleQueue", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(getKwaliteitscontroleQueue("tok-expired")).rejects.toThrow(
-      "Ongeldige of verlopen sessie"
+    await expect(getKwaliteitscontroleQueue()).rejects.toThrow(
+      "NEXT_REDIRECT:/api/auth/session-expired"
     );
   });
 });
 
 describe("startKwaliteitscontroleSession", () => {
+  beforeEach(() => {
+    auth.token = "tok-1";
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -664,7 +694,7 @@ describe("startKwaliteitscontroleSession", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => session });
     vi.stubGlobal("fetch", fetchMock);
 
-    const data = await startKwaliteitscontroleSession(1001, 1, "tok-1");
+    const data = await startKwaliteitscontroleSession(1001, 1);
 
     expect(data).toEqual(session);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -683,7 +713,7 @@ describe("startKwaliteitscontroleSession", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(startKwaliteitscontroleSession(1001, 1, "tok-1")).rejects.toThrow(
+    await expect(startKwaliteitscontroleSession(1001, 1)).rejects.toThrow(
       "Je kan je eigen werk niet controleren"
     );
   });
@@ -696,7 +726,7 @@ describe("startKwaliteitscontroleSession", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(startKwaliteitscontroleSession(1001, 1, "tok-1")).rejects.toThrow(
+    await expect(startKwaliteitscontroleSession(1001, 1)).rejects.toThrow(
       "Al in bewerking door PIET"
     );
   });
@@ -709,13 +739,17 @@ describe("startKwaliteitscontroleSession", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(startKwaliteitscontroleSession(1001, 1, "tok-1")).rejects.toThrow(
+    await expect(startKwaliteitscontroleSession(1001, 1)).rejects.toThrow(
       "Bon/groep niet gevonden of niet gereed voor QC"
     );
   });
 });
 
 describe("getKwaliteitscontroleSession", () => {
+  beforeEach(() => {
+    auth.token = "tok-1";
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -731,7 +765,7 @@ describe("getKwaliteitscontroleSession", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => session });
     vi.stubGlobal("fetch", fetchMock);
 
-    const data = await getKwaliteitscontroleSession(1001, 1, "tok-1");
+    const data = await getKwaliteitscontroleSession(1001, 1);
 
     expect(data).toEqual(session);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -749,13 +783,17 @@ describe("getKwaliteitscontroleSession", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(getKwaliteitscontroleSession(1001, 1, "tok-1")).rejects.toThrow(
+    await expect(getKwaliteitscontroleSession(1001, 1)).rejects.toThrow(
       "Geen open sessie"
     );
   });
 });
 
 describe("answerKwaliteitscontroleItem", () => {
+  beforeEach(() => {
+    auth.token = "tok-1";
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -768,7 +806,7 @@ describe("answerKwaliteitscontroleItem", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
     vi.stubGlobal("fetch", fetchMock);
 
-    const data = await answerKwaliteitscontroleItem(1001, 1, 1, 10, { controle: "OK" }, "tok-1");
+    const data = await answerKwaliteitscontroleItem(1001, 1, 1, 10, { controle: "OK" });
 
     expect(data).toEqual(result);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -788,7 +826,7 @@ describe("answerKwaliteitscontroleItem", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      answerKwaliteitscontroleItem(1001, 1, 1, 10, { controle: "OK" }, "tok-1")
+      answerKwaliteitscontroleItem(1001, 1, 1, 10, { controle: "OK" })
     ).rejects.toThrow("Info is verplicht voor deze controle");
   });
 
@@ -801,12 +839,16 @@ describe("answerKwaliteitscontroleItem", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      answerKwaliteitscontroleItem(1001, 1, 1, 10, { controle: "Fout", info: "Kras" }, "tok-1")
+      answerKwaliteitscontroleItem(1001, 1, 1, 10, { controle: "Fout", info: "Kras" })
     ).rejects.toThrow("Sessie is niet meer geldig");
   });
 });
 
 describe("rejectKwaliteitscontrole", () => {
+  beforeEach(() => {
+    auth.token = "tok-1";
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -820,8 +862,7 @@ describe("rejectKwaliteitscontrole", () => {
       1001,
       1,
       1,
-      { opmerking: "Verkeerde kleur" },
-      "tok-1"
+      { opmerking: "Verkeerde kleur" }
     );
 
     expect(data).toEqual(result);
@@ -842,7 +883,7 @@ describe("rejectKwaliteitscontrole", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      rejectKwaliteitscontrole(1001, 1, 1, { opmerking: "" }, "tok-1")
+      rejectKwaliteitscontrole(1001, 1, 1, { opmerking: "" })
     ).rejects.toThrow("Opmerking is verplicht");
   });
 
@@ -855,7 +896,7 @@ describe("rejectKwaliteitscontrole", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      rejectKwaliteitscontrole(1001, 1, 1, { opmerking: "Fout" }, "tok-1")
+      rejectKwaliteitscontrole(1001, 1, 1, { opmerking: "Fout" })
     ).rejects.toThrow("Sessie is niet meer geldig");
   });
 });

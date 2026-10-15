@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { login } from "@/lib/api-client";
+import { loginAction } from "../actions";
 import { saveSession } from "../session";
 import { redirectIfAuthenticated } from "../require-session";
 import { LoginForm, type LoginFormValues } from "./login-form";
@@ -31,8 +31,12 @@ export function LoginPage() {
     setIsSubmitting(true);
     setServerError(null);
     try {
-      const result = await login(values);
-      saveSession(result);
+      const result = await loginAction(values);
+      if (!result.ok) {
+        setServerError(result.message);
+        return;
+      }
+      saveSession(result.user);
       router.push(DASHBOARD_PATH);
     } catch (e) {
       setServerError(

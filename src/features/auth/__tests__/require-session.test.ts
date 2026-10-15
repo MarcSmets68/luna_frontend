@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireSession, redirectIfAuthenticated } from "../require-session";
-import { saveSession, type Session } from "../session";
+import { clearSession, saveSession, type Session } from "../session";
 
 const validSession: Session = {
-  token: "abc123",
   kode: "MS",
   naam: "Marc Smets",
   niveau: 9,
@@ -17,7 +16,7 @@ const expiredSession: Session = {
 };
 
 beforeEach(() => {
-  window.sessionStorage.clear();
+  clearSession();
 });
 
 describe("requireSession", () => {

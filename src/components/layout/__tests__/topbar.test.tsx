@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Topbar } from "../topbar";
-import { getSession, saveSession, type Session } from "@/features/auth/session";
+import { clearSession, getSession, saveSession, type Session } from "@/features/auth/session";
 import { getInterfaceMode } from "@/features/interface-mode/interface-mode";
 
 const pushMock = vi.fn();
@@ -13,16 +13,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 const logoutMock = vi.fn();
-vi.mock("@/lib/api-client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
-  return {
-    ...actual,
-    logout: (...args: unknown[]) => logoutMock(...args),
-  };
-});
+vi.mock("@/features/auth/actions", () => ({
+  logoutAction: (...args: unknown[]) => logoutMock(...args),
+}));
 
 const session: Session = {
-  token: "tok-1",
   kode: "MS",
   naam: "Marc Smets",
   niveau: 9,
@@ -33,9 +28,9 @@ const session: Session = {
 beforeEach(() => {
   pushMock.mockReset();
   logoutMock.mockReset();
-  logoutMock.mockResolvedValue({ message: "Uitgelogd" });
+  logoutMock.mockResolvedValue(undefined);
   pathnameMock = "/";
-  window.sessionStorage.clear();
+  clearSession();
 });
 
 describe("Topbar", () => {
@@ -51,14 +46,14 @@ describe("Topbar", () => {
     expect(screen.getByText("Niet ingelogd")).toBeInTheDocument();
   });
 
-  it("logging out calls the API with the token, clears the local session, and redirects to /login", async () => {
+  it("logging out calls the logout action, clears the local session, and redirects to /login", async () => {
     saveSession(session);
     const user = userEvent.setup();
     render(<Topbar />);
 
     await user.click(screen.getByRole("button", { name: "Uitloggen" }));
 
-    await waitFor(() => expect(logoutMock).toHaveBeenCalledWith("tok-1"));
+    await waitFor(() => expect(logoutMock).toHaveBeenCalledTimes(1));
     expect(getSession()).toBeNull();
     expect(pushMock).toHaveBeenCalledWith("/login");
   });

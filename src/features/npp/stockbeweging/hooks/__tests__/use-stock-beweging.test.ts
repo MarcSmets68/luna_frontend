@@ -28,7 +28,6 @@ const resolvedArticle = {
 
 function stubSession() {
   saveSession({
-    token: "tok-1",
     kode: "MARC",
     naam: "Marc",
     niveau: 1,
@@ -153,8 +152,7 @@ describe("useStockBeweging", () => {
     });
 
     expect(mockedPostStockBeweging).toHaveBeenCalledWith(
-      { artnr: "ART-1", movementType: "ontvangst", aantal: 5, opm: "Ontvangst levering" },
-      "tok-1"
+      { artnr: "ART-1", movementType: "ontvangst", aantal: 5, opm: "Ontvangst levering" }
     );
     expect(result.current.step).toBe("result");
     expect(result.current.result).toEqual(bookingResult);
@@ -200,8 +198,7 @@ describe("useStockBeweging", () => {
     });
 
     expect(mockedPostStockBeweging).toHaveBeenCalledWith(
-      { artnr: "ART-1", movementType: "transfer_intern", nieuwMagazijn: "M2" },
-      "tok-1"
+      { artnr: "ART-1", movementType: "transfer_intern", nieuwMagazijn: "M2" }
     );
   });
 
