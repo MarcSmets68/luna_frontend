@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Questrial } from "next/font/google";
 import "./globals.css";
+import { RequireSessionBoundary } from "@/features/auth/components/require-session-boundary";
 
 // Century Gothic itself is a Monotype-licensed font with no free web
 // distribution - Questrial is loaded as the geometric-sans fallback for
@@ -22,7 +23,9 @@ export const dynamic = 'force-dynamic';
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="nl" className={`${questrial.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <RequireSessionBoundary>{children}</RequireSessionBoundary>
+      </body>
     </html>
   );
 }
