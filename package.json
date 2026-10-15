@@ -10,6 +10,12 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "imports": {
+    "#server-auth": {
+      "react-server": "./src/lib/api/server-auth.ts",
+      "default": "./src/lib/api/server-auth.client.ts"
+    }
+  },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "class-variance-authority": "^0.7.1",

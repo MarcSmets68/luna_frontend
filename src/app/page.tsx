@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { ApiErrorMessage } from "@/components/error/api-error-message";
 import { DashboardPage } from "@/features/dashboard/components/dashboard-page";
@@ -12,6 +13,7 @@ export default async function Home() {
   try {
     dashboard = await getDashboard();
   } catch (error) {
+    unstable_rethrow(error);
     return <ApiErrorMessage error={error} pageName="het dashboard" />;
   }
 

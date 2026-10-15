@@ -1,3 +1,5 @@
+import { readTokenFromCookie, redirectToSessionExpired } from "#server-auth";
+
 // Shared HTTP layer for the PASOE WebHandler client. Components must not call
 // fetch() directly (see root AGENTS.md, frontend constraints); every domain
 // module in this folder goes through `request()`.
@@ -43,6 +45,11 @@ export function pathSegment(value: string | number): string {
   return encodeURIComponent(String(value));
 }
 
+const AUTH_HEADER = "X-Auth-Token";
+const LOGIN_PATH = "/login";
+
+const isServer = () => typeof window === "undefined";
+
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
 export type RequestOptions = {
@@ -84,11 +91,20 @@ export async function request<T>(
   options: RequestOptions = {},
 ): Promise<T | null> {
   const hasBody = method === "POST" || method === "PUT";
+
+  // On the server the token comes from the httpOnly cookie and is sent on
+  // every call except /login. A token passed explicitly via `headers` wins.
+  const cookieToken =
+    isServer() && path !== LOGIN_PATH && !options.headers?.[AUTH_HEADER]
+      ? await readTokenFromCookie()
+      : undefined;
+
   const init: RequestInit & { next?: RequestOptions["next"] } = {
     method,
     headers: {
       Accept: "application/json",
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
+      ...(cookieToken ? { [AUTH_HEADER]: cookieToken } : {}),
       ...options.headers,
     },
   };
@@ -101,6 +117,10 @@ export async function request<T>(
   const response = await fetch(`${getApiBaseUrl()}${path}`, init);
 
   if (options.nullOn404 && response.status === 404) return null;
+
+  if (response.status === 401 && cookieToken) {
+    redirectToSessionExpired();
+  }
 
   if (!response.ok) {
     const genericMessage = `API request to ${path} failed with status ${response.status}`;
