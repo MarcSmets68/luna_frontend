@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginPage } from "../login-page";
-import { getSession } from "../../session";
+import { clearSession, getSession, saveSession } from "../../session";
 
 const pushMock = vi.fn();
 const replaceMock = vi.fn();
@@ -11,19 +11,15 @@ vi.mock("next/navigation", () => ({
 }));
 
 const loginMock = vi.fn();
-vi.mock("@/lib/api-client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
-  return {
-    ...actual,
-    login: (...args: unknown[]) => loginMock(...args),
-  };
-});
+vi.mock("../../actions", () => ({
+  loginAction: (...args: unknown[]) => loginMock(...args),
+}));
 
 beforeEach(() => {
   pushMock.mockReset();
   replaceMock.mockReset();
   loginMock.mockReset();
-  window.sessionStorage.clear();
+  clearSession();
 });
 
 describe("LoginPage", () => {
@@ -35,12 +31,14 @@ describe("LoginPage", () => {
   it("saves the session and redirects to the dashboard on a successful login", async () => {
     const user = userEvent.setup();
     loginMock.mockResolvedValue({
-      token: "tok-1",
-      kode: "MS",
-      naam: "Marc Smets",
-      niveau: 9,
-      everyoneAdminActive: true,
-      expiresAt: "2099-01-01T00:00:00.000Z",
+      ok: true,
+      user: {
+        kode: "MS",
+        naam: "Marc Smets",
+        niveau: 9,
+        everyoneAdminActive: true,
+        expiresAt: "2099-01-01T00:00:00.000Z",
+      },
     });
 
     render(<LoginPage />);
@@ -49,8 +47,8 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("button", { name: "Inloggen" }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/"));
+    expect(loginMock).toHaveBeenCalledWith({ kode: "MS", password: "geheim123" });
     expect(getSession()).toEqual({
-      token: "tok-1",
       kode: "MS",
       naam: "Marc Smets",
       niveau: 9,
@@ -61,7 +59,11 @@ describe("LoginPage", () => {
 
   it("shows the server error and does not redirect on a failed login", async () => {
     const user = userEvent.setup();
-    loginMock.mockRejectedValue(new Error("Gebruikersnaam of wachtwoord onjuist"));
+    loginMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      message: "Gebruikersnaam of wachtwoord onjuist",
+    });
 
     render(<LoginPage />);
     await user.type(screen.getByRole("textbox", { name: "Gebruikerskode" }), "MS");
@@ -74,17 +76,13 @@ describe("LoginPage", () => {
   });
 
   it("redirects to the dashboard immediately when a valid session already exists", () => {
-    window.sessionStorage.setItem(
-      "luna.auth.session",
-      JSON.stringify({
-        token: "tok-1",
-        kode: "MS",
-        naam: "Marc Smets",
-        niveau: 9,
-        everyoneAdminActive: false,
-        expiresAt: "2099-01-01T00:00:00.000Z",
-      })
-    );
+    saveSession({
+      kode: "MS",
+      naam: "Marc Smets",
+      niveau: 9,
+      everyoneAdminActive: false,
+      expiresAt: "2099-01-01T00:00:00.000Z",
+    });
 
     render(<LoginPage />);
 

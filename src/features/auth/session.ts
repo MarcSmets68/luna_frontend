@@ -1,15 +1,19 @@
-// Encapsulates all sessionStorage access for the auth session - no
-// component should call sessionStorage directly (see architecture doc
-// docs/architecture/login-auth-ontwerp.md §4.3). Deliberately
-// sessionStorage, not localStorage, per that same section.
+// Client-side access to the non-sensitive user info of the logged-in session.
+// The backend token is NOT available here: it lives in an httpOnly cookie that
+// only the server can read (see features/auth/server/session-cookies.ts). The
+// user info is kept in a second, readable cookie (AUTH_USER_COOKIE) that the
+// login server action sets; no component should touch document.cookie
+// directly.
 
 import { useSyncExternalStore } from "react";
+import { AUTH_USER_COOKIE } from "./cookie-names";
 
-const SESSION_KEY = "luna.auth.session";
+// Key used before the cookie-based session; removed on logout/cleanup.
+const LEGACY_SESSION_KEY = "luna.auth.session";
 
 // Listeners notified whenever the stored session changes (login/logout),
 // so components can subscribe via useSession() below instead of reading
-// sessionStorage directly during render (see useSession() for why that
+// the cookie directly during render (see useSession() for why that
 // matters for SSR/hydration).
 const listeners = new Set<() => void>();
 
@@ -18,7 +22,6 @@ function notify(): void {
 }
 
 export type Session = {
-  token: string;
   kode: string;
   naam: string;
   niveau: number;
@@ -26,33 +29,58 @@ export type Session = {
   expiresAt: string;
 };
 
-function hasSessionStorage(): boolean {
-  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
+function hasDocument(): boolean {
+  return typeof document !== "undefined";
 }
 
-/** Persists the session from a successful login() response. */
-export function saveSession(session: Session): void {
-  if (!hasSessionStorage()) return;
-  window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  notify();
+function readRawCookie(): string | null {
+  if (!hasDocument()) return null;
+  const prefix = `${AUTH_USER_COOKIE}=`;
+  const entry = document.cookie.split("; ").find((part) => part.startsWith(prefix));
+  return entry ? entry.slice(prefix.length) : null;
 }
 
-/** Reads the raw stored session, if any - no expiry check. */
-export function getSession(): Session | null {
-  if (!hasSessionStorage()) return null;
-  const raw = window.sessionStorage.getItem(SESSION_KEY);
+function parseRaw(raw: string | null): Session | null {
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as Session;
+    return JSON.parse(decodeURIComponent(raw)) as Session;
   } catch {
     return null;
   }
 }
 
-/** Removes the stored session (logout, or passive cleanup of an expired one). */
+/**
+ * Writes the user-info cookie (the login server action already set it; this
+ * keeps the client in sync and notifies subscribers). Only the known,
+ * non-sensitive fields are stored.
+ */
+export function saveSession(session: Session): void {
+  if (!hasDocument()) return;
+  const { kode, naam, niveau, everyoneAdminActive, expiresAt } = session;
+  const value = encodeURIComponent(
+    JSON.stringify({ kode, naam, niveau, everyoneAdminActive, expiresAt })
+  );
+  const expires = new Date(expiresAt);
+  const expiry = Number.isNaN(expires.getTime()) ? "" : `; expires=${expires.toUTCString()}`;
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${AUTH_USER_COOKIE}=${value}; path=/; SameSite=Lax${expiry}${secure}`;
+  notify();
+}
+
+/** Reads the raw stored session, if any - no expiry check. */
+export function getSession(): Session | null {
+  return parseRaw(readRawCookie());
+}
+
+/**
+ * Removes the readable user info (logout, or passive cleanup of an expired
+ * session). The httpOnly token cookie is cleared server-side (logoutAction /
+ * the session-expired route).
+ */
 export function clearSession(): void {
-  if (!hasSessionStorage()) return;
-  window.sessionStorage.removeItem(SESSION_KEY);
+  if (!hasDocument()) return;
+  document.cookie = `${AUTH_USER_COOKIE}=; Max-Age=0; path=/`;
+  window.sessionStorage?.removeItem(LEGACY_SESSION_KEY);
   notify();
 }
 
@@ -85,16 +113,16 @@ function subscribe(listener: () => void): () => void {
 // useSyncExternalStore requires getSnapshot() to return a stable
 // (===-equal) reference as long as nothing actually changed, or it
 // re-renders forever. getSession() re-parses JSON on every call, so this
-// caches the last snapshot by the raw stored string and only re-parses
+// caches the last snapshot by the raw cookie string and only re-parses
 // when that string actually changed.
 let cachedRaw: string | null = null;
 let cachedSnapshot: Session | null = null;
 
 function getSessionSnapshot(): Session | null {
-  const raw = hasSessionStorage() ? window.sessionStorage.getItem(SESSION_KEY) : null;
+  const raw = readRawCookie();
   if (raw !== cachedRaw) {
     cachedRaw = raw;
-    cachedSnapshot = getSession();
+    cachedSnapshot = parseRaw(raw);
   }
   return cachedSnapshot;
 }
@@ -105,7 +133,7 @@ function getServerSnapshot(): Session | null {
 
 /**
  * Subscribes a component to the stored session via useSyncExternalStore,
- * re-rendering it on login/logout. Reading sessionStorage directly in
+ * re-rendering it on login/logout. Reading the cookie directly in
  * render (or in a lazy useState initializer) would return one value
  * during SSR (null, no window) and a different one on the client's
  * hydration render pass - a hydration mismatch. useSyncExternalStore

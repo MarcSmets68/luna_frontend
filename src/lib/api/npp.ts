@@ -220,8 +220,8 @@ export type StockBewegingResult = {
 
 /**
  * NPP "Stockbeweging boeken" tile: books a stock movement for an already
- * resolved artikel. Requires the caller's session token, sent via the
- * "X-Auth-Token" header (same convention as logout() - PASOE/Tomcat
+ * resolved artikel. Requires a logged-in session: the token is added
+ * from the httpOnly cookie as the "X-Auth-Token" header (PASOE/Tomcat
  * intercepts a standard "Authorization" header before it reaches the
  * WebHandler). Error statuses (400/401/404/409) are surfaced verbatim by
  * request's error-envelope handling - do not reinterpret those messages.
@@ -229,11 +229,8 @@ export type StockBewegingResult = {
  */
 export async function postStockBeweging(
   payload: StockBewegingPayload,
-  token: string,
 ): Promise<StockBewegingResult> {
-  return request<StockBewegingResult>("POST", "/npp/stockbeweging", { body: payload, headers: {
-    "X-Auth-Token": token,
-  } });
+  return request<StockBewegingResult>("POST", "/npp/stockbeweging", { body: payload });
 }
 
 export type QcItemState = "Te controleren" | "OK" | "N.v.t." | "Fout";
@@ -278,17 +275,13 @@ type QcQueueResponse = { items: QcQueueItem[] };
  * NPP "Kwaliteitscontrole" tile: queue of bon/groep combinations eligible
  * for QC. `hasInProgressSession`/`inProgressByOther` drive the
  * "Hervatten" / "In bewerking door X" row treatment - see
- * queue-list-item.tsx. Requires the caller's session token via the
- * "X-Auth-Token" header (same convention as postStockBeweging).
+ * queue-list-item.tsx. Requires a logged-in session (token added from the
+ * httpOnly cookie as "X-Auth-Token", same as postStockBeweging).
  * Backend: GET /web/npp/kwaliteitscontrole/queue
  * (Luna.Web.NppKwaliteitscontroleHandler).
  */
-export async function getKwaliteitscontroleQueue(
-  token: string,
-): Promise<{ items: QcQueueItem[] }> {
-  return request<QcQueueResponse>("GET", "/npp/kwaliteitscontrole/queue", { headers: {
-    "X-Auth-Token": token,
-  } });
+export async function getKwaliteitscontroleQueue(): Promise<{ items: QcQueueItem[] }> {
+  return request<QcQueueResponse>("GET", "/npp/kwaliteitscontrole/queue");
 }
 
 /**
@@ -302,9 +295,8 @@ export async function getKwaliteitscontroleQueue(
 export async function startKwaliteitscontroleSession(
   bonnr: number,
   groepnr: number,
-  token: string,
 ): Promise<QcSession> {
-  return request<QcSession>("POST", `/npp/kwaliteitscontrole/${pathSegment(bonnr)}/${pathSegment(groepnr)}/session`, { body: {}, headers: { "X-Auth-Token": token } });
+  return request<QcSession>("POST", `/npp/kwaliteitscontrole/${pathSegment(bonnr)}/${pathSegment(groepnr)}/session`, { body: {} });
 }
 
 /**
@@ -317,11 +309,8 @@ export async function startKwaliteitscontroleSession(
 export async function getKwaliteitscontroleSession(
   bonnr: number,
   groepnr: number,
-  token: string,
 ): Promise<QcSession> {
-  return request<QcSession>("GET", `/npp/kwaliteitscontrole/${pathSegment(bonnr)}/${pathSegment(groepnr)}/session`, { headers: {
-      "X-Auth-Token": token,
-    } });
+  return request<QcSession>("GET", `/npp/kwaliteitscontrole/${pathSegment(bonnr)}/${pathSegment(groepnr)}/session`);
 }
 
 /**
@@ -340,9 +329,8 @@ export async function answerKwaliteitscontroleItem(
   volgnr: number,
   lijnnr: number,
   payload: { controle: Exclude<QcItemState, "Te controleren">; info?: string },
-  token: string,
 ): Promise<QcAnswerResult> {
-  return request<QcAnswerResult>("PUT", `/npp/kwaliteitscontrole/${pathSegment(bonnr)}/${pathSegment(groepnr)}/${pathSegment(volgnr)}/items/${pathSegment(lijnnr)}`, { body: payload, headers: { "X-Auth-Token": token } });
+  return request<QcAnswerResult>("PUT", `/npp/kwaliteitscontrole/${pathSegment(bonnr)}/${pathSegment(groepnr)}/${pathSegment(volgnr)}/items/${pathSegment(lijnnr)}`, { body: payload });
 }
 
 /**
@@ -358,7 +346,6 @@ export async function rejectKwaliteitscontrole(
   groepnr: number,
   volgnr: number,
   payload: { opmerking: string },
-  token: string,
 ): Promise<{
   outcome: "rejected";
   bonnr: number;
@@ -370,7 +357,5 @@ export async function rejectKwaliteitscontrole(
     bonnr: number;
     groepnr: number;
     volgnr: number;
-  }>("POST", `/npp/kwaliteitscontrole/${pathSegment(bonnr)}/${pathSegment(groepnr)}/${pathSegment(volgnr)}/afkeur`, { body: payload, headers: {
-    "X-Auth-Token": token,
-  } });
+  }>("POST", `/npp/kwaliteitscontrole/${pathSegment(bonnr)}/${pathSegment(groepnr)}/${pathSegment(volgnr)}/afkeur`, { body: payload });
 }

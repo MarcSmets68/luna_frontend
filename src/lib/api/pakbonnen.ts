@@ -83,7 +83,7 @@ export async function getPakbonnen(
  * Single pakbon lookup by paknr. Returns `null` when the backend responds
  * with 404 (pakbon not found/removed) instead of throwing, so callers can
  * render a not-found state. Any other non-OK status still throws,
- * mirroring `request`'s error format.
+ * with an ApiError carrying the generic "API request to <path> failed with status <n>" message (the error body is not read).
  * Backend: GET /web/pakbon/{paknr} (Luna.Web.PakbonHandler).
  */
 export async function getPakbon(paknr: number): Promise<PakbonItem | null> {

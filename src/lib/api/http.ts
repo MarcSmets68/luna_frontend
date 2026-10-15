@@ -1,25 +1,8 @@
-import { readTokenFromCookie, redirectToSessionExpired } from "#server-auth";
+import { apiBaseUrl, handleUnauthorized, readTokenFromCookie } from "#api-runtime";
 
 // Shared HTTP layer for the PASOE WebHandler client. Components must not call
 // fetch() directly (see root AGENTS.md, frontend constraints); every domain
 // module in this folder goes through `request()`.
-
-// Use server-side env var (not NEXT_PUBLIC_) to keep API URL private
-const LOCAL_API_BASE_URL = "http://localhost:8080/web";
-
-// Resolved lazily (per request) so `next build` does not fail when the
-// variable is only provided at runtime. In production a missing variable is a
-// configuration error; the localhost fallback is for local development only.
-function getApiBaseUrl(): string {
-  const configured = process.env.API_BASE_URL;
-  if (configured) return configured;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "API_BASE_URL environment variable is not set. It is required in production.",
-    );
-  }
-  return LOCAL_API_BASE_URL;
-}
 
 /**
  * Error thrown by `request` on a non-OK response. Extends Error (same
@@ -47,8 +30,6 @@ export function pathSegment(value: string | number): string {
 
 const AUTH_HEADER = "X-Auth-Token";
 const LOGIN_PATH = "/login";
-
-const isServer = () => typeof window === "undefined";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
@@ -94,8 +75,9 @@ export async function request<T>(
 
   // On the server the token comes from the httpOnly cookie and is sent on
   // every call except /login. A token passed explicitly via `headers` wins.
+  // In the browser there is no token: the call goes through the proxy route.
   const cookieToken =
-    isServer() && path !== LOGIN_PATH && !options.headers?.[AUTH_HEADER]
+    path !== LOGIN_PATH && !options.headers?.[AUTH_HEADER]
       ? await readTokenFromCookie()
       : undefined;
 
@@ -114,13 +96,11 @@ export async function request<T>(
     else init.cache = "no-store";
   }
 
-  const response = await fetch(`${getApiBaseUrl()}${path}`, init);
+  const response = await fetch(`${apiBaseUrl()}${path}`, init);
 
   if (options.nullOn404 && response.status === 404) return null;
 
-  if (response.status === 401 && cookieToken) {
-    redirectToSessionExpired();
-  }
+  if (response.status === 401 && path !== LOGIN_PATH) handleUnauthorized(!!cookieToken);
 
   if (!response.ok) {
     const genericMessage = `API request to ${path} failed with status ${response.status}`;

@@ -42,7 +42,6 @@ async function scanResolved() {
 
 function stubSession() {
   saveSession({
-    token: "tok-1",
     kode: "MARC",
     naam: "Marc",
     niveau: 1,

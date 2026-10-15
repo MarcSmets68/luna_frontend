@@ -94,7 +94,7 @@ export function useStockBeweging() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const data = await postStockBeweging(payload, session.token);
+      const data = await postStockBeweging(payload);
       setResult(data);
       setStep("result");
     } catch (e) {

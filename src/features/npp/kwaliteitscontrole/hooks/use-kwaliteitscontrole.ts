@@ -60,7 +60,7 @@ export function useKwaliteitscontrole() {
     setQueueLoading(true);
     setQueueError(null);
     try {
-      const data = await getKwaliteitscontroleQueue(sessionInfo.token);
+      const data = await getKwaliteitscontroleQueue();
       setQueue(data.items);
     } catch (e) {
       setQueueError(
@@ -87,7 +87,7 @@ export function useKwaliteitscontrole() {
     setStartingKey(key);
     setStartError(null);
     try {
-      const data = await startKwaliteitscontroleSession(item.bonnr, item.groepnr, sessionInfo.token);
+      const data = await startKwaliteitscontroleSession(item.bonnr, item.groepnr);
       setSession(data);
       setItemErrors({});
       setStep("checklist");
@@ -127,8 +127,7 @@ export function useKwaliteitscontrole() {
         session.groepnr,
         session.volgnr,
         lijnnr,
-        payload,
-        sessionInfo.token
+        payload
       );
 
       setSession((prev) => {
@@ -179,8 +178,7 @@ export function useKwaliteitscontrole() {
         session.bonnr,
         session.groepnr,
         session.volgnr,
-        { opmerking },
-        sessionInfo.token
+        { opmerking }
       );
       setAfkeurDialogOpen(false);
       setStep("rejected");

@@ -14,7 +14,7 @@ export type LoginResult = {
 /**
  * Authenticates a gebruiker. See docs/architecture/login-auth-ontwerp.md
  * §1.2 for the exact request/response contract (incl. the 400/401/403
- * error messages, surfaced verbatim by request's error handling above).
+ * error messages, surfaced verbatim by request()'s error handling in http.ts).
  * Backend: POST /web/login (Luna.Web.LoginHandler + AuthBE.Login()).
  */
 export async function login(payload: LoginRequest): Promise<LoginResult> {

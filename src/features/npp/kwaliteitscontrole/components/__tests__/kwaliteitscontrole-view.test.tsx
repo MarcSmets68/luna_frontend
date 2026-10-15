@@ -28,7 +28,6 @@ const mockedReject = vi.mocked(rejectKwaliteitscontrole);
 
 function stubSession() {
   saveSession({
-    token: "tok-1",
     kode: "MARC",
     naam: "Marc",
     niveau: 1,
@@ -142,8 +141,7 @@ describe("KwaliteitscontroleView", () => {
       1001,
       1,
       1,
-      { opmerking: "Verkeerde kleur" },
-      "tok-1"
+      { opmerking: "Verkeerde kleur" }
     );
   });
 

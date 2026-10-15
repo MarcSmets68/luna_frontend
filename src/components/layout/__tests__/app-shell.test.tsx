@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "../app-shell";
-import { saveSession, type Session } from "@/features/auth/session";
+import { clearSession, saveSession, type Session } from "@/features/auth/session";
 
 const setInterfaceModeMock = vi.fn();
 vi.mock("@/features/interface-mode/interface-mode", () => ({
@@ -26,7 +26,6 @@ const BANNER_TEXT = "alle gebruikers hebben tijdelijk adminrechten";
 
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
-    token: "tok-1",
     kode: "MS",
     naam: "Marc Smets",
     niveau: 9,
@@ -37,7 +36,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
 }
 
 beforeEach(() => {
-  window.sessionStorage.clear();
+  clearSession();
   setInterfaceModeMock.mockReset();
 });
 

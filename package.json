@@ -11,9 +11,9 @@
     "test:watch": "vitest"
   },
   "imports": {
-    "#server-auth": {
-      "react-server": "./src/lib/api/server-auth.ts",
-      "default": "./src/lib/api/server-auth.client.ts"
+    "#api-runtime": {
+      "react-server": "./src/lib/api/api-runtime.server.ts",
+      "default": "./src/lib/api/api-runtime.client.ts"
     }
   },
   "dependencies": {

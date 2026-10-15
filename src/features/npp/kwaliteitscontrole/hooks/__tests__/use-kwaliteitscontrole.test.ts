@@ -27,7 +27,6 @@ const mockedReject = vi.mocked(rejectKwaliteitscontrole);
 
 function stubSession() {
   saveSession({
-    token: "tok-1",
     kode: "MARC",
     naam: "Marc",
     niveau: 1,
@@ -86,7 +85,7 @@ describe("useKwaliteitscontrole", () => {
     const { result } = renderHook(() => useKwaliteitscontrole());
 
     await waitFor(() => expect(result.current.queue).toEqual([queueItem]));
-    expect(mockedGetQueue).toHaveBeenCalledWith("tok-1");
+    expect(mockedGetQueue).toHaveBeenCalledWith();
   });
 
   it("starts a session and transitions to the checklist step", async () => {
@@ -99,7 +98,7 @@ describe("useKwaliteitscontrole", () => {
       await result.current.startSession(queueItem);
     });
 
-    expect(mockedStartSession).toHaveBeenCalledWith(1001, 1, "tok-1");
+    expect(mockedStartSession).toHaveBeenCalledWith(1001, 1);
     expect(result.current.step).toBe("checklist");
     expect(result.current.session).toEqual(session);
   });
@@ -137,7 +136,7 @@ describe("useKwaliteitscontrole", () => {
       await result.current.answerItem(10, "OK");
     });
 
-    expect(mockedAnswerItem).toHaveBeenCalledWith(1001, 1, 1, 10, { controle: "OK" }, "tok-1");
+    expect(mockedAnswerItem).toHaveBeenCalledWith(1001, 1, 1, 10, { controle: "OK" });
     expect(result.current.session?.items.find((i) => i.lijnnr === 10)?.controle).toBe("OK");
     expect(result.current.step).toBe("checklist");
   });
@@ -165,8 +164,7 @@ describe("useKwaliteitscontrole", () => {
       1,
       1,
       20,
-      { controle: "OK", info: "Gecontroleerd" },
-      "tok-1"
+      { controle: "OK", info: "Gecontroleerd" }
     );
     expect(result.current.step).toBe("complete");
   });
@@ -218,8 +216,7 @@ describe("useKwaliteitscontrole", () => {
       1001,
       1,
       1,
-      { opmerking: "Verkeerde kleur" },
-      "tok-1"
+      { opmerking: "Verkeerde kleur" }
     );
     expect(result.current.step).toBe("rejected");
     expect(result.current.afkeurDialogOpen).toBe(false);

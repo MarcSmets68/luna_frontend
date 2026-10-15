@@ -9,7 +9,6 @@ import {
 } from "../session";
 
 const validSession: Session = {
-  token: "abc123",
   kode: "MS",
   naam: "Marc Smets",
   niveau: 9,
@@ -23,7 +22,7 @@ const expiredSession: Session = {
 };
 
 beforeEach(() => {
-  window.sessionStorage.clear();
+  clearSession();
 });
 
 describe("session.ts", () => {
@@ -43,7 +42,7 @@ describe("session.ts", () => {
   });
 
   it("returns null for malformed JSON instead of throwing", () => {
-    window.sessionStorage.setItem("luna.auth.session", "{not-json");
+    document.cookie = "luna.auth.user=%7Bnot-json; path=/";
     expect(getSession()).toBeNull();
   });
 
