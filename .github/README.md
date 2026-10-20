@@ -2,6 +2,8 @@
 
 This directory contains GitHub Actions workflows for the Luna Frontend CI/CD pipeline.
 
+> **Vercel-deploys zijn uitgeschakeld.** De workflows `deploy-preview.yml` en `deploy-production.yml` zijn verwijderd en `vercel.json` zet `git.deploymentEnabled` op `false`, zodat de Vercel Git-integratie geen deploys meer start. Alleen `ci.yml` en `dependency-updates.yml` zijn nog actief; de Vercel-secties hieronder zijn historisch.
+
 ## Workflows
 
 ### 1. CI (`ci.yml`)
