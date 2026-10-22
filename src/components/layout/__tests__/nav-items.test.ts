@@ -11,4 +11,11 @@ describe("nav-items", () => {
     const omzet = reports?.children?.find((c) => c.key === "reports-omzetanalyse-dealers");
     expect(omzet).toMatchObject({ label: "Omzetanalyse dealers", available: true });
   });
+
+  it("enables Planning", () => {
+    expect(navItems.find((i) => i.key === "scheduling")).toMatchObject({
+      href: "/planning",
+      available: true,
+    });
+  });
 });

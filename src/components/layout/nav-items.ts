@@ -44,7 +44,7 @@ export const navItems: NavItem[] = [
       { key: "invoicing-all", label: "Alle facturen", href: "/facturatie/alle", available: true },
     ],
   },
-  { key: "scheduling", label: "Planning", href: "/planning", available: false },
+  { key: "scheduling", label: "Planning", href: "/planning", available: true },
   {
     key: "reports",
     label: "Rapportage",
