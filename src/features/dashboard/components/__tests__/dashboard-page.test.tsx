@@ -62,6 +62,23 @@ const dashboard: DashboardResponse = {
     },
   ],
   topArtikelenError: false,
+  voorraadBewegingen: {
+    aantalIn: 187,
+    aantalUit: 214,
+    aantalArtikelen: 96,
+    topDalers: [
+      {
+        rang: 1,
+        artnr: "123.206227",
+        omschrijving: "Schroef M6x30 RVS",
+        netto: -340,
+        aantalBewegingen: 41,
+        huidigeVoorraad: 12,
+        voorraadMin: 50,
+      },
+    ],
+  },
+  voorraadBewegingenError: false,
 };
 
 describe("DashboardPage", () => {
@@ -109,6 +126,20 @@ describe("DashboardPage", () => {
     delete old.topArtikelenError;
     render(<DashboardPage dashboard={old as DashboardResponse} />);
     expect(screen.getAllByText("Nog geen facturen deze maand.")).toHaveLength(2);
+  });
+
+  it("renders the voorraadbewegingen card", () => {
+    render(<DashboardPage dashboard={dashboard} />);
+    expect(screen.getByText("Voorraadbewegingen")).toBeInTheDocument();
+    expect(screen.getByText("Schroef M6x30 RVS")).toBeInTheDocument();
+  });
+
+  it("falls back to the empty state when voorraadBewegingen keys are missing (older backend)", () => {
+    const old = { ...dashboard } as Partial<DashboardResponse>;
+    delete old.voorraadBewegingen;
+    delete old.voorraadBewegingenError;
+    render(<DashboardPage dashboard={old as DashboardResponse} />);
+    expect(screen.getByText("Nog geen voorraadbewegingen deze maand.")).toBeInTheDocument();
   });
 
   it("keeps rest of page rendering when one widget errors", () => {
