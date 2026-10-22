@@ -32,11 +32,37 @@ export type DashboardOmzetTrendItem = {
   isPartial: boolean;
 };
 
+export type DashboardTopKlantItem = {
+  rang: number;
+  klnr: number;
+  naam: string;
+  omzet: number;
+  aantalFacturen: number;
+  aandeelPct: number;
+  omzetVorigeMaand: number;
+  vsVorigeMaandPct: number | null;
+};
+
+export type DashboardTopArtikelItem = {
+  rang: number;
+  artnr: string;
+  omschrijving: string;
+  omzet: number;
+  aantal: number;
+  aandeelPct: number;
+  omzetVorigeMaand: number;
+  vsVorigeMaandPct: number | null;
+};
+
 export type DashboardResponse = {
   statCards: DashboardStatCards;
   recentActivity: DashboardActivityItem[];
   productionThisWeek: DashboardProductionItem[];
   omzetTrend: DashboardOmzetTrendItem[];
+  topKlanten: DashboardTopKlantItem[];
+  topKlantenError: boolean;
+  topArtikelen: DashboardTopArtikelItem[];
+  topArtikelenError: boolean;
 };
 
 /**
