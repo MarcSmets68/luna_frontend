@@ -6,6 +6,7 @@ import { AiSearchCard } from "./ai-search-card";
 import { OmzetTrendCard } from "./omzet-trend-card";
 import { TopKlantenCard } from "./top-klanten-card";
 import { TopArtikelenCard } from "./top-artikelen-card";
+import { VoorraadbewegingenCard } from "./voorraadbewegingen-card";
 
 const today = new Date().toLocaleDateString("nl-BE", {
   weekday: "long",
@@ -34,6 +35,13 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardResponse }) {
       <div className="mb-7 grid grid-cols-2 gap-4">
         <TopKlantenCard items={dashboard.topKlanten ?? []} error={dashboard.topKlantenError ?? false} />
         <TopArtikelenCard items={dashboard.topArtikelen ?? []} error={dashboard.topArtikelenError ?? false} />
+      </div>
+
+      <div className="mb-7">
+        <VoorraadbewegingenCard
+          data={dashboard.voorraadBewegingen ?? null}
+          error={dashboard.voorraadBewegingenError ?? false}
+        />
       </div>
 
       <div className="grid grid-cols-[2fr_1fr] gap-4">

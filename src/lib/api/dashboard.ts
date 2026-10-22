@@ -54,6 +54,23 @@ export type DashboardTopArtikelItem = {
   vsVorigeMaandPct: number | null;
 };
 
+export type DashboardVoorraadDalerItem = {
+  rang: number;
+  artnr: string;
+  omschrijving: string;
+  netto: number; // always negative
+  aantalBewegingen: number;
+  huidigeVoorraad: number;
+  voorraadMin: number; // 0 = no minimum configured
+};
+
+export type DashboardVoorraadBewegingen = {
+  aantalIn: number;
+  aantalUit: number;
+  aantalArtikelen: number;
+  topDalers: DashboardVoorraadDalerItem[];
+};
+
 export type DashboardResponse = {
   statCards: DashboardStatCards;
   recentActivity: DashboardActivityItem[];
@@ -63,6 +80,8 @@ export type DashboardResponse = {
   topKlantenError: boolean;
   topArtikelen: DashboardTopArtikelItem[];
   topArtikelenError: boolean;
+  voorraadBewegingen: DashboardVoorraadBewegingen;
+  voorraadBewegingenError: boolean;
 };
 
 /**
