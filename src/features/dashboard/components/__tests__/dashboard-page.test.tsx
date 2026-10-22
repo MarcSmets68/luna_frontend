@@ -36,6 +36,32 @@ const dashboard: DashboardResponse = {
     { month: 7, year: 2026, label: "jul 2026", total: 49500.0, isPartial: false },
     { month: 8, year: 2026, label: "aug 2026", total: 86400.0, isPartial: true },
   ],
+  topKlanten: [
+    {
+      rang: 1,
+      klnr: 10234,
+      naam: "Leds and Light",
+      omzet: 18450.25,
+      aantalFacturen: 6,
+      aandeelPct: 21.4,
+      omzetVorigeMaand: 15200,
+      vsVorigeMaandPct: 21.4,
+    },
+  ],
+  topKlantenError: false,
+  topArtikelen: [
+    {
+      rang: 1,
+      artnr: "NOMALED.LS24.3000",
+      omschrijving: "Ledstrip 24V 3000K",
+      omzet: 7312.4,
+      aantal: 1250,
+      aandeelPct: 8.5,
+      omzetVorigeMaand: 8100,
+      vsVorigeMaandPct: -9.7,
+    },
+  ],
+  topArtikelenError: false,
 };
 
 describe("DashboardPage", () => {
@@ -65,6 +91,30 @@ describe("DashboardPage", () => {
       expect(screen.getByText(String(order.bonnr))).toBeInTheDocument();
       expect(screen.getByText(order.klant)).toBeInTheDocument();
     }
+  });
+
+  it("renders top klanten and top artikelen cards", () => {
+    render(<DashboardPage dashboard={dashboard} />);
+    expect(screen.getByText("Top 5 klanten")).toBeInTheDocument();
+    expect(screen.getByText("Leds and Light")).toBeInTheDocument();
+    expect(screen.getByText("Top 5 artikelen")).toBeInTheDocument();
+    expect(screen.getByText("Ledstrip 24V 3000K")).toBeInTheDocument();
+  });
+
+  it("falls back to empty states when the new keys are missing (older backend)", () => {
+    const old = { ...dashboard } as Partial<DashboardResponse>;
+    delete old.topKlanten;
+    delete old.topKlantenError;
+    delete old.topArtikelen;
+    delete old.topArtikelenError;
+    render(<DashboardPage dashboard={old as DashboardResponse} />);
+    expect(screen.getAllByText("Nog geen facturen deze maand.")).toHaveLength(2);
+  });
+
+  it("keeps rest of page rendering when one widget errors", () => {
+    render(<DashboardPage dashboard={{ ...dashboard, topKlantenError: true, topKlanten: [] }} />);
+    expect(screen.getByText("Kon top klanten niet laden.")).toBeInTheDocument();
+    expect(screen.getByText("Ledstrip 24V 3000K")).toBeInTheDocument();
   });
 
   it("renders the omzet trend card", () => {
