@@ -4,7 +4,8 @@ import { Topbar } from "@/components/layout/topbar";
 import { PlanningView } from "@/features/npp/planning/components/planning-view";
 
 // Same shell pattern as src/app/npp/boxoverzicht/page.tsx - shared Topbar
-// only, no AppShell/Sidebar, no auth. Read-only production queue.
+// only, no AppShell/Sidebar. Read-only production queue (login required,
+// see src/proxy.ts).
 export default function NppPlanning() {
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">

@@ -91,7 +91,8 @@ export interface NppReservatieDetail {
 
 /**
  * NPP "Reservaties raadplegen" tile: read-only queue of bons for the given
- * mode (direct or productie). No auth required.
+ * mode (direct or productie). Requires a session like every other call
+ * (the browser proxy answers 401 without the token cookie).
  * Backend: GET /web/npp/reservaties?mode=... (Luna.Web.NppReservatiesHandler).
  */
 export async function getNppReservatieQueue(
@@ -127,7 +128,8 @@ export type PlanningQueueItem = {
 
 /**
  * Production queue for the NPP "Planning raadplegen" tile, already sorted
- * by the backend (levDatum ascending, nulls last). No auth needed.
+ * by the backend (levDatum ascending, nulls last). Requires a session like
+ * every other call (the browser proxy answers 401 without the token cookie).
  * Backend: GET /web/npp/planning.
  */
 export async function getPlanningQueue(): Promise<{ items: PlanningQueueItem[] }> {
