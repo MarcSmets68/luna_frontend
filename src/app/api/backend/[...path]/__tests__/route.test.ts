@@ -43,8 +43,8 @@ describe("/api/backend proxy route", () => {
   });
 
   it("keeps percent-encoded path segments intact", async () => {
-    await GET(request("/artikel/a%2Fb%25", { headers: { cookie: "luna.auth.token=abc" } }));
-    expect(sent()[0]).toBe(`${BACKEND}/artikel/a%2Fb%25`);
+    await GET(request("/artikel/a%20b%25", { headers: { cookie: "luna.auth.token=abc" } }));
+    expect(sent()[0]).toBe(`${BACKEND}/artikel/a%20b%25`);
   });
 
   it.each([
@@ -78,9 +78,26 @@ describe("/api/backend proxy route", () => {
     expect(headers).not.toHaveProperty("x-auth-token");
   });
 
-  it("sends no token when there is no cookie and lets the backend answer", async () => {
-    await GET(request("/klant"));
-    expect(sent()[1].headers).not.toHaveProperty("X-Auth-Token");
+  it.each(["/klant", "/dev-users", "/npp/planning", "/npp/reservaties?mode=direct"])(
+    "answers 401 to %s without a session cookie and never calls the backend",
+    async (path) => {
+      const res = await GET(request(path));
+      expect(res.status).toBe(401);
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("forwards /dev-users outside production", async () => {
+    const res = await GET(request("/dev-users", { headers: { cookie: "luna.auth.token=abc" } }));
+    expect(res.status).toBe(200);
+    expect(sent()[0]).toBe(`${BACKEND}/dev-users`);
+  });
+
+  it.each(["/dev-users", "/dev-users/x"])("does not proxy %s in production, even with a session", async (path) => {
+    vi.stubEnv("NODE_ENV", "production");
+    const res = await GET(request(path, { headers: { cookie: "luna.auth.token=abc" } }));
+    expect(res.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("passes backend error statuses and bodies through", async () => {
@@ -100,7 +117,28 @@ describe("/api/backend proxy route", () => {
     expect(cookies).toContain("luna.auth.user=;");
   });
 
-  it.each(["/..%2fadmin", "/a%2f..%2fb", "/a%2F%2E%2E%2Fb", "/%zz"])(
+  it.each([
+    "/..%2fadmin",
+    "/a%2f..%2fb",
+    "/a%2F%2E%2E%2Fb",
+    "/%zz",
+    "/..;/oemanager",
+    "/..;/oemanager/applications",
+    "/a/..;/b",
+    "/klant/..;/..;/manager",
+    "/klant;jsessionid=x",
+    "/klant/1%3b",
+    "/klant/a%2fb",
+    "/klant/a%5cb",
+    "/klant/a%00b",
+    "//login",
+    "//klant",
+    "/klant//1",
+    "/klant/",
+    "/unknown",
+    "/Klant",
+    "/rest/x",
+  ])(
     "rejects unsafe path %s",
     async (path) => {
       const res = await GET(request(path, { headers: { cookie: "luna.auth.token=abc" } }));
@@ -109,11 +147,14 @@ describe("/api/backend proxy route", () => {
     },
   );
 
-  it.each(["/login", "/logout", "/login/"])("does not proxy %s (dedicated server actions)", async (path) => {
-    const res = await POST(request(path, { method: "POST", body: "{}" }));
-    expect(res.status).toBe(404);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
+  it.each(["/login", "/logout", "/login/", "/login;x", "/LOGIN", "/logout;x"])(
+    "does not proxy %s (dedicated server actions)",
+    async (path) => {
+      const res = await POST(request(path, { method: "POST", body: "{}", headers: { cookie: "luna.auth.token=abc" } }));
+      expect(res.status).toBe(404);
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects state-changing requests from another origin", async () => {
     const res = await POST(

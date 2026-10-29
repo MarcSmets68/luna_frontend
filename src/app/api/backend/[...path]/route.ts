@@ -6,21 +6,49 @@ import { apiBaseUrl } from "@/lib/api/api-runtime.server";
 // the httpOnly token cookie, so it sends its requests here and this handler
 // forwards them to the PASOE backend with the token as `X-Auth-Token`.
 // Login and logout have dedicated server actions and are not proxied.
+//
+// Only signed-in users are forwarded (no endpoint is public through this
+// proxy), and only to the Luna resources below. Every segment must be a plain
+// name: Tomcat strips `;` parameters and resolves `..` itself, so `..;`, `\`,
+// `//` or encoded slashes could otherwise reach other apps on the backend.
 
 const PREFIX = "/api/backend";
-const BLOCKED_PATHS = ["/login", "/logout"];
+const RESOURCES = new Set([
+  "ai-search",
+  "artikel",
+  "bestelorder",
+  "bon",
+  "dashboard",
+  "dev-users",
+  "factuur",
+  "klant",
+  "lakproduktie",
+  "leverancier",
+  "npp",
+  "offerte",
+  "pakbon",
+  "rapportage",
+]);
+// Same rule as the /dev-users page in src/proxy.ts.
+const DEV_ONLY_RESOURCES = new Set(["dev-users"]);
 const FORWARDED_REQUEST_HEADERS = ["accept", "content-type"];
 
-function isSafePath(path: string): boolean {
+// Checked decoded, so `%2f`, `%5c` and `%3b` are rejected as well.
+function isSafeSegment(raw: string): boolean {
   let decoded: string;
   try {
-    decoded = decodeURIComponent(path);
+    decoded = decodeURIComponent(raw);
   } catch {
     return false;
   }
-  if (!decoded.startsWith("/")) return false;
-  if (decoded.split("/").some((segment) => segment === "." || segment === "..")) return false;
-  return !BLOCKED_PATHS.includes(decoded.split("?")[0].replace(/\/+$/, ""));
+  return decoded !== "" && decoded !== "." && decoded !== ".." && !/[/\\;\u0000-\u001f\u007f]/.test(decoded);
+}
+
+function isAllowedPath(path: string): boolean {
+  if (!path.startsWith("/")) return false;
+  const segments = path.slice(1).split("/");
+  if (!segments.every(isSafeSegment) || !RESOURCES.has(segments[0])) return false;
+  return !(process.env.NODE_ENV === "production" && DEV_ONLY_RESOURCES.has(segments[0]));
 }
 
 // Defense in depth next to the SameSite=Lax cookie: a state-changing request
@@ -41,7 +69,10 @@ const json = (status: number, message: string) =>
 
 async function forward(request: NextRequest): Promise<Response> {
   const path = request.nextUrl.pathname.slice(PREFIX.length);
-  if (!isSafePath(path)) return json(404, "Niet gevonden");
+  if (!isAllowedPath(path)) return json(404, "Niet gevonden");
+
+  const token = request.cookies.get(AUTH_TOKEN_COOKIE)?.value;
+  if (!token) return json(401, "Niet aangemeld");
 
   const isRead = request.method === "GET" || request.method === "HEAD";
   if (!isRead && !isSameOrigin(request)) return json(403, "Ongeldige oorsprong");
@@ -51,8 +82,7 @@ async function forward(request: NextRequest): Promise<Response> {
     const value = request.headers.get(name);
     if (value) headers[name] = value;
   }
-  const token = request.cookies.get(AUTH_TOKEN_COOKIE)?.value;
-  if (token) headers["X-Auth-Token"] = token;
+  headers["X-Auth-Token"] = token;
 
   const upstream = await fetch(`${apiBaseUrl()}${path}${request.nextUrl.search}`, {
     method: request.method,
@@ -65,7 +95,7 @@ async function forward(request: NextRequest): Promise<Response> {
     status: upstream.status,
     headers: { "content-type": upstream.headers.get("content-type") ?? "application/json" },
   });
-  if (upstream.status === 401 && token) {
+  if (upstream.status === 401) {
     response.cookies.delete(AUTH_TOKEN_COOKIE);
     response.cookies.delete(AUTH_USER_COOKIE);
   }
