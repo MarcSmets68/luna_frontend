@@ -12,6 +12,10 @@ describe("escapeCsvField", () => {
     expect(escapeCsvField("a\nb")).toBe('"a\nb"');
   });
 
+  it("quotes values containing a comma", () => {
+    expect(escapeCsvField("Smets, Marc")).toBe('"Smets, Marc"');
+  });
+
   describe("formula injection (text fields)", () => {
     it.each([
       ["=SUM(A1)", "'=SUM(A1)"],
@@ -36,6 +40,21 @@ describe("escapeCsvField", () => {
       expect(escapeCsvField("Foo-Bar")).toBe("Foo-Bar");
     });
 
+    it("quotes and neutralises a formula after a comma", () => {
+      expect(escapeCsvField("Acme,=1+1")).toBe(`"Acme,'=1+1"`);
+      expect(escapeCsvField("Globex,=cmd|' /C calc'!A0")).toBe(`"Globex,'=cmd|' /C calc'!A0"`);
+    });
+
+    it.each([
+      ["a;=b", `"a;'=b"`],
+      ["Foo, -Bar", `"Foo, '-Bar"`],
+      ["x,+1,@y", `"x,'+1,'@y"`],
+      ['x",=1+1', `"x"",'=1+1"`],
+      ["=a,=b", `"'=a,'=b"`],
+    ])("neutralises embedded triggers in %j", (input, expected) => {
+      expect(escapeCsvField(input)).toBe(expected);
+    });
+
     it("does not prefix an empty string", () => {
       expect(escapeCsvField("")).toBe("");
     });
@@ -49,6 +68,7 @@ describe("escapeCsvField", () => {
     it("still neutralises non-numeric content in a numeric column", () => {
       expect(escapeCsvField("=1+1", { numeric: true })).toBe("'=1+1");
       expect(escapeCsvField("-1+cmd", { numeric: true })).toBe("'-1+cmd");
+      expect(escapeCsvField("1,=2", { numeric: true })).toBe(`"1,'=2"`);
     });
   });
 });
