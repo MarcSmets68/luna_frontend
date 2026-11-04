@@ -35,6 +35,9 @@ export function ReservatieMockup() {
             dispatch({ type: "BEVESTIG_TELLING", geteld, reden, toelichting })
           }
           onNaarProductielijst={() => dispatch({ type: "NAAR_PRODUCTIELIJST" })}
+          onMateriaalOntvangen={(onderdeelId) =>
+            dispatch({ type: "MATERIAAL_ONTVANGEN", lijnId: actieveLijn.id, onderdeelId })
+          }
           onTerug={() => dispatch({ type: "SLUIT_LIJN" })}
         />
         <div className="px-6 pb-8 sm:px-8">

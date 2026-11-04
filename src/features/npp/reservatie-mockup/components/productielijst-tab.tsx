@@ -30,8 +30,10 @@ export function ProductielijstTab({
   return (
     <ul className="flex flex-col gap-4">
       {productie.map((lijn) => {
+        // Only postponable ("open") parts reach production - a line with a
+        // non-postponable shortage never leaves the reservatielijst.
         const openOnderdelen = lijn.onderdelen.filter(
-          (o) => o.status === "open" || o.status === "wacht_op_materiaal",
+          (o) => o.status === "open",
         );
         const geblokkeerd = heeftOpenOnderdelen(lijn);
         return (

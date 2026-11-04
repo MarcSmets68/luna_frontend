@@ -3,6 +3,7 @@ import {
   alleOnderdelenVerwerkt,
   createInitialState,
   heeftOpenOnderdelen,
+  heeftWachtOpMateriaal,
   workflowReducer,
   type WorkflowState,
 } from "../reducer";
@@ -90,7 +91,7 @@ describe("reservatie-mockup reducer", () => {
     expect(state.log.some((l) => l.wat.includes("Telling gecorrigeerd"))).toBe(true);
   });
 
-  it("marks a non-postponable shortage as 'wacht op materiaal' when not present", () => {
+  it("marks a non-postponable shortage as 'wacht op materiaal', blocks the line, and unblocks after material arrives", () => {
     let state = createInitialState();
     state = selectLijn(state, "lijn-1");
     state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o1" });
@@ -100,13 +101,60 @@ describe("reservatie-mockup reducer", () => {
     expect(state.tekortDialogOpen).toBe(true);
 
     state = workflowReducer(state, { type: "FYSIEK_AANWEZIG", aanwezig: false });
-    const lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
-    const onderdeel = lijn.onderdelen.find((o) => o.id === "l1-o2")!;
+    let lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
+    let onderdeel = lijn.onderdelen.find((o) => o.id === "l1-o2")!;
     expect(onderdeel.status).toBe("wacht_op_materiaal");
     expect(lijn.status).toBe("wacht_op_materiaal");
     expect(
       state.log.some((l) => l.wat.includes("planner verwittigd")),
     ).toBe(true);
+
+    // A part waiting on material is NOT "verwerkt" - it blocks production.
+    expect(alleOnderdelenVerwerkt(lijn)).toBe(false);
+    expect(heeftWachtOpMateriaal(lijn)).toBe(true);
+
+    // The line cannot move to the productielijst while this blocks it, even
+    // though l1-o1 is already reserved and l1-o3/l1-o4 still need scanning.
+    const vooraf = state;
+    state = workflowReducer(state, { type: "NAAR_PRODUCTIELIJST" });
+    expect(state).toBe(vooraf); // no-op: still blocked
+
+    // Simulate the incoming delivery: the part goes back to "te_scannen"
+    // with stock replenished, so the operator can scan and confirm it normally.
+    state = workflowReducer(state, {
+      type: "MATERIAAL_ONTVANGEN",
+      lijnId: "lijn-1",
+      onderdeelId: "l1-o2",
+    });
+    lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
+    onderdeel = lijn.onderdelen.find((o) => o.id === "l1-o2")!;
+    expect(onderdeel.status).toBe("te_scannen");
+    expect(onderdeel.stock).toBeGreaterThanOrEqual(onderdeel.benodigd);
+    expect(lijn.status).toBe("bezig");
+    expect(heeftWachtOpMateriaal(lijn)).toBe(false);
+
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o2" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
+    expect(lijn.onderdelen.find((o) => o.id === "l1-o2")!.status).toBe(
+      "gereserveerd",
+    );
+
+    // Finish the remaining parts: l1-o3 reserves normally, l1-o4 is a
+    // postponable shortage that gets marked "open" - both count as verwerkt.
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o3" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o4" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    expect(state.tekortDialogOpen).toBe(true);
+    state = workflowReducer(state, { type: "FYSIEK_AANWEZIG", aanwezig: false });
+    lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
+    expect(lijn.onderdelen.find((o) => o.id === "l1-o4")!.status).toBe("open");
+    expect(alleOnderdelenVerwerkt(lijn)).toBe(true);
+
+    state = workflowReducer(state, { type: "NAAR_PRODUCTIELIJST" });
+    lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
+    expect(lijn.status).toBe("gereed");
   });
 
   it("marks a postponable shortage as 'open' when not present", () => {

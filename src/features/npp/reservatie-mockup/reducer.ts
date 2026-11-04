@@ -39,15 +39,18 @@ export type WorkflowAction =
     }
   | { type: "NAAR_PRODUCTIELIJST" }
   | { type: "SCAN_OPEN_ONDERDEEL"; lijnId: string; onderdeelId: string }
-  | { type: "AFROND_PRODUCTIE"; lijnId: string };
+  | { type: "AFROND_PRODUCTIE"; lijnId: string }
+  | { type: "MATERIAAL_ONTVANGEN"; lijnId: string; onderdeelId: string };
 
 export const OPERATOR = "Operator (mockup)";
 
+// A "wacht_op_materiaal" part is not postponable: the PDF workflow says it
+// blocks the start of production, it does not count as processed. Only
+// "open" (postponable) parts count as processed alongside reserved/corrected
+// ones.
 export function isVerwerkt(status: MockOnderdeel["status"]): boolean {
   return (
-    status === "gereserveerd" ||
-    status === "open" ||
-    status === "wacht_op_materiaal"
+    status === "gereserveerd" || status === "gecorrigeerd" || status === "open"
   );
 }
 
@@ -55,10 +58,16 @@ export function alleOnderdelenVerwerkt(lijn: MockLijn): boolean {
   return lijn.onderdelen.every((o) => isVerwerkt(o.status));
 }
 
+/** Postponable parts still waiting on an incoming delivery - these are the
+ * only ones that follow the line into production for the end-check. */
 export function heeftOpenOnderdelen(lijn: MockLijn): boolean {
-  return lijn.onderdelen.some(
-    (o) => o.status === "open" || o.status === "wacht_op_materiaal",
-  );
+  return lijn.onderdelen.some((o) => o.status === "open");
+}
+
+/** Non-postponable parts that are missing - these block the line from ever
+ * reaching the productielijst until material comes in. */
+export function heeftWachtOpMateriaal(lijn: MockLijn): boolean {
+  return lijn.onderdelen.some((o) => o.status === "wacht_op_materiaal");
 }
 
 function makeLog(wie: string, wat: string): LogEntry {
@@ -366,8 +375,11 @@ export function workflowReducer(
 
     case "NAAR_PRODUCTIELIJST": {
       const lijn = state.lijnen.find((l) => l.id === state.activeLijnId);
-      if (!lijn || !alleOnderdelenVerwerkt(lijn)) return state;
-      const status = heeftOpenOnderdelen(lijn) ? "gereed (met open delen)" : "gereed";
+      // Blocked while a non-postponable part is still waiting on material -
+      // only "open" (postponable) parts are allowed to follow into production.
+      if (!lijn || !alleOnderdelenVerwerkt(lijn) || heeftWachtOpMateriaal(lijn))
+        return state;
+      const metOpenDelen = heeftOpenOnderdelen(lijn);
       return {
         ...state,
         lijnen: updateLijn(state.lijnen, lijn.id, (l) => ({
@@ -380,7 +392,44 @@ export function workflowReducer(
           ...state.log,
           makeLog(
             OPERATOR,
-            `Bon ${lijn.bonnr} naar productielijst (${status === "gereed" ? "volledig gereserveerd" : "met open onderdelen"})`,
+            `Bon ${lijn.bonnr} naar productielijst (${metOpenDelen ? "met open onderdelen" : "volledig gereserveerd"})`,
+          ),
+        ],
+      };
+    }
+
+    case "MATERIAAL_ONTVANGEN": {
+      const lijn = state.lijnen.find((l) => l.id === action.lijnId);
+      const onderdeel = lijn?.onderdelen.find(
+        (o) => o.id === action.onderdeelId,
+      );
+      if (!lijn || !onderdeel || onderdeel.status !== "wacht_op_materiaal")
+        return state;
+
+      const bijgewerkt = updateOnderdeel(lijn, onderdeel.id, (o) => ({
+        ...o,
+        status: "te_scannen",
+        stock: Math.max(o.stock, o.benodigd),
+      }));
+      const nogWacht = heeftWachtOpMateriaal(bijgewerkt);
+      const metStatus: MockLijn = {
+        ...bijgewerkt,
+        status: nogWacht ? "wacht_op_materiaal" : "bezig",
+      };
+
+      const isActiveLijn = state.activeLijnId === lijn.id;
+      return {
+        ...state,
+        lijnen: updateLijn(state.lijnen, lijn.id, () => metStatus),
+        activeOnderdeelId:
+          isActiveLijn && state.activeOnderdeelId === null
+            ? onderdeel.id
+            : state.activeOnderdeelId,
+        log: [
+          ...state.log,
+          makeLog(
+            OPERATOR,
+            `Materiaal ontvangen: ${onderdeel.artikelcode} - terug naar Te scannen, stock bijgewerkt naar ${Math.max(onderdeel.stock, onderdeel.benodigd)}`,
           ),
         ],
       };

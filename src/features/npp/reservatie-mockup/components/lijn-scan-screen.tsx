@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
 import type { CorrectieReden, MockLijn } from "../types";
-import { alleOnderdelenVerwerkt, isVerwerkt } from "../reducer";
+import { alleOnderdelenVerwerkt, heeftWachtOpMateriaal, isVerwerkt } from "../reducer";
 import { AantalPaneel } from "./aantal-paneel";
 import { OnderdelenTabel } from "./onderdelen-tabel";
 import { TekortDialog } from "./tekort-dialog";
@@ -31,6 +31,7 @@ export function LijnScanScreen({
   onSluitTekortDialog,
   onBevestigTelling,
   onNaarProductielijst,
+  onMateriaalOntvangen,
   onTerug,
 }: {
   lijn: MockLijn;
@@ -55,6 +56,7 @@ export function LijnScanScreen({
     toelichting?: string,
   ) => void;
   onNaarProductielijst: () => void;
+  onMateriaalOntvangen: (onderdeelId: string) => void;
   onTerug: () => void;
 }) {
   const [scanInput, setScanInput] = useState("");
@@ -64,6 +66,7 @@ export function LijnScanScreen({
   const verwerkt = lijn.onderdelen.filter((o) => isVerwerkt(o.status)).length;
   const totaal = lijn.onderdelen.length;
   const klaarOmTeVersturen = alleOnderdelenVerwerkt(lijn);
+  const wachtOpMateriaal = heeftWachtOpMateriaal(lijn);
   const toontAantalPaneel = actief && aantal !== null;
   const wachtOpScan = actief && aantal === null;
 
@@ -101,10 +104,23 @@ export function LijnScanScreen({
             Aantal: {lijn.aantal} &middot; {verwerkt}/{totaal} onderdelen verwerkt
           </p>
         </div>
-        {klaarOmTeVersturen && (
-          <Button type="button" className="min-h-11" onClick={onNaarProductielijst}>
-            Naar productielijst
-          </Button>
+        {(klaarOmTeVersturen || wachtOpMateriaal) && (
+          <div className="flex flex-col items-end gap-1">
+            {wachtOpMateriaal && (
+              <p role="status" className="text-sm text-muted-foreground">
+                Niet mogelijk: lijn wacht op materiaal. Planner is
+                verwittigd; reeds gescande onderdelen blijven gereserveerd.
+              </p>
+            )}
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={!klaarOmTeVersturen}
+              onClick={onNaarProductielijst}
+            >
+              Naar productielijst
+            </Button>
+          </div>
         )}
       </div>
 
@@ -118,6 +134,29 @@ export function LijnScanScreen({
         onderdelen={lijn.onderdelen}
         activeOnderdeelId={activeOnderdeelId}
       />
+
+      {lijn.onderdelen
+        .filter((o) => o.status === "wacht_op_materiaal")
+        .map((o) => (
+          <div
+            key={`materiaal-${o.id}`}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm"
+          >
+            <span>
+              {o.artikelcode} &middot; {o.omschrijving}: wacht op materiaal
+              (niet uitstelbaar)
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-11"
+              onClick={() => onMateriaalOntvangen(o.id)}
+            >
+              Materiaal ontvangen (simuleer)
+            </Button>
+          </div>
+        ))}
 
       {lijn.onderdelen
         .filter((o) => o.status === "gereserveerd")
