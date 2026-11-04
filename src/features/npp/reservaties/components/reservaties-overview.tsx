@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { BookmarkCheck, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useReservatieQueue } from "../hooks/use-reservatie-queue";
@@ -27,15 +28,23 @@ export function ReservatiesOverview({
             Raadpleeg de reservaties per bon (direct of productie).
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={refresh}
-          disabled={loading}
-        >
-          <RefreshCw className={loading ? "animate-spin" : undefined} />
-          Vernieuwen
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/npp/reservaties/mockup"
+            className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            Nieuwe workflow (mockup)
+          </Link>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={refresh}
+            disabled={loading}
+          >
+            <RefreshCw className={loading ? "animate-spin" : undefined} />
+            Vernieuwen
+          </Button>
+        </div>
       </div>
 
       <ReservatieModeTabs mode={mode} onChange={onModeChange} />
