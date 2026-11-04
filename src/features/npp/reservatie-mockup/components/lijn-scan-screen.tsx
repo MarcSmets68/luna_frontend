@@ -16,6 +16,7 @@ export function LijnScanScreen({
   lijn,
   activeOnderdeelId,
   aantal,
+  batch,
   pogingen,
   foutmelding,
   leidinggevendeVerwittigd,
@@ -25,6 +26,7 @@ export function LijnScanScreen({
   onScanFout,
   onAckLeidinggevende,
   onAantalChange,
+  onBatchChange,
   onBevestigAantal,
   onOngedaanMaken,
   onFysiekAanwezig,
@@ -37,6 +39,7 @@ export function LijnScanScreen({
   lijn: MockLijn;
   activeOnderdeelId: string | null;
   aantal: number | null;
+  batch: string;
   pogingen: number;
   foutmelding: string | null;
   leidinggevendeVerwittigd: boolean;
@@ -46,6 +49,7 @@ export function LijnScanScreen({
   onScanFout: (omschrijving: string) => void;
   onAckLeidinggevende: () => void;
   onAantalChange: (aantal: number) => void;
+  onBatchChange: (batch: string) => void;
   onBevestigAantal: () => void;
   onOngedaanMaken: (onderdeelId: string) => void;
   onFysiekAanwezig: (aanwezig: boolean) => void;
@@ -244,7 +248,9 @@ export function LijnScanScreen({
         <AantalPaneel
           onderdeel={actief}
           aantal={aantal ?? 0}
+          batch={batch}
           onAantalChange={onAantalChange}
+          onBatchChange={onBatchChange}
           onBevestig={onBevestigAantal}
         />
       )}
@@ -253,6 +259,7 @@ export function LijnScanScreen({
         open={tekortDialogOpen}
         onderdeel={actief}
         onAanwezig={onFysiekAanwezig}
+        onAnnuleer={onSluitTekortDialog}
       />
       <TellenDialog
         open={tellenDialogOpen}

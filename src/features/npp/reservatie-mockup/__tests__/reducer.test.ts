@@ -228,4 +228,111 @@ describe("reservatie-mockup reducer", () => {
     expect(onderdeel.genomenAantal).toBeUndefined();
     expect(state.activeOnderdeelId).toBe("l1-o1");
   });
+
+  it("is a no-op for ONGEDAAN_MAKEN on anything other than a confirmed reservation", () => {
+    let state = createInitialState();
+    state = selectLijn(state, "lijn-1");
+
+    // l1-o1 is still "te_scannen" - undoing it must not touch it.
+    const vooraf = state;
+    state = workflowReducer(state, { type: "ONGEDAAN_MAKEN", onderdeelId: "l1-o1" });
+    expect(state).toBe(vooraf);
+
+    // An "open" part (postponable shortage) is also not undoable here.
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o1" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o2" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    state = workflowReducer(state, {
+      type: "BEVESTIG_TELLING",
+      geteld: 12,
+      reden: "andere",
+      toelichting: "test",
+    });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o3" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o4" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    state = workflowReducer(state, { type: "FYSIEK_AANWEZIG", aanwezig: false });
+    let lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
+    expect(lijn.onderdelen.find((o) => o.id === "l1-o4")!.status).toBe("open");
+
+    const metOpenOnderdeel = state;
+    state = workflowReducer(state, { type: "ONGEDAAN_MAKEN", onderdeelId: "l1-o4" });
+    expect(state).toBe(metOpenOnderdeel);
+    lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
+    expect(lijn.onderdelen.find((o) => o.id === "l1-o4")!.status).toBe("open");
+  });
+
+  it("prefills, edits, and persists the batch/bin for lichtbron/driver parts", () => {
+    let state = createInitialState();
+    state = selectLijn(state, "lijn-1");
+
+    // l1-o1 is a driver with a prefilled batch in the fixtures.
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o1" });
+    expect(state.batch).toBe("DRV-2026-11");
+
+    state = workflowReducer(state, { type: "SET_BATCH", batch: "BIN-42" });
+    expect(state.batch).toBe("BIN-42");
+
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    const lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
+    const onderdeel = lijn.onderdelen.find((o) => o.id === "l1-o1")!;
+    expect(onderdeel.batch).toBe("BIN-42");
+    expect(state.batch).toBe(""); // reset for the next part
+    expect(
+      state.log.some((l) => l.wat.includes("batch/bin: BIN-42")),
+    ).toBe(true);
+  });
+
+  it("does not show/require a batch for parts that are not lichtbron/driver", () => {
+    let state = createInitialState();
+    state = selectLijn(state, "lijn-1");
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o1" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    // l1-o3 (profile) is not isLichtbronOfDriver.
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o2" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    state = workflowReducer(state, {
+      type: "BEVESTIG_TELLING",
+      geteld: 12,
+      reden: "andere",
+      toelichting: "test",
+    });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    expect(state.activeOnderdeelId).toBe("l1-o3");
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o3" });
+    state = workflowReducer(state, { type: "SET_BATCH", batch: "irrelevant" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    const lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
+    expect(lijn.onderdelen.find((o) => o.id === "l1-o3")!.batch).toBeUndefined();
+  });
+
+  it("cancelling the shortage dialog (Escape/outside click) leaves the part untouched and logs nothing", () => {
+    let state = createInitialState();
+    state = selectLijn(state, "lijn-1");
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o1" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    state = workflowReducer(state, { type: "SCAN_JUIST", onderdeelId: "l1-o2" });
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    expect(state.tekortDialogOpen).toBe(true);
+
+    const vooraf = state;
+    state = workflowReducer(state, { type: "SLUIT_TEKORT_DIALOG" });
+    expect(state.tekortDialogOpen).toBe(false);
+    expect(state.activeOnderdeelId).toBe("l1-o2"); // still the same part
+    expect(state.aantal).toBe(vooraf.aantal); // still in "neem benodigd aantal"
+    expect(state.log).toEqual(vooraf.log); // no log entry added
+    const lijn = state.lijnen.find((l) => l.id === "lijn-1")!;
+    expect(lijn.onderdelen.find((o) => o.id === "l1-o2")!.status).toBe(
+      "te_scannen",
+    );
+    expect(lijn.status).not.toBe("wacht_op_materiaal");
+
+    // The operator can still confirm normally afterwards (e.g. after
+    // reconsidering), the dialog reopens on the same shortage.
+    state = workflowReducer(state, { type: "BEVESTIG_AANTAL" });
+    expect(state.tekortDialogOpen).toBe(true);
+  });
 });

@@ -26,6 +26,7 @@ export function OnderdelenTabel({
           <TableHead>Stock</TableHead>
           <TableHead>Locatie</TableHead>
           <TableHead>Uitstelbaar</TableHead>
+          <TableHead>Batch/bin</TableHead>
           <TableHead>Status</TableHead>
         </TableRow>
       </TableHeader>
@@ -56,6 +57,11 @@ export function OnderdelenTabel({
               ) : (
                 <span className="text-xs text-muted-foreground">Nee</span>
               )}
+            </TableCell>
+            <TableCell>
+              <span className="text-xs text-muted-foreground">
+                {o.batch ?? "\u2013"}
+              </span>
             </TableCell>
             <TableCell>
               <OnderdeelStatusBadge status={o.status} />

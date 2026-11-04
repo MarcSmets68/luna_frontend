@@ -15,14 +15,20 @@ export function TekortDialog({
   open,
   onderdeel,
   onAanwezig,
+  onAnnuleer,
 }: {
   open: boolean;
   onderdeel: MockOnderdeel | null;
   onAanwezig: (aanwezig: boolean) => void;
+  onAnnuleer: () => void;
 }) {
   if (!onderdeel) return null;
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onAanwezig(false)}>
+    // Escape / outside click / the X button closes without answering - that
+    // is NOT the same as "Nee, niet aanwezig" (which has real side effects:
+    // wacht_op_materiaal or open + a log entry). Route it to onAnnuleer so
+    // the operator just returns to "neem benodigd aantal" unchanged.
+    <Dialog open={open} onOpenChange={(o) => !o && onAnnuleer()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Onvoldoende stock</DialogTitle>

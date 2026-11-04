@@ -15,6 +15,7 @@ export interface WorkflowState {
   foutmelding: string | null;
   leidinggevendeVerwittigd: boolean;
   aantal: number | null;
+  batch: string;
   tekortDialogOpen: boolean;
   tellenDialogOpen: boolean;
   log: LogEntry[];
@@ -27,6 +28,7 @@ export type WorkflowAction =
   | { type: "SCAN_FOUT"; omschrijving: string }
   | { type: "ACK_LEIDINGGEVENDE" }
   | { type: "SET_AANTAL"; aantal: number }
+  | { type: "SET_BATCH"; batch: string }
   | { type: "BEVESTIG_AANTAL" }
   | { type: "ONGEDAAN_MAKEN"; onderdeelId: string }
   | { type: "FYSIEK_AANWEZIG"; aanwezig: boolean }
@@ -120,6 +122,7 @@ export function createInitialState(): WorkflowState {
     foutmelding: null,
     leidinggevendeVerwittigd: false,
     aantal: null,
+    batch: "",
     tekortDialogOpen: false,
     tellenDialogOpen: false,
     log: [],
@@ -145,6 +148,7 @@ export function workflowReducer(
         foutmelding: null,
         leidinggevendeVerwittigd: false,
         aantal: null,
+        batch: "",
         tekortDialogOpen: false,
         tellenDialogOpen: false,
       };
@@ -159,6 +163,7 @@ export function workflowReducer(
         foutmelding: null,
         leidinggevendeVerwittigd: false,
         aantal: null,
+        batch: "",
       };
 
     case "SCAN_JUIST": {
@@ -173,6 +178,7 @@ export function workflowReducer(
         pogingen: 0,
         foutmelding: null,
         aantal: onderdeel.benodigd,
+        batch: onderdeel.batch ?? "",
         log: [
           ...state.log,
           makeLog(
@@ -216,6 +222,9 @@ export function workflowReducer(
     case "SET_AANTAL":
       return { ...state, aantal: Math.max(0, action.aantal) };
 
+    case "SET_BATCH":
+      return { ...state, batch: action.batch };
+
     case "BEVESTIG_AANTAL": {
       const lijn = state.lijnen.find((l) => l.id === state.activeLijnId);
       const onderdeel = lijn?.onderdelen.find(
@@ -223,6 +232,9 @@ export function workflowReducer(
       );
       if (!lijn || !onderdeel || state.aantal === null) return state;
       const aantal = state.aantal;
+      const batch = onderdeel.isLichtbronOfDriver
+        ? state.batch.trim() || undefined
+        : onderdeel.batch;
 
       if (aantal > onderdeel.stock) {
         // Insufficient stock - branch into the shortage dialog.
@@ -234,6 +246,7 @@ export function workflowReducer(
         status: "gereserveerd",
         genomenAantal: aantal,
         stock: o.stock - aantal,
+        batch,
       }));
       const nextId = nextTeScannen(bijgewerkteLijn, onderdeel.id);
 
@@ -242,13 +255,14 @@ export function workflowReducer(
         lijnen: updateLijn(state.lijnen, lijn.id, () => bijgewerkteLijn),
         activeOnderdeelId: nextId,
         aantal: null,
+        batch: "",
         pogingen: 0,
         foutmelding: null,
         log: [
           ...state.log,
           makeLog(
             OPERATOR,
-            `Bevestigd: ${onderdeel.artikelcode} x${aantal} gereserveerd`,
+            `Bevestigd: ${onderdeel.artikelcode} x${aantal} gereserveerd${batch ? ` (batch/bin: ${batch})` : ""}`,
           ),
         ],
       };
@@ -259,7 +273,11 @@ export function workflowReducer(
       const onderdeel = lijn?.onderdelen.find(
         (o) => o.id === action.onderdeelId,
       );
-      if (!lijn || !onderdeel) return state;
+      // Defensive: only a confirmed reservation can be undone. Any other
+      // status (te_scannen, open, wacht_op_materiaal, gecorrigeerd) is a
+      // no-op here.
+      if (!lijn || !onderdeel || onderdeel.status !== "gereserveerd")
+        return state;
       const genomen = onderdeel.genomenAantal ?? 0;
       const bijgewerkteLijn = updateOnderdeel(lijn, onderdeel.id, (o) => ({
         ...o,
@@ -272,6 +290,7 @@ export function workflowReducer(
         lijnen: updateLijn(state.lijnen, lijn.id, () => bijgewerkteLijn),
         activeOnderdeelId: onderdeel.id,
         aantal: null,
+        batch: "",
         log: [
           ...state.log,
           makeLog(
@@ -305,6 +324,7 @@ export function workflowReducer(
           lijnen: updateLijn(state.lijnen, lijn.id, () => bijgewerkteLijn),
           activeOnderdeelId: nextId,
           aantal: null,
+          batch: "",
           tekortDialogOpen: false,
           log: [
             ...state.log,
@@ -330,6 +350,7 @@ export function workflowReducer(
         lijnen: updateLijn(state.lijnen, lijn.id, () => metStatus),
         activeOnderdeelId: nextId,
         aantal: null,
+        batch: "",
         tekortDialogOpen: false,
         log: [
           ...state.log,
@@ -341,6 +362,10 @@ export function workflowReducer(
       };
     }
 
+    // Closing the shortage dialog without an answer (Escape, outside click,
+    // or an explicit cancel) is NOT the same as "Nee, niet aanwezig" - it
+    // must not touch the onderdeel, the lijn status, or the log. The part
+    // stays active in the "neem benodigd aantal" step.
     case "SLUIT_TEKORT_DIALOG":
       return { ...state, tekortDialogOpen: false };
 

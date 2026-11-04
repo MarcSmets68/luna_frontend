@@ -22,6 +22,7 @@ export function createMockLijnen(): MockLijn[] {
           uitstelbaar: false,
           status: "te_scannen",
           isLichtbronOfDriver: true,
+          batch: "DRV-2026-11",
         },
         {
           id: "l1-o2",

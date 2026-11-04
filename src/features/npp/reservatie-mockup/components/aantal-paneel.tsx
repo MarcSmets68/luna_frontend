@@ -1,17 +1,22 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { MockOnderdeel } from "../types";
 
 export function AantalPaneel({
   onderdeel,
   aantal,
+  batch,
   onAantalChange,
+  onBatchChange,
   onBevestig,
 }: {
   onderdeel: MockOnderdeel;
   aantal: number;
+  batch: string;
   onAantalChange: (aantal: number) => void;
+  onBatchChange: (batch: string) => void;
   onBevestig: () => void;
 }) {
   return (
@@ -47,6 +52,19 @@ export function AantalPaneel({
           +
         </Button>
       </div>
+
+      {onderdeel.isLichtbronOfDriver && (
+        <label className="flex w-full flex-col gap-1 text-sm font-medium text-foreground">
+          Batch / bin
+          <Input
+            value={batch}
+            onChange={(e) => onBatchChange(e.target.value)}
+            placeholder="Batch- of binnummer"
+            aria-label="Batch / bin"
+          />
+        </label>
+      )}
+
       <Button type="button" className="min-h-11 w-full" onClick={onBevestig}>
         Bevestigen
       </Button>

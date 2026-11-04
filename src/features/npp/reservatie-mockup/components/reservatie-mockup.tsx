@@ -18,6 +18,7 @@ export function ReservatieMockup() {
           lijn={actieveLijn}
           activeOnderdeelId={state.activeOnderdeelId}
           aantal={state.aantal}
+          batch={state.batch}
           pogingen={state.pogingen}
           foutmelding={state.foutmelding}
           leidinggevendeVerwittigd={state.leidinggevendeVerwittigd}
@@ -27,6 +28,7 @@ export function ReservatieMockup() {
           onScanFout={(omschrijving) => dispatch({ type: "SCAN_FOUT", omschrijving })}
           onAckLeidinggevende={() => dispatch({ type: "ACK_LEIDINGGEVENDE" })}
           onAantalChange={(aantal) => dispatch({ type: "SET_AANTAL", aantal })}
+          onBatchChange={(batch) => dispatch({ type: "SET_BATCH", batch })}
           onBevestigAantal={() => dispatch({ type: "BEVESTIG_AANTAL" })}
           onOngedaanMaken={(onderdeelId) => dispatch({ type: "ONGEDAAN_MAKEN", onderdeelId })}
           onFysiekAanwezig={(aanwezig) => dispatch({ type: "FYSIEK_AANWEZIG", aanwezig })}
