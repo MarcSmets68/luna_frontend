@@ -17,7 +17,7 @@ export function DealerPicker({
   selected,
   onChange,
 }: {
-  dealers: DashDealer[];
+  dealers: Pick<DashDealer, "klnr" | "naam">[];
   selected: ReadonlySet<number>;
   onChange: (next: Set<number>) => void;
 }) {

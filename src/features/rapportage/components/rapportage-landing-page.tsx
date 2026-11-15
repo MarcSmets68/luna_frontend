@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
-// Statische lijst van beschikbare reports - Verkoop FUR en Omzetanalyse dealers,
+// Statische lijst van beschikbare reports - Verkoop FUR, Omzetanalyse dealers en Verkoopsanalyse,
 // future-proof zodat hier later meer report-kaarten bijkomen zonder
 // herontwerp (zie docs/architecture/verkoop-fur-ontwerp.md, Frontend §
 // Route/pagina's).
@@ -18,6 +18,12 @@ const REPORTS = [
     label: "Omzetanalyse dealers",
     description: "Omzet en aantallen per artikelcategorie voor dealers, met jaarvergelijking of periode.",
     href: "/rapportage/omzetanalyse-dealers",
+  },
+  {
+    key: "verkoopsanalyse",
+    label: "Verkoopsanalyse",
+    description: "Omzet en aantallen per maand voor gekozen dealers en artikelen, vergeleken met het jaar ervoor.",
+    href: "/rapportage/verkoopsanalyse",
   },
 ];
 

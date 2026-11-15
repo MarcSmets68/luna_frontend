@@ -23,4 +23,11 @@ describe("RapportageLandingPage", () => {
     expect(link).toHaveAttribute("href", "/rapportage/omzetanalyse-dealers");
     expect(screen.getByText(/Omzet en aantallen per artikelcategorie/)).toBeInTheDocument();
   });
+
+  it("renders the Verkoopsanalyse report card with a link to it", () => {
+    render(<RapportageLandingPage />);
+
+    const link = screen.getByRole("link", { name: /Verkoopsanalyse/ });
+    expect(link).toHaveAttribute("href", "/rapportage/verkoopsanalyse");
+  });
 });

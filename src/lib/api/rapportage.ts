@@ -134,3 +134,72 @@ export async function getOmzetanalyseDealers(
 export async function getOmzetanalyseSoorten(): Promise<{ items: SoortItem[] }> {
   return request<{ items: SoortItem[] }>("GET", "/rapportage/omzetanalyse-dealers/soorten");
 }
+
+// ------------------------------------------------------------ Verkoopsanalyse
+
+/** One month of the analysis: the month itself and the same month one year earlier. */
+export type VerkoopMaand = {
+  maand: string; // "YYYY-MM"
+  aantal: number;
+  omzet: number;
+  aantalVorigJaar: number;
+  omzetVorigJaar: number;
+};
+
+export type VerkoopsanalyseRij = {
+  artnr: string;
+  /** artikel.omschr-n for exact rows; null for "begint met" rows. */
+  omschrijving: string | null;
+  /** true = row aggregates every artnr starting with `artnr` (artikelgroep). */
+  swBegins: boolean;
+  eenheid: string | null;
+  /** Exactly 12 entries, oldest month first, aligned with the response's `maanden`. */
+  maanden: VerkoopMaand[];
+};
+
+export type VerkoopsanalyseResponse = {
+  periodeVan: string; // ISO date, first day of the oldest month
+  periodeTot: string; // ISO date, last day of the newest month
+  vorigePeriodeVan: string;
+  vorigePeriodeTot: string;
+  /** The dealers the analysis covers (all Nomaled dealers when none were selected). */
+  dealers: { klnr: number; naam: string }[];
+  rijen: VerkoopsanalyseRij[];
+  /** Per-month totals over all rows (omzet always; aantal summed as-is). */
+  totaal: VerkoopMaand[];
+  generatedAt: string;
+};
+
+export type VerkoopsanalyseParams = {
+  /** Dealer klnrs; empty = all Nomaled dealers. */
+  klnrs: number[];
+  /** Exact artnrs; a trailing "*" means "begint met" (artikelgroep). Empty = all articles. */
+  artikelen: string[];
+};
+
+/**
+ * Verkoopsanalyse (Rapportage): omzet and aantallen per month over the last
+ * 12 closed months, per selected article (or artikelgroep), with the same
+ * months one year earlier for comparison.
+ *
+ * Lists are sent as one parameter each - klnr comma-separated, artikelen
+ * "|"-separated (artnrs can contain commas, never a pipe) - and appended with
+ * encodeURIComponent instead of URLSearchParams: an artnr can contain a space
+ * or a literal "%", and OpenEdge's query-value decoder does not treat "+" as
+ * a space (same reasoning as getArtikel()).
+ * Cached for 5 minutes, like the omzetanalyse.
+ * Backend: GET /web/rapportage/verkoopsanalyse.
+ */
+export async function getVerkoopsanalyse(
+  params: VerkoopsanalyseParams,
+): Promise<VerkoopsanalyseResponse> {
+  const parts: string[] = [];
+  if (params.klnrs.length > 0) parts.push(`klnr=${params.klnrs.join(",")}`);
+  if (params.artikelen.length > 0) {
+    parts.push(`artikelen=${encodeURIComponent(params.artikelen.join("|"))}`);
+  }
+  const query = parts.length > 0 ? `?${parts.join("&")}` : "";
+  return request<VerkoopsanalyseResponse>("GET", `/rapportage/verkoopsanalyse${query}`, {
+    next: { revalidate: 300 },
+  });
+}
