@@ -15,10 +15,10 @@ import {
 } from "@/features/omzetanalyse-dealers/lib/omzetanalyse-format";
 import {
   groei,
-  heeftGemengdeEenheden,
   maandLabel,
   rijLabel,
   sommeer,
+  totaalAantalZinvol,
 } from "./verkoopsanalyse-model";
 
 export const CSV_HEADERS = [
@@ -87,7 +87,7 @@ export function buildCsvContent(response: VerkoopsanalyseResponse, gekozenDealer
     const artnr = rij.swBegins ? `${rij.artnr}*` : rij.artnr;
     for (const m of rij.maanden) addRow(artnr, rij.omschrijving ?? "", rij.eenheid ?? "", m, true);
   }
-  const totaalMetAantal = !heeftGemengdeEenheden(response.rijen);
+  const totaalMetAantal = totaalAantalZinvol(response.rijen);
   for (const m of response.totaal) addRow("TOTAAL", "", "", m, totaalMetAantal);
 
   return CSV_BOM + lines.join("\n");
@@ -140,7 +140,7 @@ function maandTable(title: string, maanden: VerkoopMaand[], metAantal: boolean):
 
 export function buildPdfModel(response: VerkoopsanalyseResponse): PdfTableModel[] {
   const tables = [
-    maandTable("Totaal van de selectie", response.totaal, !heeftGemengdeEenheden(response.rijen)),
+    maandTable("Totaal van de selectie", response.totaal, totaalAantalZinvol(response.rijen)),
   ];
   // A single row is identical to the total: no need to print it twice.
   if (response.rijen.length > 1) {

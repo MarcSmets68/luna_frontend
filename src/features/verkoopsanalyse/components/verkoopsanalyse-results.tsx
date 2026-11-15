@@ -7,6 +7,7 @@ import {
   heeftGemengdeEenheden,
   rijLabel,
   sommeer,
+  totaalAantalZinvol,
   type VerkoopsanalyseSelectie,
 } from "../lib/verkoopsanalyse-model";
 import { VerkoopsanalyseExportToolbar } from "./verkoopsanalyse-export-toolbar";
@@ -42,7 +43,8 @@ export function VerkoopsanalyseView({
 }) {
   const totaal = sommeer(response.totaal);
   const gemengd = heeftGemengdeEenheden(response.rijen);
-  const eenheid = !gemengd ? (response.rijen[0]?.eenheid ?? null) : null;
+  const metAantal = totaalAantalZinvol(response.rijen);
+  const eenheid = metAantal ? (response.rijen[0]?.eenheid ?? null) : null;
   const leeg = totaal.omzet === 0 && totaal.omzetVorigJaar === 0 && totaal.aantal === 0 && totaal.aantalVorigJaar === 0;
 
   return (
@@ -73,7 +75,7 @@ export function VerkoopsanalyseView({
               vorig={`€ ${formatMoney(totaal.omzetVorigJaar)}`}
               groeiWaarde={groei(totaal.omzet, totaal.omzetVorigJaar)}
             />
-            {!gemengd && (
+            {metAantal && (
               <Kpi
                 label={`Aantal${eenheid ? ` (${eenheid})` : ""}`}
                 waarde={formatQty(totaal.aantal)}
@@ -93,7 +95,7 @@ export function VerkoopsanalyseView({
 
           <section>
             <h2 className="mb-2 text-[15px] font-semibold text-foreground">Per maand</h2>
-            <VerkoopsanalyseMaandTable maanden={response.totaal} metAantal={!gemengd} eenheid={eenheid} />
+            <VerkoopsanalyseMaandTable maanden={response.totaal} metAantal={metAantal} eenheid={eenheid} />
           </section>
 
           {response.rijen.length > 1 && (

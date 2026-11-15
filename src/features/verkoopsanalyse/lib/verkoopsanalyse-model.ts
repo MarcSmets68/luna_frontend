@@ -91,6 +91,15 @@ export function heeftGemengdeEenheden(rijen: VerkoopsanalyseRij[]): boolean {
   return new Set(rijen.map((r) => r.eenheid ?? "")).size > 1;
 }
 
+/**
+ * Whether the total aantal means something: only when specific articles were
+ * chosen and they all count in the same unit. Without articles the backend
+ * sums every article, meters and stuks alike.
+ */
+export function totaalAantalZinvol(rijen: VerkoopsanalyseRij[]): boolean {
+  return rijen.length > 0 && !heeftGemengdeEenheden(rijen);
+}
+
 // ---------------------------------------------------------------- labels
 
 const MAANDEN = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];

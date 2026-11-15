@@ -6,6 +6,7 @@ import {
   maandLabel,
   parseSelectie,
   sommeer,
+  totaalAantalZinvol,
   vorigJaarLabel,
 } from "../verkoopsanalyse-model";
 import { maanden, rij } from "../../test-utils/fixtures";
@@ -60,5 +61,13 @@ describe("labels", () => {
     expect(maandLabel("2026-03")).toBe("mrt 2026");
     expect(vorigJaarLabel("2026-01")).toBe("jan 2025");
     expect(maandLabel("onzin")).toBe("onzin");
+  });
+});
+
+describe("totaalAantalZinvol", () => {
+  it("is false without articles or with mixed units", () => {
+    expect(totaalAantalZinvol([])).toBe(false);
+    expect(totaalAantalZinvol([rij({ eenheid: "m" }), rij({ eenheid: "st" })])).toBe(false);
+    expect(totaalAantalZinvol([rij({ eenheid: "st" })])).toBe(true);
   });
 });

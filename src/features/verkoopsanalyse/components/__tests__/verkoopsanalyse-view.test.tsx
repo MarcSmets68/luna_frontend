@@ -40,4 +40,11 @@ describe("VerkoopsanalyseView", () => {
     expect(screen.getByText(/Geen verkoop gevonden/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /PDF/ })).not.toBeInTheDocument();
   });
+
+  it("hides the summed aantal when no articles were chosen", () => {
+    render(<VerkoopsanalyseView response={response({ rijen: [], totaal: response().totaal })} gekozenDealers={0} />);
+
+    expect(screen.getByText("Omzet afgelopen 12 maanden")).toBeInTheDocument();
+    expect(screen.queryByText(/^Aantal/)).not.toBeInTheDocument();
+  });
 });
