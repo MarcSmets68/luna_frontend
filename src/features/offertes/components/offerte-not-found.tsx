@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function OfferteNotFound({
   offnr,
   versie,
@@ -16,6 +18,9 @@ export function OfferteNotFound({
       <p className="text-sm text-muted-foreground">
         Offerte {offnr}/{versie} bestaat niet of is verwijderd.
       </p>
+      <Link href="/offertes/alle" className="mt-4 inline-block text-sm underline">
+        Terug naar overzicht
+      </Link>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -157,6 +157,49 @@ describe("OfferteLijnenEditor - local mode", () => {
 });
 
 describe("OfferteLijnenEditor - persisted mode", () => {
+  it.each(["blur", "Enter"])("shows row save feedback after %s and clears it on the next edit", async (commit) => {
+    const lijn = makeOfflijn();
+    updateOfflijnMock.mockResolvedValue({ ...lijn, aantal: 3 });
+    render(<OfferteLijnenEditor mode="persisted" offnr={lijn.offnr} versie={lijn.versie} lijnen={[lijn]} onLijnenChange={vi.fn()} />);
+    expect(screen.queryByText("Opgeslagen")).not.toBeInTheDocument();
+    const input = screen.getByRole("spinbutton", { name: `Aantal lijn ${lijn.lijnnr}` });
+    input.focus();
+    fireEvent.change(input, { target: { value: "3" } });
+    if (commit === "Enter") fireEvent.keyDown(input, { key: "Enter" });
+    else fireEvent.blur(input);
+    expect(await screen.findByRole("status")).toHaveTextContent("Opgeslagen");
+    expect(updateOfflijnMock).toHaveBeenCalledTimes(1);
+    fireEvent.change(input, { target: { value: "4" } });
+    expect(screen.queryByText("Opgeslagen")).not.toBeInTheDocument();
+  });
+
+  it("clears row save feedback after three seconds", async () => {
+    vi.useFakeTimers();
+    try {
+      const lijn = makeOfflijn();
+      updateOfflijnMock.mockResolvedValue({ ...lijn, aantal: 3 });
+      render(<OfferteLijnenEditor mode="persisted" offnr={lijn.offnr} versie={lijn.versie} lijnen={[lijn]} onLijnenChange={vi.fn()} />);
+      const input = screen.getByRole("spinbutton", { name: `Aantal lijn ${lijn.lijnnr}` });
+      fireEvent.change(input, { target: { value: "3" } });
+      await act(async () => { fireEvent.blur(input); });
+      expect(screen.getByRole("status")).toHaveTextContent("Opgeslagen");
+      act(() => { vi.advanceTimersByTime(3000); });
+      expect(screen.queryByText("Opgeslagen")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not announce a failed line save as saved", async () => {
+    const lijn = makeOfflijn();
+    updateOfflijnMock.mockRejectedValue(new Error("Opslaan mislukt"));
+    render(<OfferteLijnenEditor mode="persisted" offnr={lijn.offnr} versie={lijn.versie} lijnen={[lijn]} onLijnenChange={vi.fn()} />);
+    const input = screen.getByRole("spinbutton", { name: `Aantal lijn ${lijn.lijnnr}` });
+    fireEvent.change(input, { target: { value: "3" } });
+    fireEvent.blur(input);
+    expect(await screen.findByText("Opslaan mislukt")).toBeVisible();
+    expect(screen.queryByText("Opgeslagen")).not.toBeInTheDocument();
+  });
   it("does not call updateOfflijn while typing - only commits on blur", async () => {
     const user = userEvent.setup();
     const onLijnenChange = vi.fn();

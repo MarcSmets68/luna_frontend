@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -366,11 +366,32 @@ function LineField({
   );
 }
 
+function SavedLineStatus() {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+  return <span role="status" className="block text-xs font-normal text-muted-foreground">{visible ? "Opgeslagen" : ""}</span>;
+}
+
 export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
   const { mode } = props;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [savedLines, setSavedLines] = useState<Record<string, number>>({});
+  function markLineSaved(lijnnr: number) {
+    setSavedLines((prev) => ({ ...prev, [lijnnr]: (prev[lijnnr] ?? 0) + 1 }));
+  }
+  function clearLineSaved(key: string) {
+    setSavedLines((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
   const [newLineKind, setNewLineKind] = useState<LineKind>("artikel");
   const [newLineFields, setNewLineFields] = useState<LineFields>(emptyLineFields());
   useUnsavedChanges(JSON.stringify(newLineFields) !== JSON.stringify(emptyLineFields()));
@@ -434,6 +455,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
     try {
       const updated = await updateOfflijn(props.offnr, props.versie, lijnnr, patch);
       props.onLijnenChange(props.lijnen.map((l) => (l.lijnnr === lijnnr ? updated : l)));
+      markLineSaved(lijnnr);
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Er ging iets mis bij het opslaan van de lijn.");
@@ -465,6 +487,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
     try {
       const reordered = await reorderOfflijn(props.offnr, props.versie, lijnnr, direction);
       props.onLijnenChange(reordered);
+      markLineSaved(lijnnr);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Er ging iets mis bij het herordenen van de lijn.");
     } finally {
@@ -485,6 +508,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
     try {
       const created = await createOfflijn(props.offnr, props.versie, payload);
       props.onLijnenChange([...props.lijnen, created]);
+      markLineSaved(created.lijnnr);
       setNewLineFields(emptyLineFields());
       setNewLineKind("artikel");
     } catch (e) {
@@ -574,7 +598,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
             const isExpanded = expanded.has(row.key);
             if (isSpecialKind(row.kind)) {
               return (
-                <TableRow key={row.key}>
+                <TableRow key={row.key} onChangeCapture={() => clearLineSaved(row.key)}>
                   <TableCell>
                     <div className="flex flex-col">
                       <Button
@@ -599,7 +623,10 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell className="font-semibold">{row.displayLijnnr}</TableCell>
+                  <TableCell className="font-semibold">
+                    {row.displayLijnnr}
+                    {savedLines[row.key] && <SavedLineStatus key={savedLines[row.key]} />}
+                  </TableCell>
                   <TableCell>
                     <KindBadge kind={row.kind} />
                   </TableCell>
@@ -634,7 +661,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
 
             return (
               <Fragment key={row.key}>
-                <TableRow>
+                <TableRow onChangeCapture={() => clearLineSaved(row.key)}>
                   <TableCell>
                     <div className="flex flex-col">
                       <Button
@@ -659,7 +686,10 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell className="font-semibold">{row.displayLijnnr}</TableCell>
+                  <TableCell className="font-semibold">
+                    {row.displayLijnnr}
+                    {savedLines[row.key] && <SavedLineStatus key={savedLines[row.key]} />}
+                  </TableCell>
                   <TableCell>
                     <KindBadge kind={row.kind} />
                   </TableCell>
@@ -781,7 +811,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                   </TableCell>
                 </TableRow>
                 {isExpanded ? (
-                  <TableRow key={`${row.key}-extra`}>
+                  <TableRow key={`${row.key}-extra`} onChangeCapture={() => clearLineSaved(row.key)}>
                     <TableCell colSpan={13} className="whitespace-normal bg-muted/30">
                       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                         <label className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">

@@ -243,6 +243,7 @@ export function OfferteDetailPage({
         variant="outline"
         onClick={handleOmzettenNaarOrder}
         disabled={offerte.stempel !== "O" || converting}
+        aria-describedby={offerte.stempel !== "O" ? "offerte-omzetten-uitleg" : undefined}
       >
         {converting ? "Bezig..." : "Omzetten naar Order"}
       </Button>
@@ -278,6 +279,11 @@ export function OfferteDetailPage({
           {offerte.naam}
         </Link>
       </div>
+      {!editing && offerte.stempel !== "O" && (
+        <p id="offerte-omzetten-uitleg" className="mb-3 text-sm text-muted-foreground">
+          Alleen open offertes kunnen omgezet worden.
+        </p>
+      )}
 
       {convertError && (
         <p className="mb-4 text-sm text-destructive">{convertError}</p>
@@ -424,6 +430,9 @@ export function OfferteDetailPage({
       </Card>
 
       <h2 className="mb-3 text-[16px] font-semibold text-foreground">Lijnen</h2>
+      <p className="mb-3 text-sm text-muted-foreground">
+        Wijzigingen aan lijnen worden automatisch opgeslagen.
+      </p>
 
       {lijnFouten.length > 0 && (
         <Card className="mb-4 border-destructive">
