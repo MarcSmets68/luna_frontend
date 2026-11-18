@@ -120,6 +120,11 @@ export function OfferteDetailPage({
   const [converting, setConverting] = useState(false);
   const [convertError, setConvertError] = useState<string | null>(null);
   const [currentLijnen, setCurrentLijnen] = useState<OfflijnItem[]>(lijnen);
+  const [lastLijnen, setLastLijnen] = useState(lijnen);
+  if (lastLijnen !== lijnen) {
+    setLastLijnen(lijnen);
+    setCurrentLijnen(lijnen);
+  }
   const [lijnFouten, setLijnFouten] = useState<LijnFout[]>([]);
 
   useEffect(() => {
@@ -167,8 +172,8 @@ export function OfferteDetailPage({
 
   async function handleSave() {
     const verkoopkans = Number(form.verkoopkans);
-    if (Number.isNaN(verkoopkans)) {
-      setError("Verkoopkans moet een geldig getal zijn.");
+    if (!form.verkoopkans.trim() || !Number.isInteger(verkoopkans) || verkoopkans < 0 || verkoopkans > 100) {
+      setError("Verkoopkans moet een geheel getal tussen 0 en 100 zijn.");
       return;
     }
 
@@ -186,8 +191,8 @@ export function OfferteDetailPage({
         soort: form.soort,
         verkoopkans,
         uRef: form.uRef,
-        besteldatum: form.besteldatum || undefined,
-        verkochtdatum: form.verkochtdatum || undefined,
+        besteldatum: form.besteldatum || null,
+        verkochtdatum: form.verkochtdatum || null,
         opm: form.opm,
         passief: form.passief,
         verloren: form.verloren,
@@ -207,6 +212,7 @@ export function OfferteDetailPage({
   }
 
   async function handleOmzettenNaarOrder() {
+    if (!window.confirm(`Offerte ${offerte.offnr}/${offerte.versie} omzetten naar order?`)) return;
     setConverting(true);
     setConvertError(null);
     try {
@@ -223,10 +229,10 @@ export function OfferteDetailPage({
   const headerActions = editing ? (
     <>
       <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
-        Cancel
+        Annuleren
       </Button>
       <Button type="button" onClick={handleSave} disabled={saving}>
-        {saving ? "Bezig..." : "Save"}
+        {saving ? "Bezig..." : "Opslaan"}
       </Button>
     </>
   ) : (
@@ -442,7 +448,10 @@ export function OfferteDetailPage({
         offnr={offerte.offnr}
         versie={offerte.versie}
         lijnen={currentLijnen}
-        onLijnenChange={setCurrentLijnen}
+        onLijnenChange={(updatedLijnen) => {
+          setCurrentLijnen(updatedLijnen);
+          router.refresh();
+        }}
       />
     </div>
   );
