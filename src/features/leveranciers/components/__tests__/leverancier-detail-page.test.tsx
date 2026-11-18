@@ -51,6 +51,19 @@ beforeEach(() => {
 });
 
 describe("LeverancierDetailPage", () => {
+  it("wraps a long supplier identity and keeps mobile actions in a wrapping group", () => {
+    const naam = "SynthetischAtelierNoordMetEenUitzonderlijkLangeNaam";
+    render(<LeverancierDetailPage leverancier={{ ...mockLeverancier, naam }} />);
+    const heading = screen.getByRole("heading", { name: naam });
+    expect(heading).toHaveClass("min-w-0", "max-w-full", "[overflow-wrap:anywhere]");
+    expect(heading.parentElement).toHaveClass("flex-col", "sm:flex-row", "sm:flex-wrap");
+    for (const name of ["Bewerken", "Verwijderen"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).toHaveClass("min-h-11");
+      expect(button.parentElement).toHaveClass("flex-wrap", "max-w-full");
+    }
+  });
+
   it("renders the leverancier naam as heading and levnr", () => {
     render(<LeverancierDetailPage leverancier={mockLeverancier} />);
     expect(screen.getByRole("heading", { name: "COATING PARTNERS BV" })).toBeInTheDocument();

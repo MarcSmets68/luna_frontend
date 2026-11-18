@@ -176,16 +176,16 @@ export function LeverancierDetailPage({ leverancier, backHref = "/leveranciers" 
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         Leveranciers
       </div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-[26px] font-bold text-foreground">{leverancier.naam}</h1>
-        <div className="flex items-center gap-3">
-          <div className="text-[13px] text-[#5e5e5e]">Levnr {leverancier.levnr}</div>
+      <div className="mb-6 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between">
+        <h1 className="min-w-0 max-w-full text-[26px] font-bold text-foreground [overflow-wrap:anywhere]">{leverancier.naam}</h1>
+        <div className="flex w-full max-w-full flex-wrap items-center gap-3 sm:w-auto">
+          <div className="w-full text-[13px] text-[#5e5e5e] sm:w-auto">Levnr {leverancier.levnr}</div>
           {!editing && (
             <>
-              <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Button type="button" variant="outline" size="sm" className="min-h-11 sm:min-h-0" onClick={() => setDeleteOpen(true)}>
                 Verwijderen
               </Button>
-              <Button type="button" size="sm" onClick={startEditing}>
+              <Button type="button" size="sm" className="min-h-11 sm:min-h-0" onClick={startEditing}>
                 Bewerken
               </Button>
             </>
