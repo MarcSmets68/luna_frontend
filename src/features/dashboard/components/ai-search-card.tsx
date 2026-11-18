@@ -40,7 +40,7 @@ export function AiSearchCard() {
   }
 
   return (
-    <Card className="mt-4 rounded-none border-border shadow-none">
+    <Card className="mt-5 gap-0 py-0">
       <CardHeader className="border-b border-border py-3.5">
         <CardTitle className="text-sm font-semibold text-foreground">AI-zoekopdracht</CardTitle>
       </CardHeader>

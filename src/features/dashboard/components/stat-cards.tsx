@@ -15,9 +15,9 @@ type StatCard = {
 };
 
 const hintColorClass: Record<HintColor, string> = {
-  default: "text-[#5e5e5e]",
-  positive: "text-primary",
-  warning: "text-[#8a6820]",
+  default: "text-muted-foreground",
+  positive: "text-primary-600",
+  warning: "text-warning-fg",
 };
 
 function buildStatCards(statCards: DashboardStatCards): StatCard[] {
@@ -59,23 +59,23 @@ export function StatCards({ statCards }: { statCards: DashboardStatCards }) {
   const cards = buildStatCards(statCards);
 
   return (
-    <div className="mb-7 grid grid-cols-4 gap-4">
+    <div className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((stat) => {
         const card = (
           <Card
             className={cn(
-              "rounded-none border-border shadow-none",
-              stat.href && "cursor-pointer hover:border-primary hover:bg-muted/40"
+              "h-full border-t-2 border-t-primary/50",
+              stat.href && "cursor-pointer transition-colors hover:border-primary hover:bg-muted/40"
             )}
           >
             <CardContent className="px-5 py-1">
-              <div className="mb-2 text-[11px] font-semibold tracking-[0.05em] text-[#787878] uppercase">
+              <div className="mb-3 text-[11px] font-medium tracking-[0.04em] text-muted-foreground uppercase">
                 {stat.label}
               </div>
               <div
                 className={cn(
-                  "text-[22px] font-bold whitespace-nowrap",
-                  stat.hintColor === "warning" ? "text-[#8a6820]" : "text-foreground"
+                  "text-[28px] leading-tight font-semibold tracking-tight whitespace-nowrap tabular-nums",
+                  stat.hintColor === "warning" ? "text-warning-fg" : "text-foreground"
                 )}
               >
                 {stat.value}

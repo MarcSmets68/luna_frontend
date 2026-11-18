@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "../app-shell";
 import { clearSession, saveSession, type Session } from "@/features/auth/session";
 
@@ -35,10 +36,27 @@ function makeSession(overrides: Partial<Session> = {}): Session {
   };
 }
 
+let desktop = false;
+let onBreakpointChange: (() => void) | undefined;
+
 beforeEach(() => {
   clearSession();
   setInterfaceModeMock.mockReset();
+  desktop = false;
+  onBreakpointChange = undefined;
+  vi.stubGlobal("matchMedia", vi.fn((query: string) => ({
+    get matches() { return query === "(min-width: 768px)" && desktop; },
+    media: query,
+    addEventListener: (_: string, listener: () => void) => {
+      if (query === "(min-width: 768px)") onBreakpointChange = listener;
+    },
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+  })));
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("AppShell", () => {
   it("shows the TestModeBanner when the stored session has everyoneAdminActive: true", () => {
@@ -67,5 +85,29 @@ describe("AppShell", () => {
     render(<AppShell>content</AppShell>);
     expect(setInterfaceModeMock).toHaveBeenCalledWith("luna");
   });
-});
 
+  it("opens mobile navigation and restores focus when dismissed with Escape", async () => {
+    const user = userEvent.setup();
+    render(<AppShell>content</AppShell>);
+    const trigger = screen.getByRole("button", { name: "Menu openen" });
+    await user.click(trigger);
+    const drawer = await screen.findByRole("dialog", { name: "Nomaled" });
+    expect(within(drawer).getByRole("navigation", { name: "Hoofdnavigatie" })).toBeInTheDocument();
+    expect(within(drawer).getByRole("link", { name: "Klanten" })).toHaveAttribute("href", "/klanten");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("dismisses an open drawer when the viewport becomes desktop sized", async () => {
+    const user = userEvent.setup();
+    render(<AppShell>content</AppShell>);
+    await user.click(screen.getByRole("button", { name: "Menu openen" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    act(() => {
+      desktop = true;
+      onBreakpointChange?.();
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+});

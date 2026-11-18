@@ -5,7 +5,7 @@ import { VsVorigeMaand } from "./vs-vorige-maand";
 
 export function TopKlantenCard({ items, error }: { items: DashboardTopKlantItem[]; error: boolean }) {
   return (
-    <Card className="rounded-none border-border shadow-none">
+    <Card className="gap-0 py-0">
       <CardHeader className="border-b border-border py-3.5">
         <CardTitle className="text-sm font-semibold text-foreground">Top 5 klanten</CardTitle>
         <div className="text-[11px] text-muted-foreground">netto excl. BTW, deze maand tot nu toe</div>

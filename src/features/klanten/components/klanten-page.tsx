@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import type { KlantItem } from "@/lib/api-client";
 
@@ -102,25 +103,19 @@ export function KlantenPage({
 
   return (
     <div>
-      <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-        Klanten
-      </div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-[26px] font-bold text-foreground">Klanten</h1>
-        <div className="flex items-center gap-3">
+      <PageHeader section="Klanten" title="Klanten">
           <div className="text-[13px] text-muted-foreground">Pagina {page}</div>
           <Button type="button" size="sm" onClick={() => router.push("/klanten/nieuw")}>
             Nieuwe klant
           </Button>
-        </div>
-      </div>
+      </PageHeader>
 
-      <div className="mb-6 flex gap-6">
-        <div className="flex flex-col gap-1">
+      <div className="mb-5 flex flex-wrap items-end gap-4 rounded-xl border border-border bg-card p-4 shadow-(--shadow-surface)">
+        <div className="flex min-w-0 flex-col gap-1">
           <label htmlFor="klanten-filter-naam" className="text-[12px] text-muted-foreground">
             Naam
           </label>
-          <div className="relative w-[280px]">
+          <div className="relative w-[280px] max-w-full">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="klanten-filter-naam"
@@ -134,7 +129,7 @@ export function KlantenPage({
 
         <div className="flex flex-col gap-1">
           <span className="text-[12px] text-muted-foreground">Filter</span>
-          <div role="group" aria-label="Klantenfilter" className="flex">
+          <div role="group" aria-label="Klantenfilter" className="flex h-9 items-stretch [&_button]:h-auto">
             <Button
               type="button"
               size="sm"
@@ -171,7 +166,7 @@ export function KlantenPage({
                 <TableHead>Stad</TableHead>
                 <TableHead>Telefoon</TableHead>
                 <TableHead>E-mail</TableHead>
-                <TableHead>Saldo</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
                 <TableHead>Geblokkeerd</TableHead>
               </TableRow>
             </TableHeader>
@@ -191,15 +186,19 @@ export function KlantenPage({
                     }
                   }}
                 >
-                  <TableCell className="font-semibold">{item.klnr}</TableCell>
+                  <TableCell className="font-semibold text-primary-600">{item.klnr}</TableCell>
                   <TableCell className="whitespace-normal">{item.naam}</TableCell>
                   <TableCell>{item.adres}</TableCell>
                   <TableCell>{item.postnr}</TableCell>
                   <TableCell>{item.stad}</TableCell>
                   <TableCell>{item.tel}</TableCell>
                   <TableCell>{item.email}</TableCell>
-                  <TableCell>{formatSaldo(item.saldo)}</TableCell>
-                  <TableCell>{item.geblokkeerd ? "Ja" : "Nee"}</TableCell>
+                  <TableCell className="text-right font-medium">{formatSaldo(item.saldo)}</TableCell>
+                  <TableCell>
+                    <span className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-medium", item.geblokkeerd ? "bg-error-bg text-error-fg" : "bg-muted text-muted-foreground")}>
+                      {item.geblokkeerd ? "Ja" : "Nee"}
+                    </span>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

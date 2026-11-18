@@ -1,4 +1,5 @@
 import type { DashboardResponse } from "@/lib/api-client";
+import { PageHeader } from "@/components/ui/page-header";
 import { StatCards } from "./stat-cards";
 import { RecentActivityCard } from "./recent-activity-card";
 import { ProductionCard } from "./production-card";
@@ -18,13 +19,9 @@ const today = new Date().toLocaleDateString("nl-BE", {
 export function DashboardPage({ dashboard }: { dashboard: DashboardResponse }) {
   return (
     <div>
-      <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-        Overzicht
-      </div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-[26px] font-bold text-foreground">Dashboard</h1>
-        <div className="text-[13px] text-[#5e5e5e] capitalize">{today}</div>
-      </div>
+      <PageHeader section="Overzicht" title="Dashboard">
+        <span className="capitalize">{today}</span>
+      </PageHeader>
 
       <StatCards statCards={dashboard.statCards} />
 
@@ -32,7 +29,7 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardResponse }) {
         <OmzetTrendCard items={dashboard.omzetTrend ?? []} />
       </div>
 
-      <div className="mb-7 grid grid-cols-2 gap-4">
+      <div className="mb-7 grid gap-5 xl:grid-cols-2">
         <TopKlantenCard items={dashboard.topKlanten ?? []} error={dashboard.topKlantenError ?? false} />
         <TopArtikelenCard items={dashboard.topArtikelen ?? []} error={dashboard.topArtikelenError ?? false} />
       </div>
@@ -44,7 +41,7 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardResponse }) {
         />
       </div>
 
-      <div className="grid grid-cols-[2fr_1fr] gap-4">
+      <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
         <RecentActivityCard items={dashboard.recentActivity} />
         <ProductionCard items={dashboard.productionThisWeek} />
       </div>

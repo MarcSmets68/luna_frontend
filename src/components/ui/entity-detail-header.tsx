@@ -18,8 +18,8 @@ function EntityDetailHeader({
   actions,
 }: EntityDetailHeaderProps) {
   return (
-    <div className="mb-6 flex items-baseline justify-between">
-      <div className="flex items-baseline gap-3">
+    <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-[26px] font-bold text-foreground">{title}</h1>
         {badges && badges.length > 0 && (
           <div className="flex items-center gap-1.5">
@@ -36,7 +36,7 @@ function EntityDetailHeader({
           </div>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {subtitle && <div className="text-[13px] text-muted-foreground">{subtitle}</div>}
         {dirty && (
           <div className="text-[13px] text-warning-fg">Niet-bewaarde wijzigingen</div>
@@ -49,4 +49,3 @@ function EntityDetailHeader({
 
 export { EntityDetailHeader }
 export type { EntityDetailHeaderProps }
-

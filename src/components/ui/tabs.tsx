@@ -18,7 +18,7 @@ function TabsList({ className, ...props }: TabsPrimitive.List.Props) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
-      className={cn("flex gap-6 border-b border-border", className)}
+      className={cn("flex gap-6 overflow-x-auto border-b border-border", className)}
       {...props}
     />
   )
@@ -29,7 +29,7 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
       className={cn(
-        "border-b-2 border-transparent py-2 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground data-active:border-primary data-active:font-semibold data-active:text-foreground",
+        "shrink-0 border-b-2 border-transparent px-1 py-3 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset data-active:border-primary data-active:font-semibold data-active:text-primary-600",
         className
       )}
       {...props}
@@ -48,4 +48,3 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
 }
 
 export { Tabs, TabsList, TabsTrigger, TabsContent }
-

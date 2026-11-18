@@ -19,7 +19,7 @@ export function OrdersFilters({
   onFiltersChange: (filters: OrdersFiltersState) => void;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end gap-3">
+    <div className="mb-5 flex flex-wrap items-end gap-4 rounded-xl border border-border bg-card p-4 shadow-(--shadow-surface)">
       <div className="flex flex-col gap-1">
         <label htmlFor="orders-filter-bonnr" className="text-[12px] text-muted-foreground">
           Bonnr

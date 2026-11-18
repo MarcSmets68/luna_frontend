@@ -13,7 +13,7 @@ import type { DashboardProductionItem } from "@/lib/api-client";
  */
 export function ProductionCard({ items }: { items: DashboardProductionItem[] }) {
   return (
-    <Card className="rounded-none border-border shadow-none">
+    <Card className="gap-0 py-0">
       <CardHeader className="border-b border-border py-3.5">
         <CardTitle className="text-sm font-semibold text-foreground">Productie deze week</CardTitle>
       </CardHeader>

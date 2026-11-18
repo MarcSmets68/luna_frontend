@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import type { BonItem } from "@/lib/api-client";
 import { OrdersFilters, type OrdersFiltersState } from "./orders-filters";
+import { PageHeader } from "@/components/ui/page-header";
 
 /** Debounce (ms) before a filter change is pushed to the URL - avoids
     firing a server request on every keystroke in the Bonnr/Klant
@@ -84,13 +85,9 @@ export function OrdersPage({
 
   return (
     <div>
-      <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-        Orders &amp; Productie
-      </div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-[26px] font-bold text-foreground">Alle orders</h1>
-        <div className="text-[13px] text-[#5e5e5e]">Pagina {page}</div>
-      </div>
+      <PageHeader section="Orders & Productie" title="Alle orders">
+        <span>Pagina {page}</span>
+      </PageHeader>
 
       <OrdersFilters filters={filters} onFiltersChange={setFilters} />
 
@@ -106,7 +103,7 @@ export function OrdersPage({
                 <TableHead>Datum</TableHead>
                 <TableHead>Klant</TableHead>
                 <TableHead>Stad</TableHead>
-                <TableHead>Bedrag</TableHead>
+                <TableHead className="text-right">Bedrag</TableHead>
                 <TableHead>Munt</TableHead>
                 <TableHead>Leverdatum</TableHead>
               </TableRow>
@@ -127,12 +124,12 @@ export function OrdersPage({
                     }
                   }}
                 >
-                  <TableCell className="font-semibold">{item.bonnr}</TableCell>
+                  <TableCell className="font-semibold text-primary-600">{item.bonnr}</TableCell>
                   <TableCell>{item.type}</TableCell>
                   <TableCell>{formatDatum(item.datum)}</TableCell>
                   <TableCell className="whitespace-normal">{item.naam}</TableCell>
                   <TableCell>{item.stad}</TableCell>
-                  <TableCell>{formatBedrag(item.bedrag)}</TableCell>
+                  <TableCell className="text-right font-medium">{formatBedrag(item.bedrag)}</TableCell>
                   <TableCell>{item.munt}</TableCell>
                   <TableCell>{formatDatum(item.levDatum)}</TableCell>
                 </TableRow>
