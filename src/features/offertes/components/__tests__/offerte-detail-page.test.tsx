@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OfferteDetailPage } from "../offerte-detail-page";
 import type { OfferteItem, OfflijnItem } from "@/lib/api-client";
+import { confirmNavigation } from "@/lib/unsaved-changes";
 
 const refreshMock = vi.fn();
 const searchParamsMock = vi.fn(() => new URLSearchParams());
@@ -14,12 +15,20 @@ vi.mock("next/navigation", () => ({
 const updateOfferteMock = vi.fn();
 const omzettenNaarOrderMock = vi.fn();
 const pushMock = vi.fn();
+const updateOfflijnMock = vi.fn();
+const createOfflijnMock = vi.fn();
+const deleteOfflijnMock = vi.fn();
+const reorderOfflijnMock = vi.fn();
 vi.mock("@/lib/api-client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
   return {
     ...actual,
     updateOfferte: (...args: unknown[]) => updateOfferteMock(...args),
     omzettenNaarOrder: (...args: unknown[]) => omzettenNaarOrderMock(...args),
+    updateOfflijn: (...args: unknown[]) => updateOfflijnMock(...args),
+    createOfflijn: (...args: unknown[]) => createOfflijnMock(...args),
+    deleteOfflijn: (...args: unknown[]) => deleteOfflijnMock(...args),
+    reorderOfflijn: (...args: unknown[]) => reorderOfflijnMock(...args),
   };
 });
 
@@ -30,6 +39,11 @@ beforeEach(() => {
   pushMock.mockReset();
   searchParamsMock.mockReset();
   searchParamsMock.mockReturnValue(new URLSearchParams());
+  updateOfflijnMock.mockReset();
+  createOfflijnMock.mockReset();
+  deleteOfflijnMock.mockReset();
+  reorderOfflijnMock.mockReset();
+  vi.spyOn(window, "confirm").mockReturnValue(true);
 });
 
 const mockOfferte: OfferteItem = {
@@ -158,8 +172,8 @@ describe("OfferteDetailPage", () => {
     expect(screen.getByText("Offnr")).toBeInTheDocument();
     expect(screen.getByText("2167769")).toBeInTheDocument();
     expect(screen.queryByRole("spinbutton", { name: "Bedrag" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opslaan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Annuleren" })).toBeInTheDocument();
   });
 
   it("shows the verloren help text in edit mode", async () => {
@@ -181,7 +195,7 @@ describe("OfferteDetailPage", () => {
     const naamInput = screen.getByRole("textbox", { name: "Naam" });
     await user.clear(naamInput);
     await user.type(naamInput, "CONE LIGHTING NV");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(updateOfferteMock).toHaveBeenCalledTimes(1));
     expect(updateOfferteMock).toHaveBeenCalledWith(
@@ -199,10 +213,10 @@ describe("OfferteDetailPage", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
 
     await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Offerte 2167769/1 not found")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opslaan" })).toBeInTheDocument();
   });
 
   it("reads the partial-failure banner from sessionStorage when lijnFout=1", () => {
@@ -255,7 +269,98 @@ describe("OfferteDetailPage", () => {
     await user.click(screen.getByRole("button", { name: "Omzetten naar Order" }));
 
     await waitFor(() => expect(omzettenNaarOrderMock).toHaveBeenCalledWith(2167769, 1));
+    expect(window.confirm).toHaveBeenCalledWith("Offerte 2167769/1 omzetten naar order?");
     expect(pushMock).toHaveBeenCalledWith("/orders/48213?edit=1");
+  });
+
+  it("does not convert when confirmation is cancelled", async () => {
+    vi.mocked(window.confirm).mockReturnValue(false);
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={[]} />);
+    await userEvent.click(screen.getByRole("button", { name: "Omzetten naar Order" }));
+    expect(omzettenNaarOrderMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Omzetten naar Order" })).toBeEnabled();
+  });
+
+  it("sends explicit nulls when clearing both commercial dates", async () => {
+    render(<OfferteDetailPage offerte={{ ...mockOfferte, verkochtdatum: "2026-08-02" }} lijnen={[]} />);
+    await userEvent.click(screen.getByRole("button", { name: "Verbeteren" }));
+    fireEvent.change(screen.getByLabelText("Besteldatum"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Verkoopdatum"), { target: { value: "" } });
+    await userEvent.click(screen.getByRole("button", { name: "Opslaan" }));
+    expect(updateOfferteMock).toHaveBeenCalledWith(2167769, 1,
+      expect.objectContaining({ besteldatum: null, verkochtdatum: null }));
+    expect(JSON.parse(JSON.stringify(updateOfferteMock.mock.calls[0][2]))).toMatchObject({
+      besteldatum: null, verkochtdatum: null,
+    });
+  });
+
+  it.each(["", "-1", "101", "12.5"])("rejects invalid verkoopkans %s", async (value) => {
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={[]} />);
+    await userEvent.click(screen.getByRole("button", { name: "Verbeteren" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Verkoopkans" }), { target: { value } });
+    await userEvent.click(screen.getByRole("button", { name: "Opslaan" }));
+    expect(screen.getByText("Verkoopkans moet een geheel getal tussen 0 en 100 zijn.")).toBeInTheDocument();
+    expect(updateOfferteMock).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 75, 100])("accepts whole verkoopkans %s", async (value) => {
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={[]} />);
+    await userEvent.click(screen.getByRole("button", { name: "Verbeteren" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Verkoopkans" }), { target: { value: String(value) } });
+    await userEvent.click(screen.getByRole("button", { name: "Opslaan" }));
+    expect(updateOfferteMock).toHaveBeenCalledWith(2167769, 1, expect.objectContaining({ verkoopkans: value }));
+  });
+
+  it.each(["add", "update", "delete", "reorder"])("refreshes server totals after line %s", async (mutation) => {
+    const lines = [mockLijnen[0], { ...mockLijnen[0], lijnnr: 2 }];
+    updateOfflijnMock.mockResolvedValue({ ...lines[0], aantal: 12 });
+    createOfflijnMock.mockResolvedValue({ ...lines[0], lijnnr: 3 });
+    deleteOfflijnMock.mockResolvedValue({ status: "ok" });
+    reorderOfflijnMock.mockResolvedValue([...lines].reverse());
+    const { rerender } = render(<OfferteDetailPage offerte={mockOfferte} lijnen={lines} />);
+    if (mutation === "add") {
+      await userEvent.click(screen.getByRole("button", { name: "Lijn toevoegen" }));
+    } else if (mutation === "update") {
+      fireEvent.change(screen.getByRole("spinbutton", { name: "Aantal lijn 1" }), { target: { value: "12" } });
+      fireEvent.blur(screen.getByRole("spinbutton", { name: "Aantal lijn 1" }));
+    } else if (mutation === "delete") {
+      await userEvent.click(screen.getByRole("button", { name: "Verwijder lijn 1" }));
+    } else {
+      await userEvent.click(screen.getAllByRole("button", { name: "Omlaag" })[0]);
+    }
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledTimes(1));
+    rerender(<OfferteDetailPage offerte={{ ...mockOfferte, bedrag: 900, btw: 189 }} lijnen={[]} />);
+    expect(screen.getByText("900,00")).toBeInTheDocument();
+    expect(screen.getByText("189,00")).toBeInTheDocument();
+    expect(screen.getByText("Geen lijnen.")).toBeInTheDocument();
+  });
+
+  it("keeps unsaved header and line edits and their guards on refreshed props", async () => {
+    const { rerender } = render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
+    await userEvent.click(screen.getByRole("button", { name: "Verbeteren" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Naam" }), { target: { value: "Niet opgeslagen" } });
+    fireEvent.focus(screen.getByRole("spinbutton", { name: "Aantal lijn 1" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Aantal lijn 1" }), { target: { value: "15" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Omschrijving nieuwe lijn" }), { target: { value: "Nieuwe conceptlijn" } });
+    rerender(<OfferteDetailPage offerte={{ ...mockOfferte, bedrag: 900, btw: 189 }} lijnen={[{ ...mockLijnen[0], aantal: 11 }]} />);
+    expect(screen.getByRole("textbox", { name: "Naam" })).toHaveValue("Niet opgeslagen");
+    expect(screen.getByRole("spinbutton", { name: "Aantal lijn 1" })).toHaveValue(15);
+    expect(screen.getByRole("textbox", { name: "Omschrijving nieuwe lijn" })).toHaveValue("Nieuwe conceptlijn");
+    expect(screen.getByText("900,00")).toBeInTheDocument();
+    vi.mocked(window.confirm).mockReturnValue(false);
+    expect(confirmNavigation()).toBe(false);
+    expect(updateOfflijnMock).not.toHaveBeenCalled();
+  });
+
+  it("does not refresh when a line mutation fails", async () => {
+    updateOfflijnMock.mockRejectedValue(new Error("Opslaan mislukt"));
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Aantal lijn 1" }), { target: { value: "12" } });
+    fireEvent.blur(screen.getByRole("spinbutton", { name: "Aantal lijn 1" }));
+    expect(await screen.findByText("Opslaan mislukt")).toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("spinbutton", { name: "Aantal lijn 1" })).toHaveValue(12);
   });
 
   it("shows an inline error and does not redirect when the conversion fails", async () => {
