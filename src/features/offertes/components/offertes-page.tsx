@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum, statusLabel } from "@/lib/format";
 import type { OfferteItem } from "@/lib/api-client";
 import { OffertesFilters, type OffertesFiltersState } from "./offertes-filters";
+import { withOverviewContext } from "@/lib/overview-navigation";
 
 /** Debounce (ms) before a filter change is pushed to the URL - avoids
     firing a server request on every keystroke in the Offnr/Klant
@@ -40,9 +41,8 @@ export function OffertesPage({
 }) {
   const router = useRouter();
   const [filters, setFilters] = useState<OffertesFiltersState>({ offnr, naam });
-  const isFirstRender = useRef(true);
   const skipNextPropsSync = useRef(false);
-  const isSyncingFromProps = useRef(false);
+  const pendingFilterPush = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* The URL is the source of truth (server component re-fetches on every
      navigation). Re-sync local state when the props change from outside
@@ -54,33 +54,22 @@ export function OffertesPage({
       skipNextPropsSync.current = false;
       return;
     }
-    isSyncingFromProps.current = true;
     setFilters({ offnr, naam });
   }, [offnr, naam]);
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
-    /* Skip the debounced push when this filters change was itself caused
-       by the resync effect above (e.g. browser back/forward) - otherwise
-       we'd immediately push page=1 and clobber the URL the user just
-       navigated to. */
-    if (isSyncingFromProps.current) {
-      isSyncingFromProps.current = false;
-      return;
-    }
+    if (filters.offnr === offnr && filters.naam === naam) return;
 
     const timeout = setTimeout(() => {
+      pendingFilterPush.current = null;
       skipNextPropsSync.current = true;
       router.push(buildHref(1, filters));
     }, FILTER_DEBOUNCE_MS);
 
+    pendingFilterPush.current = timeout;
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
+  }, [filters, offnr, naam]);
 
   function buildHref(targetPage: number, state: OffertesFiltersState): string {
     const query = new URLSearchParams();
@@ -91,8 +80,9 @@ export function OffertesPage({
     return `/offertes/alle?${query.toString()}`;
   }
 
-  function goToOfferte(offnr: number, versie: number) {
-    router.push(`/offertes/${offnr}/${versie}`);
+  function goToOfferte(targetOffnr: number, versie: number) {
+    if (pendingFilterPush.current) clearTimeout(pendingFilterPush.current);
+    router.push(withOverviewContext(`/offertes/${targetOffnr}/${versie}`, buildHref(page, { offnr, naam }), "/offertes/alle"));
   }
 
   return (

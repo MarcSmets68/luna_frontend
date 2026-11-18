@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import type { DashboardProductionItem } from "@/lib/api-client";
@@ -22,9 +23,11 @@ export function ProductionCard({ items }: { items: DashboardProductionItem[] }) 
           <div className="px-5 py-3 text-[13px] text-muted-foreground">Geen orders deze week.</div>
         )}
         {items.map((order, i) => (
-          <div
+          <Link
             key={order.bonnr}
-            className={"px-5 py-2.75 " + (i < items.length - 1 ? "border-b border-muted" : "")}
+            href={`/orders/${order.bonnr}`}
+            aria-label={`Open order ${order.bonnr} voor ${order.klant}`}
+            className={"block px-5 py-2.75 transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring " + (i < items.length - 1 ? "border-b border-muted" : "")}
           >
             <div className="flex justify-between text-[12.5px] font-semibold text-foreground">
               <span>{order.bonnr}</span>
@@ -35,7 +38,7 @@ export function ProductionCard({ items }: { items: DashboardProductionItem[] }) 
             <Badge className="mt-1.5 rounded-none border-none bg-secondary px-1.75 py-0.5 text-[10.5px] font-bold tracking-[0.03em] text-[#5e5e5e]">
               Openstaand
             </Badge>
-          </div>
+          </Link>
         ))}
       </CardContent>
     </Card>

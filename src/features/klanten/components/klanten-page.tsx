@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import type { KlantItem } from "@/lib/api-client";
+import { withOverviewContext } from "@/lib/overview-navigation";
 
 /** Debounce (ms) before a naam filter change is pushed to the URL - avoids
     firing a server request on every keystroke in the search field. */
@@ -41,8 +42,8 @@ export function KlantenPage({
 }) {
   const router = useRouter();
   const [naamFilter, setNaamFilter] = useState(naam);
-  const isFirstRender = useRef(true);
   const skipNextPropsSync = useRef(false);
+  const previousNaam = useRef(naam);
   const pendingNaamPush = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* The URL is the source of truth (server component re-fetches on every
@@ -50,6 +51,8 @@ export function KlantenPage({
      own debounced navigate() below - e.g. the browser back/forward button -
      but not right after we just pushed that same state ourselves. */
   useEffect(() => {
+    if (previousNaam.current === naam) return;
+    previousNaam.current = naam;
     if (skipNextPropsSync.current) {
       skipNextPropsSync.current = false;
       return;
@@ -58,10 +61,7 @@ export function KlantenPage({
   }, [naam]);
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
+    if (naamFilter === naam) return;
 
     const timeout = setTimeout(() => {
       pendingNaamPush.current = null;
@@ -77,7 +77,7 @@ export function KlantenPage({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [naamFilter]);
+  }, [naamFilter, naam]);
 
   function buildHref(targetPage: number, naamValue: string, nomaledValue: boolean): string {
     const query = new URLSearchParams();
@@ -89,7 +89,8 @@ export function KlantenPage({
   }
 
   function goToKlant(klnr: number) {
-    router.push(`/klanten/${klnr}`);
+    if (pendingNaamPush.current) clearTimeout(pendingNaamPush.current);
+    router.push(withOverviewContext(`/klanten/${klnr}`, buildHref(page, naam, nomaled), "/klanten"));
   }
 
   function selectDealerFilter(next: boolean) {

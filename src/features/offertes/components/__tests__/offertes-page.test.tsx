@@ -37,6 +37,13 @@ const mockItems: OfferteItem[] = [
 ];
 
 describe("OffertesPage", () => {
+  it("keeps the exact quotation overview context on opening a detail", () => {
+    render(<OffertesPage items={mockItems} page={4} hasMore offnr="216" naam="CONE" />);
+    fireEvent.click(screen.getByRole("link", { name: "Open offerte 2167769/1" }));
+    const detail = new URL(pushMock.mock.lastCall![0], "https://luna.invalid");
+    expect(detail.searchParams.get("returnTo")).toBe("/offertes/alle?page=4&offnr=216&naam=CONE");
+  });
+
   it("renders the page heading", () => {
     render(<OffertesPage items={mockItems} page={1} hasMore={false} />);
     expect(screen.getByRole("heading", { name: "Alle offertes" })).toBeInTheDocument();

@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/layout/app-shell";
+import { overviewReturnHref } from "@/lib/overview-navigation";
 import { KlantDetailPage } from "@/features/klanten/components/klant-detail-page";
 import { KlantNotFound } from "@/features/klanten/components/klant-not-found";
 import {
@@ -22,6 +23,7 @@ export default async function KlantDetail({
     offertesPage?: string;
     ordersPage?: string;
     facturenPage?: string;
+    returnTo?: string;
   }>;
 }) {
   const { klnr: klnrParam } = await params;
@@ -29,6 +31,7 @@ export default async function KlantDetail({
     offertesPage: offertesPageParam,
     ordersPage: ordersPageParam,
     facturenPage: facturenPageParam,
+    returnTo,
   } = await searchParams;
 
   const klnr = Number(klnrParam);
@@ -67,6 +70,7 @@ export default async function KlantDetail({
     <AppShell>
       <KlantDetailPage
         klant={klant}
+        backHref={overviewReturnHref(returnTo, "/klanten")}
         offertes={offertes.items}
         offertesPage={offertes.page}
         offertesHasMore={offertes.hasMore}

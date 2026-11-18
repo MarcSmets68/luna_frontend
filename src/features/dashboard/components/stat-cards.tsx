@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatBedrag } from "@/lib/format";
@@ -12,6 +13,7 @@ type StatCard = {
   hint: string;
   hintColor?: HintColor;
   href?: string;
+  linkLabel?: string;
 };
 
 const hintColorClass: Record<HintColor, string> = {
@@ -33,11 +35,15 @@ function buildStatCards(statCards: DashboardStatCards): StatCard[] {
       value: String(statCards.openOffertesCount),
       hint: `€ ${formatBedrag(statCards.openOffertesBedragPotentieel)} potentieel (laatste 90 dagen)`,
       hintColor: "positive",
+      href: "/offertes/alle",
+      linkLabel: "Alle offertes bekijken",
     },
     {
       label: "Orders in productie",
       value: String(statCards.ordersInProductieCount),
       hint: `${statCards.ordersInProductieLeverenDezeWeek} leveren deze week`,
+      href: "/orders/alle",
+      linkLabel: "Alle orders bekijken",
     },
     {
       label: "Omzet deze maand",
@@ -51,6 +57,7 @@ function buildStatCards(statCards: DashboardStatCards): StatCard[] {
       hint: "items onder reorder point",
       hintColor: "warning",
       href: "/voorraad?lageVoorraad=true",
+      linkLabel: "Gefilterde voorraadlijst bekijken",
     },
   ];
 }
@@ -83,6 +90,7 @@ export function StatCards({ statCards }: { statCards: DashboardStatCards }) {
               <div className={cn("mt-1 text-[12px]", hintColorClass[stat.hintColor ?? "default"])}>
                 {stat.hint}
               </div>
+              {stat.linkLabel && <div className="mt-3 flex items-center gap-1 text-[11px] font-medium text-primary">{stat.linkLabel}<ArrowUpRight aria-hidden="true" className="size-3.5" /></div>}
             </CardContent>
           </Card>
         );
@@ -91,7 +99,8 @@ export function StatCards({ statCards }: { statCards: DashboardStatCards }) {
           <Link
             key={stat.label}
             href={stat.href}
-            aria-label={`${stat.label}: bekijk gefilterde voorraadlijst`}
+            aria-label={`${stat.label}: ${stat.linkLabel}`}
+            className="rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             {card}
           </Link>

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { VoorraadPage } from "../voorraad-page";
@@ -36,6 +36,51 @@ const mockItems: ArtikelItem[] = [
 ];
 
 describe("VoorraadPage", () => {
+  it("submits article/description searches while retaining flags and resetting pagination", async () => {
+    const user = userEvent.setup();
+    render(<VoorraadPage items={[]} page={3} hasMore={false} lageVoorraad toonGeblokkeerd />);
+    fireEvent.change(screen.getByLabelText("Artikelnr"), { target: { value: " 100% " } });
+    fireEvent.change(screen.getByLabelText("Omschrijving"), { target: { value: " LED & wit " } });
+    await user.click(screen.getByRole("button", { name: "Zoeken" }));
+    const destination = new URL(pushMock.mock.lastCall![0], "https://luna.invalid");
+    expect(Object.fromEntries(destination.searchParams)).toEqual({ lageVoorraad: "true", toonGeblokkeerd: "true", artnr: "100%", omschrijving: "LED & wit" });
+    expect(screen.getByRole("link", { name: "Filters wissen" })).toHaveAttribute("href", "/voorraad");
+  });
+
+  it("retains every applied filter and page in pagination and detail navigation", async () => {
+    const user = userEvent.setup();
+    render(<VoorraadPage items={mockItems} page={3} hasMore artnr="AB" omschrijving="Test" lageVoorraad toonGeblokkeerd />);
+    const next = new URL(screen.getByRole("link", { name: /volgende/i }).getAttribute("href")!, "https://luna.invalid");
+    expect(Object.fromEntries(next.searchParams)).toEqual({ page: "4", lageVoorraad: "true", toonGeblokkeerd: "true", artnr: "AB", omschrijving: "Test" });
+    await user.click(screen.getByRole("link", { name: "Open artikel AB123" }));
+    const detail = new URL(pushMock.mock.lastCall![0], "https://luna.invalid");
+    expect(detail.pathname).toBe("/voorraad/AB123");
+    const overview = new URL(detail.searchParams.get("returnTo")!, "https://luna.invalid");
+    expect(overview.searchParams.get("page")).toBe("3");
+    expect(overview.searchParams.get("omschrijving")).toBe("Test");
+    expect(overview.searchParams.get("artnr")).toBe("AB");
+    expect(overview.searchParams.get("lageVoorraad")).toBe("true");
+    expect(overview.searchParams.get("toonGeblokkeerd")).toBe("true");
+  });
+
+  it("offers low-stock filtering on the overview without dropping search terms", async () => {
+    const user = userEvent.setup();
+    render(<VoorraadPage items={mockItems} page={2} hasMore={false} artnr="AB" omschrijving="Test" />);
+    await user.click(screen.getByRole("checkbox", { name: "Alleen lage voorraad" }));
+    const query = new URL(pushMock.mock.lastCall![0], "https://luna.invalid").searchParams;
+    expect(query.get("lageVoorraad")).toBe("true");
+    expect(query.get("artnr")).toBe("AB");
+    expect(query.get("omschrijving")).toBe("Test");
+    expect(query.has("page")).toBe(false);
+  });
+
+  it("resets input values when URL-backed props change on Back/Forward", () => {
+    const view = render(<VoorraadPage items={[]} page={1} hasMore={false} artnr="AB" />);
+    view.rerender(<VoorraadPage items={[]} page={1} hasMore={false} artnr="CD" omschrijving="Profiel" />);
+    expect(screen.getByLabelText("Artikelnr")).toHaveValue("CD");
+    expect(screen.getByLabelText("Omschrijving")).toHaveValue("Profiel");
+  });
+
   it("renders the page heading", () => {
     render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
     expect(screen.getByRole("heading", { name: "Artikelen" })).toBeInTheDocument();
@@ -69,13 +114,13 @@ describe("VoorraadPage", () => {
   it("renders the plain heading and no 'Filter wissen' link when lageVoorraad is omitted", () => {
     render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
     expect(screen.getByRole("heading", { name: "Artikelen" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /filter wissen/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /filters wissen/i })).not.toBeInTheDocument();
   });
 
   it("renders the filtered heading and a 'Filter wissen' link when lageVoorraad is true", () => {
     render(<VoorraadPage items={mockItems} page={1} hasMore={false} lageVoorraad={true} />);
     expect(screen.getByRole("heading", { name: "Artikelen — Lage voorraad" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /filter wissen/i })).toHaveAttribute("href", "/voorraad");
+    expect(screen.getByRole("link", { name: /filters wissen/i })).toHaveAttribute("href", "/voorraad");
   });
 
   it("preserves the lageVoorraad filter in the Vorige/Volgende hrefs", () => {
@@ -94,7 +139,7 @@ describe("VoorraadPage", () => {
     render(<VoorraadPage items={[]} page={1} hasMore={false} lageVoorraad={true} />);
     expect(screen.getByText("Geen artikelen gevonden.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Artikelen — Lage voorraad" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /filter wissen/i })).toHaveAttribute("href", "/voorraad");
+    expect(screen.getByRole("link", { name: /filters wissen/i })).toHaveAttribute("href", "/voorraad");
   });
 
   it("renders the 'Ook geblokkeerde artikelen tonen' filter unchecked by default", () => {

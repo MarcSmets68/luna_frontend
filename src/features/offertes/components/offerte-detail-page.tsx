@@ -107,9 +107,11 @@ type LijnFout = { omschrijving: string; error: string };
 export function OfferteDetailPage({
   offerte,
   lijnen,
+  backHref = "/offertes/alle",
 }: {
   offerte: OfferteItem;
   lijnen: OfflijnItem[];
+  backHref?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -249,7 +251,7 @@ export function OfferteDetailPage({
   return (
     <div>
       <Link
-        href="/offertes/alle"
+        href={backHref}
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-3 -ml-2.5")}
       >
         <ArrowLeft />

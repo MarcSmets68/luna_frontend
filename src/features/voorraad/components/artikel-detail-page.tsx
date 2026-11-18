@@ -18,11 +18,11 @@ function DetailField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function ArtikelDetailPage({ artikel }: { artikel: ArtikelItem }) {
+export function ArtikelDetailPage({ artikel, backHref = "/voorraad" }: { artikel: ArtikelItem; backHref?: string }) {
   return (
     <div>
       <Link
-        href="/voorraad"
+        href={backHref}
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-3 -ml-2.5")}
       >
         <ArrowLeft />

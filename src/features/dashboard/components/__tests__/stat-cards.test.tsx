@@ -20,11 +20,10 @@ describe("StatCards", () => {
     expect(link).toHaveAttribute("href", "/voorraad?lageVoorraad=true");
   });
 
-  it("does not wrap the other cards in a link", () => {
+  it("links quote/order KPIs to explicitly labeled overviews without inventing backend filters", () => {
     render(<StatCards statCards={statCards} />);
-    expect(screen.queryByRole("link", { name: /open offertes/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /orders in productie/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open offertes: alle offertes bekijken/i })).toHaveAttribute("href", "/offertes/alle");
+    expect(screen.getByRole("link", { name: /orders in productie: alle orders bekijken/i })).toHaveAttribute("href", "/orders/alle");
     expect(screen.queryByRole("link", { name: /omzet deze maand/i })).not.toBeInTheDocument();
   });
 });
-

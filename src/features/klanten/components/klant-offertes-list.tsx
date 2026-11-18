@@ -23,17 +23,20 @@ export function KlantOffertesList({
   page,
   hasMore,
   ordersPage,
+  backHref = "/klanten",
 }: {
   klnr: number;
   items: OfferteItem[];
   page: number;
   hasMore: boolean;
   ordersPage: number;
+  backHref?: string;
 }) {
   const router = useRouter();
 
   function pageHref(offertesPage: number): string {
-    return `/klanten/${klnr}?offertesPage=${offertesPage}&ordersPage=${ordersPage}`;
+    const context = backHref !== "/klanten" ? `&returnTo=${encodeURIComponent(backHref)}` : "";
+    return `/klanten/${klnr}?offertesPage=${offertesPage}&ordersPage=${ordersPage}${context}`;
   }
 
   function goToOfferte(offnr: number, versie: number) {
