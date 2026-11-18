@@ -605,7 +605,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
 
   return (
     <div>
-      <Table containerClassName="scroll-pr-40">
+      <Table containerClassName="scroll-pr-48">
         <TableHeader>
           <TableRow>
             <TableHead>Lijnnr</TableHead>
