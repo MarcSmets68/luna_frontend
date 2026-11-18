@@ -45,6 +45,22 @@ const mockItems: LeverancierItem[] = [
 ];
 
 describe("LeveranciersPage", () => {
+  it("preserves the applied name/dealer filters and page in detail navigation", () => {
+    vi.useFakeTimers();
+    pushMock.mockClear();
+    const view = render(<LeveranciersPage items={mockItems} page={3} hasMore naam="Test" />);
+    try {
+      act(() => vi.advanceTimersByTime(500));
+      expect(pushMock).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("link", { name: /Open leverancier/ }));
+      const detail = new URL(pushMock.mock.lastCall![0], "https://luna.invalid");
+      expect(detail.searchParams.get("returnTo")).toBe("/leveranciers?page=3&naam=Test");
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
   beforeEach(() => {
     pushMock.mockClear();
     refreshMock.mockClear();

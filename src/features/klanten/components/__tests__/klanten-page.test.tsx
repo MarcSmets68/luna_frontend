@@ -33,6 +33,22 @@ const mockItems: KlantItem[] = [
 ];
 
 describe("KlantenPage", () => {
+  it("preserves the applied name/dealer filters and page in detail navigation", () => {
+    vi.useFakeTimers();
+    pushMock.mockClear();
+    const view = render(<KlantenPage items={mockItems} page={3} hasMore naam="Test" nomaled />);
+    try {
+      act(() => vi.advanceTimersByTime(500));
+      expect(pushMock).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("link", { name: "Open klant Testklant" }));
+      const detail = new URL(pushMock.mock.lastCall![0], "https://luna.invalid");
+      expect(detail.searchParams.get("returnTo")).toBe("/klanten?page=3&naam=Test&nomaled=true");
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it("renders the page heading", () => {
     render(<KlantenPage items={mockItems} page={1} hasMore={false} />);
     expect(screen.getByRole("heading", { name: "Klanten" })).toBeInTheDocument();

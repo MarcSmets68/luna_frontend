@@ -161,6 +161,10 @@ const mockTitleLijn: BonLijnItem = {
 };
 
 describe("BonDetailPage", () => {
+  it("returns to the supplied order filter set and page", () => {
+    render(<BonDetailPage bon={mockBon} lijnen={[]} backHref="/orders/alle?page=3&naam=Atelier" />);
+    expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute("href", "/orders/alle?page=3&naam=Atelier");
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
   });

@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { LeverancierItem } from "@/lib/api-client";
 import { DeleteLeverancierDialog } from "./delete-leverancier-dialog";
+import { withOverviewContext } from "@/lib/overview-navigation";
 
 /** Debounce (ms) before a naam filter change is pushed to the URL - avoids
     firing a server request on every keystroke in the search field. */
@@ -39,8 +40,9 @@ export function LeveranciersPage({
 }) {
   const router = useRouter();
   const [naamFilter, setNaamFilter] = useState(naam);
-  const isFirstRender = useRef(true);
   const skipNextPropsSync = useRef(false);
+  const previousNaam = useRef(naam);
+  const pendingFilterPush = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LeverancierItem | null>(null);
 
   /* The URL is the source of truth (server component re-fetches on every
@@ -48,6 +50,8 @@ export function LeveranciersPage({
      own debounced navigate() below - e.g. the browser back/forward button -
      but not right after we just pushed that same state ourselves. */
   useEffect(() => {
+    if (previousNaam.current === naam) return;
+    previousNaam.current = naam;
     if (skipNextPropsSync.current) {
       skipNextPropsSync.current = false;
       return;
@@ -56,19 +60,18 @@ export function LeveranciersPage({
   }, [naam]);
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
+    if (naamFilter === naam) return;
 
     const timeout = setTimeout(() => {
+      pendingFilterPush.current = null;
       skipNextPropsSync.current = true;
       router.push(buildHref(1, naamFilter));
     }, FILTER_DEBOUNCE_MS);
 
+    pendingFilterPush.current = timeout;
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [naamFilter]);
+  }, [naamFilter, naam]);
 
   function buildHref(targetPage: number, naamValue: string): string {
     const query = new URLSearchParams();
@@ -79,7 +82,8 @@ export function LeveranciersPage({
   }
 
   function goToLeverancier(levnr: number) {
-    router.push(`/leveranciers/${levnr}`);
+    if (pendingFilterPush.current) clearTimeout(pendingFilterPush.current);
+    router.push(withOverviewContext(`/leveranciers/${levnr}`, buildHref(page, naam), "/leveranciers"));
   }
 
   return (

@@ -23,17 +23,20 @@ export function KlantOrdersList({
   page,
   hasMore,
   offertesPage,
+  backHref = "/klanten",
 }: {
   klnr: number;
   items: BonItem[];
   page: number;
   hasMore: boolean;
   offertesPage: number;
+  backHref?: string;
 }) {
   const router = useRouter();
 
   function pageHref(ordersPage: number): string {
-    return `/klanten/${klnr}?offertesPage=${offertesPage}&ordersPage=${ordersPage}`;
+    const context = backHref !== "/klanten" ? `&returnTo=${encodeURIComponent(backHref)}` : "";
+    return `/klanten/${klnr}?offertesPage=${offertesPage}&ordersPage=${ordersPage}${context}`;
   }
 
   function goToBon(bonnr: number) {

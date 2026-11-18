@@ -18,6 +18,7 @@ import { formatBedrag, formatDatum } from "@/lib/format";
 import type { BonItem } from "@/lib/api-client";
 import { OrdersFilters, type OrdersFiltersState } from "./orders-filters";
 import { PageHeader } from "@/components/ui/page-header";
+import { withOverviewContext } from "@/lib/overview-navigation";
 
 /** Debounce (ms) before a filter change is pushed to the URL - avoids
     firing a server request on every keystroke in the Bonnr/Klant
@@ -39,8 +40,8 @@ export function OrdersPage({
 }) {
   const router = useRouter();
   const [filters, setFilters] = useState<OrdersFiltersState>({ bonnr, naam });
-  const isFirstRender = useRef(true);
   const skipNextPropsSync = useRef(false);
+  const pendingFilterPush = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* The URL is the source of truth (server component re-fetches on every
      navigation). Re-sync local state when the props change from outside
@@ -56,19 +57,18 @@ export function OrdersPage({
   }, [bonnr, naam]);
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
+    if (filters.bonnr === bonnr && filters.naam === naam) return;
 
     const timeout = setTimeout(() => {
+      pendingFilterPush.current = null;
       skipNextPropsSync.current = true;
       router.push(buildHref(1, filters));
     }, FILTER_DEBOUNCE_MS);
 
+    pendingFilterPush.current = timeout;
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
+  }, [filters, bonnr, naam]);
 
   function buildHref(targetPage: number, state: OrdersFiltersState): string {
     const query = new URLSearchParams();
@@ -79,8 +79,9 @@ export function OrdersPage({
     return `/orders/alle?${query.toString()}`;
   }
 
-  function goToBon(bonnr: number) {
-    router.push(`/orders/${bonnr}`);
+  function goToBon(targetBonnr: number) {
+    if (pendingFilterPush.current) clearTimeout(pendingFilterPush.current);
+    router.push(withOverviewContext(`/orders/${targetBonnr}`, buildHref(page, { bonnr, naam }), "/orders/alle"));
   }
 
   return (

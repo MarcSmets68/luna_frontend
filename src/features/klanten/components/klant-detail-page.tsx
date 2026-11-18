@@ -131,6 +131,7 @@ export function KlantDetailPage({
   facturen,
   facturenPage,
   facturenHasMore,
+  backHref = "/klanten",
 }: {
   klant: KlantItem;
   offertes: OfferteItem[];
@@ -145,6 +146,7 @@ export function KlantDetailPage({
   facturen: FactuurItem[];
   facturenPage: number;
   facturenHasMore: boolean;
+  backHref?: string;
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("algemeen");
@@ -220,7 +222,7 @@ export function KlantDetailPage({
   return (
     <div>
       <Link
-        href="/klanten"
+        href={backHref}
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-3 -ml-2.5")}
       >
         <ArrowLeft />
@@ -409,6 +411,7 @@ export function KlantDetailPage({
 
         <TabsContent value="offertes">
           <KlantOffertesList
+            backHref={backHref}
             klnr={klant.klnr}
             items={offertes}
             page={offertesPage}
@@ -419,6 +422,7 @@ export function KlantDetailPage({
 
         <TabsContent value="orders">
           <KlantOrdersList
+            backHref={backHref}
             klnr={klant.klnr}
             items={orders}
             page={ordersPage}

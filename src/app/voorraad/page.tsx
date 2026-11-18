@@ -7,12 +7,14 @@ const PAGE_SIZE = 25;
 export default async function Voorraad({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; lageVoorraad?: string; toonGeblokkeerd?: string }>;
+  searchParams: Promise<{ page?: string; lageVoorraad?: string; toonGeblokkeerd?: string; artnr?: string; omschrijving?: string }>;
 }) {
   const {
     page: pageParam,
     lageVoorraad: lageVoorraadParam,
     toonGeblokkeerd: toonGeblokkeerdParam,
+    artnr = "",
+    omschrijving = "",
   } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
   const lageVoorraad = lageVoorraadParam === "true";
@@ -20,6 +22,8 @@ export default async function Voorraad({
   const { items, hasMore } = await getArtikelen(page, PAGE_SIZE, {
     lageVoorraad,
     geblokkeerd: toonGeblokkeerd ? undefined : false,
+    artnr,
+    omschrijving,
   });
 
   return (
@@ -30,6 +34,8 @@ export default async function Voorraad({
         hasMore={hasMore}
         lageVoorraad={lageVoorraad}
         toonGeblokkeerd={toonGeblokkeerd}
+        artnr={artnr.trim()}
+        omschrijving={omschrijving.trim()}
       />
     </AppShell>
   );

@@ -27,6 +27,10 @@ const mockArtikel: ArtikelItem = {
 };
 
 describe("ArtikelDetailPage", () => {
+  it("returns to the exact filtered overview when context is supplied", () => {
+    render(<ArtikelDetailPage artikel={mockArtikel} backHref="/voorraad?page=3&artnr=AB&lageVoorraad=true" />);
+    expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute("href", "/voorraad?page=3&artnr=AB&lageVoorraad=true");
+  });
   it("renders the omschrijving as heading and the artnr", () => {
     render(<ArtikelDetailPage artikel={mockArtikel} />);
     expect(screen.getByRole("heading", { name: "Testartikel" })).toBeInTheDocument();

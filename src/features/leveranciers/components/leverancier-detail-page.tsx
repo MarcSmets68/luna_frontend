@@ -104,7 +104,7 @@ function toFormState(leverancier: LeverancierItem): LeverancierFormState {
   };
 }
 
-export function LeverancierDetailPage({ leverancier }: { leverancier: LeverancierItem }) {
+export function LeverancierDetailPage({ leverancier, backHref = "/leveranciers" }: { leverancier: LeverancierItem; backHref?: string }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<LeverancierFormState>(() => toFormState(leverancier));
@@ -167,7 +167,7 @@ export function LeverancierDetailPage({ leverancier }: { leverancier: Leverancie
   return (
     <div>
       <Link
-        href="/leveranciers"
+        href={backHref}
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-3 -ml-2.5")}
       >
         <ArrowLeft />
@@ -322,7 +322,7 @@ export function LeverancierDetailPage({ leverancier }: { leverancier: Leverancie
         naam={leverancier.naam}
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        onDeleted={() => router.push("/leveranciers")}
+        onDeleted={() => router.push(backHref)}
       />
     </div>
   );

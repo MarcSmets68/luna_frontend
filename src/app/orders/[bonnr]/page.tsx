@@ -1,13 +1,17 @@
 import { AppShell } from "@/components/layout/app-shell";
+import { overviewReturnHref } from "@/lib/overview-navigation";
 import { BonDetailPage } from "@/features/orders/components/bon-detail-page";
 import { BonNotFound } from "@/features/orders/components/bon-not-found";
 import { getBon, getBonLijnen } from "@/lib/api-client";
 
 export default async function OrderDetail({
   params,
+  searchParams,
 }: {
   params: Promise<{ bonnr: string }>;
+  searchParams?: Promise<{ returnTo?: string }>;
 }) {
+  const query = await searchParams;
   const { bonnr: bonnrParam } = await params;
   const bonnr = Number(bonnrParam);
 
@@ -33,7 +37,7 @@ export default async function OrderDetail({
 
   return (
     <AppShell>
-      <BonDetailPage bon={bon} lijnen={lijnen} />
+      <BonDetailPage bon={bon} lijnen={lijnen} backHref={overviewReturnHref(query?.returnTo, "/orders/alle")} />
     </AppShell>
   );
 }

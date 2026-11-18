@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OrdersPage } from "../orders-page";
+import { StrictMode } from "react";
 import type { BonItem } from "@/lib/api-client";
 
 const pushMock = vi.fn();
@@ -42,6 +43,25 @@ const mockItems: BonItem[] = [
 ];
 
 describe("OrdersPage", () => {
+  it("keeps page and applied filters in detail context, without a pending debounce navigating away", () => {
+    vi.useFakeTimers();
+    pushMock.mockClear();
+    const view = render(<StrictMode><OrdersPage items={mockItems} page={3} hasMore naam="CONE" bonnr="123" /></StrictMode>);
+    try {
+      act(() => vi.advanceTimersByTime(500));
+      expect(pushMock).not.toHaveBeenCalled();
+      fireEvent.change(screen.getByRole("textbox", { name: "Klant" }), { target: { value: "Unapplied" } });
+      fireEvent.click(screen.getByRole("link", { name: "Open bon 1234567" }));
+      const detail = new URL(pushMock.mock.lastCall![0], "https://luna.invalid");
+      expect(detail.searchParams.get("returnTo")).toBe("/orders/alle?page=3&bonnr=123&naam=CONE");
+      act(() => vi.advanceTimersByTime(500));
+      expect(pushMock).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it("renders the page heading", () => {
     render(<OrdersPage items={mockItems} page={1} hasMore={false} />);
     expect(screen.getByRole("heading", { name: "Alle orders" })).toBeInTheDocument();

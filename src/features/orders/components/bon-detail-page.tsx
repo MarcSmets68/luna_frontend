@@ -171,9 +171,11 @@ function toBonFormState(bon: BonItem): BonFormState {
 export function BonDetailPage({
   bon: initialBon,
   lijnen,
+  backHref = "/orders/alle",
 }: {
   bon: BonItem;
   lijnen: BonLijnItem[];
+  backHref?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -356,7 +358,7 @@ export function BonDetailPage({
   return (
     <div>
       <Link
-        href="/orders/alle"
+        href={backHref}
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-3 -ml-2.5")}
       >
         <ArrowLeft />
