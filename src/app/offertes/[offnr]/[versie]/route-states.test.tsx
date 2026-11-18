@@ -27,7 +27,10 @@ vi.mock("@/lib/api-client", () => ({
   getOfferteLijnen: getOfferteLijnenMock,
 }));
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  getOfferteLijnenMock.mockResolvedValue([]);
+});
 
 describe("Offerte detail route states", () => {
   it("announces loading in Dutch", () => {
@@ -52,7 +55,37 @@ describe("Offerte detail route states", () => {
     render(await OfferteDetail({ params: Promise.resolve({ offnr: "123", versie: "1" }) }));
     expect(screen.getByRole("heading", { name: "Offerte niet gevonden" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Terug naar overzicht" })).toHaveAttribute("href", "/offertes/alle");
-    expect(getOfferteLijnenMock).not.toHaveBeenCalled();
+    expect(getOfferteLijnenMock).toHaveBeenCalledWith(123, 1);
+  });
+
+  it("starts both fetches before either resolves", async () => {
+    const header = Promise.withResolvers<null>();
+    const lines = Promise.withResolvers<never[]>();
+    getOfferteMock.mockReturnValue(header.promise);
+    getOfferteLijnenMock.mockReturnValue(lines.promise);
+    const result = OfferteDetail({ params: Promise.resolve({ offnr: "123", versie: "1" }) });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getOfferteMock).toHaveBeenCalledWith(123, 1);
+    expect(getOfferteLijnenMock).toHaveBeenCalledWith(123, 1);
+    header.resolve(null);
+    lines.resolve([]);
+    render(await result);
+    expect(screen.getByRole("heading", { name: "Offerte niet gevonden" })).toBeVisible();
+  });
+
+  it("keeps not-found when the missing quotation's lines request fails", async () => {
+    getOfferteMock.mockResolvedValue(null);
+    getOfferteLijnenMock.mockRejectedValue(new Error("Lines not found"));
+    render(await OfferteDetail({ params: Promise.resolve({ offnr: "123", versie: "1" }) }));
+    expect(screen.getByRole("heading", { name: "Offerte niet gevonden" })).toBeVisible();
+  });
+
+  it("propagates line failures for an existing quotation", async () => {
+    const error = new Error("Lines unavailable");
+    getOfferteMock.mockResolvedValue({ offnr: 123, versie: 1 });
+    getOfferteLijnenMock.mockRejectedValue(error);
+    await expect(OfferteDetail({ params: Promise.resolve({ offnr: "123", versie: "1" }) })).rejects.toBe(error);
   });
 
   it("propagates API failures to the route error boundary", async () => {

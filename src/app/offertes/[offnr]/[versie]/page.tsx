@@ -24,7 +24,13 @@ export default async function OfferteDetail({
     );
   }
 
-  const offerte = await getOfferte(offnr, versie);
+  const [offerte, lijnenResult] = await Promise.all([
+    getOfferte(offnr, versie),
+    getOfferteLijnen(offnr, versie).then(
+      (lijnen) => ({ ok: true as const, lijnen }),
+      (error: unknown) => ({ ok: false as const, error }),
+    ),
+  ]);
 
   if (!offerte) {
     return (
@@ -34,7 +40,8 @@ export default async function OfferteDetail({
     );
   }
 
-  const lijnen = await getOfferteLijnen(offnr, versie);
+  if (!lijnenResult.ok) throw lijnenResult.error;
+  const lijnen = lijnenResult.lijnen;
 
   return (
     <AppShell>
