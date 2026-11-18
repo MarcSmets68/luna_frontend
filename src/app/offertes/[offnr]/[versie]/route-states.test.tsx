@@ -59,17 +59,19 @@ describe("Offerte detail route states", () => {
   });
 
   it("starts both fetches before either resolves", async () => {
-    const header = Promise.withResolvers<null>();
-    const lines = Promise.withResolvers<never[]>();
-    getOfferteMock.mockReturnValue(header.promise);
-    getOfferteLijnenMock.mockReturnValue(lines.promise);
+    let resolveHeader!: (value: null) => void;
+    let resolveLines!: (value: never[]) => void;
+    const header = new Promise<null>((resolve) => { resolveHeader = resolve; });
+    const lines = new Promise<never[]>((resolve) => { resolveLines = resolve; });
+    getOfferteMock.mockReturnValue(header);
+    getOfferteLijnenMock.mockReturnValue(lines);
     const result = OfferteDetail({ params: Promise.resolve({ offnr: "123", versie: "1" }) });
     await Promise.resolve();
     await Promise.resolve();
     expect(getOfferteMock).toHaveBeenCalledWith(123, 1);
     expect(getOfferteLijnenMock).toHaveBeenCalledWith(123, 1);
-    header.resolve(null);
-    lines.resolve([]);
+    resolveHeader(null);
+    resolveLines([]);
     render(await result);
     expect(screen.getByRole("heading", { name: "Offerte niet gevonden" })).toBeVisible();
   });

@@ -365,16 +365,18 @@ describe("OfferteDetailPage", () => {
 
   describe.each(["update", "add", "delete", "reorder"])("overlapping update and %s", (mutation) => {
     it.each([true, false])("preserves both results when the second request finishes first: %s", async (secondFirst) => {
-      const first = Promise.withResolvers<OfflijnItem>();
-      const second = Promise.withResolvers<unknown>();
+      let resolveFirst!: (value: OfflijnItem) => void;
+      let resolveSecond!: (value: unknown) => void;
+      const first = new Promise<OfflijnItem>((resolve) => { resolveFirst = resolve; });
+      const second = new Promise<unknown>((resolve) => { resolveSecond = resolve; });
       const lines = [mockLijnen[0], { ...mockLijnen[0], lijnnr: 2, artnr: "ART-002" }];
       const added = { ...mockLijnen[0], lijnnr: 3, artnr: "ART-003" };
       const updatedFirst = { ...lines[0], aantal: 12, bedrag: 888 };
       const updatedSecond = { ...lines[1], aantal: 14, bedrag: 777 };
-      updateOfflijnMock.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
-      createOfflijnMock.mockReturnValue(second.promise);
-      deleteOfflijnMock.mockReturnValue(second.promise);
-      reorderOfflijnMock.mockReturnValue(second.promise);
+      updateOfflijnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+      createOfflijnMock.mockReturnValue(second);
+      deleteOfflijnMock.mockReturnValue(second);
+      reorderOfflijnMock.mockReturnValue(second);
       render(<OfferteDetailPage offerte={mockOfferte} lijnen={lines} />);
       const firstInput = screen.getByRole("spinbutton", { name: "Aantal lijn 1" });
       fireEvent.change(firstInput, { target: { value: "12" } });
@@ -398,12 +400,12 @@ describe("OfferteDetailPage", () => {
         : mutation === "add" ? added
         : mutation === "reorder" ? [...lines].reverse() : {};
       if (secondFirst) {
-        await act(async () => { second.resolve(secondResult); });
+        await act(async () => { resolveSecond(secondResult); });
         expect(screen.getByRole("spinbutton", { name: "Aantal lijn 1" })).toBeDisabled();
-        await act(async () => { first.resolve(updatedFirst); });
+        await act(async () => { resolveFirst(updatedFirst); });
       } else {
-        await act(async () => { first.resolve(updatedFirst); });
-        await act(async () => { second.resolve(secondResult); });
+        await act(async () => { resolveFirst(updatedFirst); });
+        await act(async () => { resolveSecond(secondResult); });
       }
       expect(screen.getByRole("spinbutton", { name: "Bedrag lijn 1" })).toHaveValue(888);
       if (mutation === "update") expect(screen.getByRole("spinbutton", { name: "Bedrag lijn 2" })).toHaveValue(777);

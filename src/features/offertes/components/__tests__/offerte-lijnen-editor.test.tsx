@@ -385,16 +385,17 @@ describe("OfferteLijnenEditor - persisted mode", () => {
   });
 
   it("blocks another reorder while allowing unrelated row edits during a reorder", async () => {
-    const pending = Promise.withResolvers<OfflijnItem[]>();
+    let resolvePending!: (value: OfflijnItem[]) => void;
+    const pending = new Promise<OfflijnItem[]>((resolve) => { resolvePending = resolve; });
     const lines = [makeOfflijn({ lijnnr: 10 }), makeOfflijn({ lijnnr: 20 }), makeOfflijn({ lijnnr: 30 })];
-    reorderOfflijnMock.mockReturnValue(pending.promise);
+    reorderOfflijnMock.mockReturnValue(pending);
     render(<OfferteLijnenEditor mode="persisted" offnr={100} versie={1} lijnen={lines} onLijnenChange={vi.fn()} />);
     await userEvent.click(screen.getAllByRole("button", { name: "Omlaag" })[0]);
     for (const button of screen.getAllByRole("button", { name: /^(Omhoog|Omlaag)$/ })) {
       expect(button).toBeDisabled();
     }
     expect(screen.getByRole("spinbutton", { name: "Aantal lijn 20" })).toBeEnabled();
-    await act(async () => { pending.resolve([lines[1], lines[0], lines[2]]); });
+    await act(async () => { resolvePending([lines[1], lines[0], lines[2]]); });
     expect(screen.getAllByRole("button", { name: "Omlaag" })[0]).toBeEnabled();
   });
 
