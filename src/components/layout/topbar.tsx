@@ -6,7 +6,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/features/auth/actions";
 import { clearSession, useSession, type Session } from "@/features/auth/session";
-import { useInterfaceMode, setInterfaceMode, type InterfaceMode } from "@/features/interface-mode/interface-mode";
+import type { InterfaceMode } from "@/features/interface-mode/interface-mode";
+import { confirmNavigation } from "@/lib/unsaved-changes";
 
 const LOGIN_PATH = "/login";
 
@@ -27,19 +28,15 @@ export function Topbar({ className, navigationTrigger }: { className?: string; n
   // the client's hydration render in sync (both see null), then picks up
   // the real session right after mount - avoiding a hydration mismatch.
   const session = useSession();
-  const mode = useInterfaceMode();
+  const mode: InterfaceMode = pathname === "/npp" || pathname.startsWith("/npp/") ? "npp" : "luna";
 
   function handleSwitch(target: InterfaceMode) {
-    setInterfaceMode(target);
-    if (target === "npp") {
-      router.push("/npp");
-    } else if (pathname === "/npp") {
-      router.push("/");
-    }
-    // else: already somewhere in the Luna app, no navigation needed
+    if (target === mode || !confirmNavigation()) return;
+    router.push(target === "npp" ? "/npp" : "/");
   }
 
   async function handleLogout() {
+    if (!confirmNavigation()) return;
     try {
       await logoutAction();
     } catch {

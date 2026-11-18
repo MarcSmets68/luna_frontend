@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import type { PlaatsingItem } from "../types";
 import { PlaatsingStatusBadge } from "./plaatsing-status-badge";
+import { PlaatsingenDemoNotice } from "./plaatsingen-demo-notice";
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -45,6 +46,7 @@ export function PlaatsingDetailPage({ plaatsing }: { plaatsing: PlaatsingItem })
         <div className="text-[13px] text-[#5e5e5e]">{formatDatum(plaatsing.datum)}</div>
       </div>
 
+      <PlaatsingenDemoNotice />
       {/* Basisgegevens */}
       <Card className="mb-6">
         <CardContent>

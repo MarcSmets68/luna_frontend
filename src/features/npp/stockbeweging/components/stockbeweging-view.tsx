@@ -11,6 +11,7 @@ import { MagazijnInput } from "./magazijn-input";
 import { StockbewegingConfirmDialog } from "./stockbeweging-confirm-dialog";
 import { StockbewegingResultState } from "./stockbeweging-result-state";
 import { StockbewegingErrorState } from "./stockbeweging-error-state";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 
 const MIN_OPM_LENGTH = 10;
 const MAX_OPM_LENGTH = 30;
@@ -25,6 +26,7 @@ const MAX_OPM_LENGTH = 30;
 export function StockbewegingView() {
   const sb = useStockBeweging();
   const { step, scanResult, scanLoading, scanError, article, result } = sb;
+  useUnsavedChanges((step === "form" || step === "confirm") && Boolean(sb.movementType || sb.aantal || sb.opm || sb.nieuwMagazijn));
 
   const isTransferIntern = sb.movementType === "transfer_intern";
   const aantalValid = isTransferIntern || (sb.aantal.trim() !== "" && Number(sb.aantal) > 0);

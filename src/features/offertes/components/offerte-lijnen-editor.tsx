@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 import {
   TITLE_LINE_TEXT_CLASS,
   classifyLineKind,
@@ -156,6 +157,7 @@ function PersistedFieldInput({
   // committed yet (either the commit is in flight, or it failed and the
   // user's change is still only held locally).
   const [pendingEdit, setPendingEdit] = useState(false);
+  const markSaved = useUnsavedChanges(localValue !== value || pendingEdit);
   // Tracks the last `value` we've synced `localValue` from, so an external
   // prop update can be picked up (adjusted during render, per
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
@@ -177,7 +179,10 @@ function PersistedFieldInput({
     setPicking(true);
     try {
       const success = await onPickArtikel(artikelPrefillPatch(item));
-      if (success) setPendingEdit(false);
+      if (success) {
+        markSaved();
+        setPendingEdit(false);
+      }
       // On failure: keep pendingEdit and the picked value locally (no clobber).
     } finally {
       setPicking(false);
@@ -193,6 +198,7 @@ function PersistedFieldInput({
     setPendingEdit(true);
     const success = await onCommit(localValue);
     if (success) {
+      markSaved();
       setPendingEdit(false);
     }
     // On failure: keep pendingEdit true and keep showing the user's local
@@ -367,6 +373,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [newLineKind, setNewLineKind] = useState<LineKind>("artikel");
   const [newLineFields, setNewLineFields] = useState<LineFields>(emptyLineFields());
+  useUnsavedChanges(JSON.stringify(newLineFields) !== JSON.stringify(emptyLineFields()));
   const [newLineLookupOpen, setNewLineLookupOpen] = useState(false);
 
   function toggleExpanded(key: string) {

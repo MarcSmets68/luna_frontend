@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { confirmNavigation, useUnsavedChanges } from "@/lib/unsaved-changes";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -145,6 +146,7 @@ export function OfferteDetailPage({
       (key) => original[key] !== form[key]
     );
   }, [offerte, form]);
+  const markSaved = useUnsavedChanges(editing && isDirty);
 
   const setField = <K extends keyof OfferteFormState>(key: K, value: OfferteFormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -156,6 +158,8 @@ export function OfferteDetailPage({
   }
 
   function cancelEditing() {
+    if (!confirmNavigation()) return;
+    markSaved();
     setForm(toFormState(offerte));
     setError(null);
     setEditing(false);
@@ -190,6 +194,7 @@ export function OfferteDetailPage({
         verkocht: form.verkocht,
       };
       await updateOfferte(offerte.offnr, offerte.versie, payload);
+      markSaved();
       setEditing(false);
       router.refresh();
     } catch (e) {

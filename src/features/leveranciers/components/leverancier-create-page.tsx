@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useGuardedRouter, useUnsavedChanges } from "@/lib/unsaved-changes";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -82,10 +82,11 @@ const EMPTY_FORM: LeverancierCreateFormState = {
 };
 
 export function LeverancierCreatePage() {
-  const router = useRouter();
+  const router = useGuardedRouter();
   const [form, setForm] = useState<LeverancierCreateFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const markSaved = useUnsavedChanges(JSON.stringify(form) !== JSON.stringify(EMPTY_FORM));
 
   const setField = <K extends keyof LeverancierCreateFormState>(
     key: K,
@@ -136,6 +137,7 @@ export function LeverancierCreatePage() {
         minBestel,
       };
       await createLeverancier(payload);
+      markSaved();
       router.push(`/leveranciers/${levnr}`);
     } catch (e) {
       setError(

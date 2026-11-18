@@ -218,6 +218,7 @@ describe("KlantDetailPage", () => {
   });
 
   it("reverts changes and does not call the API on cancel", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     render(<KlantDetailPage {...defaultProps} />);
 
@@ -231,6 +232,8 @@ describe("KlantDetailPage", () => {
     expect(updateKlantMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "CONE LIGHTING BV" })).toBeInTheDocument();
+    expect(confirm).toHaveBeenCalledTimes(1);
+    confirm.mockRestore();
   });
 
   it("shows an error and stays in edit mode when the API call fails", async () => {

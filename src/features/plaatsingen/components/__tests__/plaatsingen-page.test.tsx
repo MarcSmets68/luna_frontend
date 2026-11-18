@@ -56,6 +56,7 @@ describe("PlaatsingenPage", () => {
   it("renders the page heading", () => {
     render(<PlaatsingenPage items={mockItems} page={1} hasMore={false} />);
     expect(screen.getByRole("heading", { name: "Plaatsingen" })).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("Demo — voorbeeldgegevens");
   });
 
   it("renders every item's planr, klant and status", () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { confirmDiscardChanges, useUnsavedChanges } from "@/lib/unsaved-changes";
 import {
   Dialog,
   DialogContent,
@@ -88,12 +89,16 @@ export function PaklijnRowForm({
   const [form, setForm] = useState<FormState>(() => toFormState(item));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dirty = open && JSON.stringify(form) !== JSON.stringify(toFormState(item));
+  const markSaved = useUnsavedChanges(dirty);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
+      if (!confirmDiscardChanges(dirty)) return;
+      markSaved();
       setForm(toFormState(item));
       setError(null);
     }
@@ -140,8 +145,11 @@ export function PaklijnRowForm({
       const saved = item
         ? await updatePaklijn(paknr, item.lijnnr, payload)
         : await createPaklijn(paknr, payload);
+      markSaved();
       onSaved(saved);
-      handleOpenChange(false);
+      setForm(toFormState(item));
+      setError(null);
+      onOpenChange(false);
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Er ging iets mis bij het opslaan van de paklijn."

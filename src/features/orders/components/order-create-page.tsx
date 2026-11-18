@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useGuardedRouter, useUnsavedChanges } from "@/lib/unsaved-changes";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -71,11 +71,13 @@ function initialFormState(klant: KlantItem): OrderCreateFormState {
 }
 
 export function OrderCreatePage({ klant }: { klant: KlantItem }) {
-  const router = useRouter();
+  const router = useGuardedRouter();
   const [form, setForm] = useState<OrderCreateFormState>(() => initialFormState(klant));
   const [lijnen, setLijnen] = useState<LocalLijn[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialForm] = useState(form);
+  const markSaved = useUnsavedChanges(JSON.stringify(form) !== JSON.stringify(initialForm) || lijnen.length > 0);
 
   const setField = <K extends keyof OrderCreateFormState>(
     key: K,
@@ -133,6 +135,7 @@ export function OrderCreatePage({ klant }: { klant: KlantItem }) {
         }
       }
 
+      markSaved();
       if (failed.length > 0) {
         sessionStorage.setItem(
           `luna:bon-lijn-fout:${created.bonnr}`,
