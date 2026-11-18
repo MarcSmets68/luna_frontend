@@ -4,6 +4,51 @@
 
 @custom-variant dark (&:is(.dark *));
 
+table[data-mobile-columns] tbody tr:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+@media (width < 40rem) {
+  table[data-mobile-columns="priority"] [data-mobile-secondary] {
+    display: none;
+  }
+
+  table[data-mobile-columns] :is(th, td) {
+    padding: 0.65rem;
+  }
+
+  table[data-mobile-columns] tbody tr {
+    height: 3.25rem;
+  }
+
+  table[data-mobile-columns] :is(th, td):first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 5rem;
+    max-width: 9rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    background: var(--card);
+    box-shadow: 1px 0 0 var(--border);
+  }
+
+  table[data-mobile-columns] thead th:first-child {
+    z-index: 2;
+    background: var(--muted);
+  }
+
+  table[data-mobile-columns] tbody tr:is(:hover, :focus-visible) td:first-child {
+    background: var(--accent);
+  }
+
+  table[data-mobile-columns] td button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -157,17 +157,17 @@ export function KlantenPage({
         <p className="text-sm text-muted-foreground">Geen klanten gevonden.</p>
       ) : (
         <>
-          <Table>
+          <Table mobileLabel="Klanten">
             <TableHeader>
               <TableRow>
                 <TableHead>Klantnr</TableHead>
                 <TableHead>Naam</TableHead>
-                <TableHead>Adres</TableHead>
-                <TableHead>Postnr</TableHead>
-                <TableHead>Stad</TableHead>
-                <TableHead>Telefoon</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead className="text-right">Saldo</TableHead>
+                <TableHead mobileHidden>Adres</TableHead>
+                <TableHead mobileHidden>Postnr</TableHead>
+                <TableHead mobileHidden>Stad</TableHead>
+                <TableHead mobileHidden>Telefoon</TableHead>
+                <TableHead mobileHidden>E-mail</TableHead>
+                <TableHead mobileHidden className="text-right">Saldo</TableHead>
                 <TableHead>Geblokkeerd</TableHead>
               </TableRow>
             </TableHeader>
@@ -189,12 +189,12 @@ export function KlantenPage({
                 >
                   <TableCell className="font-semibold text-primary-600">{item.klnr}</TableCell>
                   <TableCell className="whitespace-normal">{item.naam}</TableCell>
-                  <TableCell>{item.adres}</TableCell>
-                  <TableCell>{item.postnr}</TableCell>
-                  <TableCell>{item.stad}</TableCell>
-                  <TableCell>{item.tel}</TableCell>
-                  <TableCell>{item.email}</TableCell>
-                  <TableCell className="text-right font-medium">{formatSaldo(item.saldo)}</TableCell>
+                  <TableCell mobileHidden>{item.adres}</TableCell>
+                  <TableCell mobileHidden>{item.postnr}</TableCell>
+                  <TableCell mobileHidden>{item.stad}</TableCell>
+                  <TableCell mobileHidden>{item.tel}</TableCell>
+                  <TableCell mobileHidden>{item.email}</TableCell>
+                  <TableCell mobileHidden className="text-right font-medium">{formatSaldo(item.saldo)}</TableCell>
                   <TableCell>
                     <span className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-medium", item.geblokkeerd ? "bg-error-bg text-error-fg" : "bg-muted text-muted-foreground")}>
                       {item.geblokkeerd ? "Ja" : "Nee"}

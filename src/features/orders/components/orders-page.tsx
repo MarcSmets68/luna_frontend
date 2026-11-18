@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
 import type { BonItem } from "@/lib/api-client";
 import { OrdersFilters, type OrdersFiltersState } from "./orders-filters";
+import { getBonTypeLabel } from "../lib/bon-stempel";
+import { OrderCodeHelp } from "./order-code-help";
 import { PageHeader } from "@/components/ui/page-header";
 import { withOverviewContext } from "@/lib/overview-navigation";
 
@@ -91,21 +93,22 @@ export function OrdersPage({
       </PageHeader>
 
       <OrdersFilters filters={filters} onFiltersChange={setFilters} />
+      <OrderCodeHelp />
 
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Geen orders gevonden.</p>
       ) : (
         <>
-          <Table>
+          <Table mobileLabel="Orders">
             <TableHeader>
               <TableRow>
                 <TableHead>Bonnr</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Datum</TableHead>
+                <TableHead mobileHidden>Type</TableHead>
+                <TableHead mobileHidden>Datum</TableHead>
                 <TableHead>Klant</TableHead>
-                <TableHead>Stad</TableHead>
-                <TableHead className="text-right">Bedrag</TableHead>
-                <TableHead>Munt</TableHead>
+                <TableHead mobileHidden>Stad</TableHead>
+                <TableHead mobileHidden className="text-right">Bedrag</TableHead>
+                <TableHead mobileHidden>Munt</TableHead>
                 <TableHead>Leverdatum</TableHead>
               </TableRow>
             </TableHeader>
@@ -126,12 +129,12 @@ export function OrdersPage({
                   }}
                 >
                   <TableCell className="font-semibold text-primary-600">{item.bonnr}</TableCell>
-                  <TableCell>{item.type}</TableCell>
-                  <TableCell>{formatDatum(item.datum)}</TableCell>
+                  <TableCell mobileHidden>{getBonTypeLabel(item.type)}</TableCell>
+                  <TableCell mobileHidden>{formatDatum(item.datum)}</TableCell>
                   <TableCell className="whitespace-normal">{item.naam}</TableCell>
-                  <TableCell>{item.stad}</TableCell>
-                  <TableCell className="text-right font-medium">{formatBedrag(item.bedrag)}</TableCell>
-                  <TableCell>{item.munt}</TableCell>
+                  <TableCell mobileHidden>{item.stad}</TableCell>
+                  <TableCell mobileHidden className="text-right font-medium">{formatBedrag(item.bedrag)}</TableCell>
+                  <TableCell mobileHidden>{item.munt}</TableCell>
                   <TableCell>{formatDatum(item.levDatum)}</TableCell>
                 </TableRow>
               ))}

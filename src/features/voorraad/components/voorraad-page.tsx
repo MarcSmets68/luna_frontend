@@ -128,17 +128,17 @@ export function VoorraadPage({
         <p className="text-sm text-muted-foreground">Geen artikelen gevonden.</p>
       ) : (
         <>
-          <Table>
+          <Table mobileLabel="Artikelen">
             <TableHeader>
               <TableRow>
                 <TableHead>Artikel</TableHead>
                 <TableHead>Omschrijving</TableHead>
-                <TableHead>Groep</TableHead>
-                <TableHead className="text-right">Verkoopprijs</TableHead>
+                <TableHead mobileHidden>Groep</TableHead>
+                <TableHead mobileHidden className="text-right">Verkoopprijs</TableHead>
                 <TableHead className="text-right">Voorraad</TableHead>
-                <TableHead className="text-right">Min.</TableHead>
-                <TableHead className="text-right">Max.</TableHead>
-                <TableHead>Geblokkeerd</TableHead>
+                <TableHead mobileHidden className="text-right">Min.</TableHead>
+                <TableHead mobileHidden className="text-right">Max.</TableHead>
+                <TableHead mobileHidden>Geblokkeerd</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -159,12 +159,12 @@ export function VoorraadPage({
                 >
                   <TableCell className="font-semibold text-primary-600">{item.artnr}</TableCell>
                   <TableCell className="whitespace-normal">{item.omschrijvingNl}</TableCell>
-                  <TableCell>{item.groep}</TableCell>
-                  <TableCell className="text-right font-medium">{formatPrice(item.verkoopprijs)}</TableCell>
+                  <TableCell mobileHidden>{item.groep}</TableCell>
+                  <TableCell mobileHidden className="text-right font-medium">{formatPrice(item.verkoopprijs)}</TableCell>
                   <TableCell className="text-right font-semibold">{item.voorraad}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{item.voorraadMin}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{item.voorraadMax}</TableCell>
-                  <TableCell>
+                  <TableCell mobileHidden className="text-right text-muted-foreground">{item.voorraadMin}</TableCell>
+                  <TableCell mobileHidden className="text-right text-muted-foreground">{item.voorraadMax}</TableCell>
+                  <TableCell mobileHidden>
                     <span className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-medium", item.geblokkeerd ? "bg-error-bg text-error-fg" : "bg-muted text-muted-foreground")}>
                       {item.geblokkeerd ? "Ja" : "Nee"}
                     </span>

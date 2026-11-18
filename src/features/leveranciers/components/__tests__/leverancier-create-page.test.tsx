@@ -32,7 +32,7 @@ describe("LeverancierCreatePage", () => {
     const user = userEvent.setup();
     render(<LeverancierCreatePage />);
 
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Levnr moet een geldig positief getal zijn.")).toBeInTheDocument();
     expect(createLeverancierMock).not.toHaveBeenCalled();
@@ -43,7 +43,7 @@ describe("LeverancierCreatePage", () => {
     render(<LeverancierCreatePage />);
 
     await user.type(screen.getByRole("spinbutton", { name: "Levnr" }), "-5");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Levnr moet een geldig positief getal zijn.")).toBeInTheDocument();
     expect(createLeverancierMock).not.toHaveBeenCalled();
@@ -57,7 +57,7 @@ describe("LeverancierCreatePage", () => {
 
     await user.type(screen.getByRole("spinbutton", { name: "Levnr" }), "777");
     await user.type(screen.getByRole("textbox", { name: "Naam" }), "Nieuwe Leverancier");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(createLeverancierMock).toHaveBeenCalledTimes(1));
     expect(createLeverancierMock).toHaveBeenCalledWith(
@@ -73,7 +73,7 @@ describe("LeverancierCreatePage", () => {
     render(<LeverancierCreatePage />);
 
     await user.type(screen.getByRole("spinbutton", { name: "Levnr" }), "777");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Leverancier 777 bestaat al.")).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
@@ -83,7 +83,7 @@ describe("LeverancierCreatePage", () => {
     const user = userEvent.setup();
     render(<LeverancierCreatePage />);
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
     expect(pushMock).toHaveBeenCalledWith("/leveranciers");
   });
 });

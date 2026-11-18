@@ -111,13 +111,13 @@ describe("KlantDetailPage", () => {
 
     render(<KlantDetailPage {...defaultProps} />);
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
     expect(screen.getByRole("checkbox", { name: "Geblokkeerd" })).not.toBeChecked();
 
     await user.click(screen.getByRole("checkbox", { name: "Geblokkeerd" }));
     expect(screen.getByRole("checkbox", { name: "Geblokkeerd" })).toBeChecked();
 
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(updateKlantMock).toHaveBeenCalledTimes(1));
     expect(updateKlantMock).toHaveBeenCalledWith(
@@ -162,31 +162,31 @@ describe("KlantDetailPage", () => {
     expect(screen.getByRole("heading", { name: "Facturen" })).toBeInTheDocument();
   });
 
-  it("does not show editable fields until 'Verbeteren' is clicked", () => {
+  it("does not show editable fields until 'Bewerken' is clicked", () => {
     render(<KlantDetailPage {...defaultProps} />);
     expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bewerken" })).toBeInTheDocument();
   });
 
-  it("switches to editable fields after clicking 'Verbeteren', with klnr staying read-only", async () => {
+  it("switches to editable fields after clicking 'Bewerken', with klnr staying read-only", async () => {
     const user = userEvent.setup();
     render(<KlantDetailPage {...defaultProps} />);
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
 
     expect(screen.getByRole("textbox", { name: "Naam" })).toHaveValue("CONE LIGHTING BV");
     expect(screen.getByText("Klantnr")).toBeInTheDocument();
     expect(screen.getByText("14644")).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Klantnr" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opslaan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Annuleren" })).toBeInTheDocument();
   });
 
   it("shows a 'Niet-bewaarde wijzigingen' dirty indicator once a field changes in edit mode", async () => {
     const user = userEvent.setup();
     render(<KlantDetailPage {...defaultProps} />);
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
     expect(screen.queryByText("Niet-bewaarde wijzigingen")).not.toBeInTheDocument();
 
     const naamInput = screen.getByRole("textbox", { name: "Naam" });
@@ -201,13 +201,13 @@ describe("KlantDetailPage", () => {
 
     render(<KlantDetailPage {...defaultProps} />);
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
 
     const naamInput = screen.getByRole("textbox", { name: "Naam" });
     await user.clear(naamInput);
     await user.type(naamInput, "CONE LIGHTING NV");
 
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(updateKlantMock).toHaveBeenCalledTimes(1));
     expect(updateKlantMock).toHaveBeenCalledWith(
@@ -222,12 +222,12 @@ describe("KlantDetailPage", () => {
     const user = userEvent.setup();
     render(<KlantDetailPage {...defaultProps} />);
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
     const naamInput = screen.getByRole("textbox", { name: "Naam" });
     await user.clear(naamInput);
     await user.type(naamInput, "Foutieve naam");
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
 
     expect(updateKlantMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
@@ -242,11 +242,11 @@ describe("KlantDetailPage", () => {
 
     render(<KlantDetailPage {...defaultProps} />);
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Klant 14644 not found")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opslaan" })).toBeInTheDocument();
   });
 
   it("renders '—' fallback for an empty opm in view mode", () => {

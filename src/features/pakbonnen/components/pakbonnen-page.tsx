@@ -138,15 +138,15 @@ export function PakbonnenPage({
         <p className="text-sm text-muted-foreground">Geen pakbonnen gevonden.</p>
       ) : (
         <>
-          <Table>
+          <Table mobileLabel="Pakbonnen">
             <TableHeader>
               <TableRow>
                 <TableHead>Paknr</TableHead>
-                <TableHead>Stempel</TableHead>
-                <TableHead>Datum</TableHead>
+                <TableHead mobileHidden>Stempel</TableHead>
+                <TableHead mobileHidden>Datum</TableHead>
                 <TableHead>Klant</TableHead>
-                <TableHead>Stad</TableHead>
-                <TableHead>Bedrag</TableHead>
+                <TableHead mobileHidden>Stad</TableHead>
+                <TableHead mobileHidden>Bedrag</TableHead>
                 <TableHead>Afgehaald</TableHead>
               </TableRow>
             </TableHeader>
@@ -167,11 +167,11 @@ export function PakbonnenPage({
                   }}
                 >
                   <TableCell className="font-semibold">{item.paknr}</TableCell>
-                  <TableCell>{item.stempel}</TableCell>
-                  <TableCell>{formatDatum(item.datum)}</TableCell>
+                  <TableCell mobileHidden>{item.stempel}</TableCell>
+                  <TableCell mobileHidden>{formatDatum(item.datum)}</TableCell>
                   <TableCell className="whitespace-normal">{item.naam}</TableCell>
-                  <TableCell>{item.stad}</TableCell>
-                  <TableCell>{formatBedrag(item.nBedrag)}</TableCell>
+                  <TableCell mobileHidden>{item.stad}</TableCell>
+                  <TableCell mobileHidden>{formatBedrag(item.nBedrag)}</TableCell>
                   <TableCell>{item.afgehaald ? "Ja" : "Nee"}</TableCell>
                 </TableRow>
               ))}

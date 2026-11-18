@@ -57,24 +57,24 @@ describe("LeverancierDetailPage", () => {
     expect(screen.getByText("Levnr 501")).toBeInTheDocument();
   });
 
-  it("does not show editable fields until 'Verbeteren' is clicked", () => {
+  it("does not show editable fields until 'Bewerken' is clicked", () => {
     render(<LeverancierDetailPage leverancier={mockLeverancier} />);
     expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bewerken" })).toBeInTheDocument();
   });
 
-  it("switches to editable fields after clicking 'Verbeteren', with levnr staying read-only", async () => {
+  it("switches to editable fields after clicking 'Bewerken', with levnr staying read-only", async () => {
     const user = userEvent.setup();
     render(<LeverancierDetailPage leverancier={mockLeverancier} />);
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
 
     expect(screen.getByRole("textbox", { name: "Naam" })).toHaveValue("COATING PARTNERS BV");
     expect(screen.getByText("Levnr")).toBeInTheDocument();
     expect(screen.getByText("501")).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Levnr" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opslaan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Annuleren" })).toBeInTheDocument();
   });
 
   it("saves the edited fields and refreshes on success", async () => {
@@ -83,13 +83,13 @@ describe("LeverancierDetailPage", () => {
 
     render(<LeverancierDetailPage leverancier={mockLeverancier} />);
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
 
     const naamInput = screen.getByRole("textbox", { name: "Naam" });
     await user.clear(naamInput);
     await user.type(naamInput, "COATING PARTNERS NV");
 
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(updateLeverancierMock).toHaveBeenCalledTimes(1));
     expect(updateLeverancierMock).toHaveBeenCalledWith(
@@ -104,12 +104,12 @@ describe("LeverancierDetailPage", () => {
     const user = userEvent.setup();
     render(<LeverancierDetailPage leverancier={mockLeverancier} />);
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
     const naamInput = screen.getByRole("textbox", { name: "Naam" });
     await user.clear(naamInput);
     await user.type(naamInput, "Foutieve naam");
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
 
     expect(updateLeverancierMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
@@ -124,11 +124,11 @@ describe("LeverancierDetailPage", () => {
 
     render(<LeverancierDetailPage leverancier={mockLeverancier} />);
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Leverancier 501 not found")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opslaan" })).toBeInTheDocument();
   });
 
   it("renders a back link to the leveranciers overview", () => {

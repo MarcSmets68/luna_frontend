@@ -97,16 +97,16 @@ export function OffertesPage({
         <p className="text-sm text-muted-foreground">Geen offertes gevonden.</p>
       ) : (
         <>
-          <Table>
+          <Table mobileLabel="Offertes">
             <TableHeader>
               <TableRow>
-                <TableHead>Offnr</TableHead>
-                <TableHead>Versie</TableHead>
-                <TableHead>Datum</TableHead>
+                <TableHead>Offnr<span className="sm:hidden"> / versie</span></TableHead>
+                <TableHead mobileHidden>Versie</TableHead>
+                <TableHead mobileHidden>Datum</TableHead>
                 <TableHead>Klant</TableHead>
-                <TableHead>Stad</TableHead>
-                <TableHead className="text-right">Bedrag</TableHead>
-                <TableHead>Munt</TableHead>
+                <TableHead mobileHidden>Stad</TableHead>
+                <TableHead mobileHidden className="text-right">Bedrag</TableHead>
+                <TableHead mobileHidden>Munt</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -126,13 +126,13 @@ export function OffertesPage({
                     }
                   }}
                 >
-                  <TableCell className="font-semibold text-primary-600">{item.offnr}</TableCell>
-                  <TableCell>{item.versie}</TableCell>
-                  <TableCell>{formatDatum(item.datum)}</TableCell>
+                  <TableCell className="font-semibold text-primary-600"><span>{item.offnr}</span><span className="sm:hidden">/{item.versie}</span></TableCell>
+                  <TableCell mobileHidden>{item.versie}</TableCell>
+                  <TableCell mobileHidden>{formatDatum(item.datum)}</TableCell>
                   <TableCell className="whitespace-normal">{item.naam}</TableCell>
-                  <TableCell>{item.stad}</TableCell>
-                  <TableCell className="text-right font-medium">{formatBedrag(item.bedrag)}</TableCell>
-                  <TableCell>{item.munt}</TableCell>
+                  <TableCell mobileHidden>{item.stad}</TableCell>
+                  <TableCell mobileHidden className="text-right font-medium">{formatBedrag(item.bedrag)}</TableCell>
+                  <TableCell mobileHidden>{item.munt}</TableCell>
                   <TableCell>{statusLabel(item)}</TableCell>
                 </TableRow>
               ))}

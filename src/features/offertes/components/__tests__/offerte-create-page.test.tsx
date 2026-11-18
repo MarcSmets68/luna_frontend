@@ -64,7 +64,7 @@ describe("OfferteCreatePage", () => {
 
     const datumInput = screen.getByLabelText("Datum") as HTMLInputElement;
     await user.clear(datumInput);
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Datum is verplicht.")).toBeInTheDocument();
     expect(createOfferteMock).not.toHaveBeenCalled();
@@ -75,7 +75,7 @@ describe("OfferteCreatePage", () => {
     createOfferteMock.mockResolvedValue({ offnr: 999, versie: 1, klnr: 14644 });
 
     render(<OfferteCreatePage klant={mockKlant} />);
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(createOfferteMock).toHaveBeenCalledTimes(1));
     expect(createOfferteMock).toHaveBeenCalledWith(
@@ -94,7 +94,7 @@ describe("OfferteCreatePage", () => {
 
     await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "ABC");
     await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(createOfflijnMock).toHaveBeenCalledTimes(1));
     expect(createOfflijnMock).toHaveBeenCalledWith(
@@ -114,7 +114,7 @@ describe("OfferteCreatePage", () => {
 
     await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "ABC");
     await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith("/offertes/999/1?lijnFout=1")
@@ -130,7 +130,7 @@ describe("OfferteCreatePage", () => {
     createOfferteMock.mockRejectedValue(new Error("klnr is verplicht"));
 
     render(<OfferteCreatePage klant={mockKlant} />);
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("klnr is verplicht")).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
@@ -140,7 +140,7 @@ describe("OfferteCreatePage", () => {
     const user = userEvent.setup();
     render(<OfferteCreatePage klant={mockKlant} />);
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
     expect(pushMock).toHaveBeenCalledWith("/klanten/14644");
   });
 });

@@ -186,7 +186,7 @@ export function LeverancierDetailPage({ leverancier, backHref = "/leveranciers" 
                 Verwijderen
               </Button>
               <Button type="button" size="sm" onClick={startEditing}>
-                Verbeteren
+                Bewerken
               </Button>
             </>
           )}
@@ -284,10 +284,10 @@ export function LeverancierDetailPage({ leverancier, backHref = "/leveranciers" 
 
               <div className="mt-6 flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
-                  Cancel
+                  Annuleren
                 </Button>
                 <Button type="button" onClick={handleSave} disabled={saving}>
-                  {saving ? "Bezig..." : "Save"}
+                  {saving ? "Bezig..." : "Opslaan"}
                 </Button>
               </div>
             </>

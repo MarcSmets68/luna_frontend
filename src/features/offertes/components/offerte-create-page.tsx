@@ -283,10 +283,10 @@ export function OfferteCreatePage({ klant }: { klant: KlantItem }) {
           onClick={() => router.push(`/klanten/${klant.klnr}`)}
           disabled={saving}
         >
-          Cancel
+          Annuleren
         </Button>
         <Button type="button" onClick={handleSave} disabled={saving}>
-          {saving ? "Bezig..." : "Save"}
+          {saving ? "Bezig..." : "Opslaan"}
         </Button>
       </div>
     </div>

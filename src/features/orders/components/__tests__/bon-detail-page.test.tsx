@@ -318,28 +318,28 @@ describe("BonDetailPage", () => {
     expect(screen.queryByText("Niet alle lijnen zijn opgeslagen.")).not.toBeInTheDocument();
   });
 
-  it("does not show editable header fields until 'Verbeteren' is clicked", async () => {
+  it("does not show editable header fields until 'Bewerken' is clicked", async () => {
     stubFetch();
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
     await flush();
     expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bewerken" })).toBeInTheDocument();
   });
 
-  it("switches to editable header fields after clicking 'Verbeteren', with bonnr/bedrag/btw staying read-only", async () => {
+  it("switches to editable header fields after clicking 'Bewerken', with bonnr/bedrag/btw staying read-only", async () => {
     stubFetch();
     const user = userEvent.setup();
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
     await flush();
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
 
     expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
     expect(screen.getByText("Bonnr")).toBeInTheDocument();
     expect(screen.getByText("1234567")).toBeInTheDocument();
     expect(screen.queryByRole("spinbutton", { name: "Bedrag" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opslaan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Annuleren" })).toBeInTheDocument();
   });
 
   it("keeps stempel and klnr read-only in edit mode (workflow-critical / identifier fields)", async () => {
@@ -348,13 +348,14 @@ describe("BonDetailPage", () => {
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
     await flush();
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
 
     // Stempel drives the backend's PUT-lijn stempel="D" guard and the
     // annuleer stempel="V"/"B" precondition - it must never be a free-text
     // input a user can type an arbitrary value into.
     expect(screen.queryByRole("textbox", { name: "Stempel" })).not.toBeInTheDocument();
-    expect(screen.getByText("Stempel")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Orderstatus" })).not.toBeInTheDocument();
+    expect(screen.getByText("Orderstatus")).toBeInTheDocument();
 
     // Klnr is treated as an immutable identifier, consistent with offerte's
     // own klnr field.
@@ -372,8 +373,8 @@ describe("BonDetailPage", () => {
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
     await flush();
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
     const [, payload] = updateBonMock.mock.calls[0];
@@ -389,11 +390,11 @@ describe("BonDetailPage", () => {
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
     await flush();
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
     const naamInput = screen.getByRole("textbox", { name: "Klant" });
     await user.clear(naamInput);
     await user.type(naamInput, "CONE LIGHTING NV");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
     expect(updateBonMock).toHaveBeenCalledWith(
@@ -411,11 +412,11 @@ describe("BonDetailPage", () => {
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
     await flush();
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Bon 1234567 not found")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opslaan" })).toBeInTheDocument();
   });
 
   it("auto-enters edit mode when redirected here with ?edit=1 (offerte conversion flow)", async () => {
@@ -426,7 +427,7 @@ describe("BonDetailPage", () => {
     await flush();
 
     expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opslaan" })).toBeInTheDocument();
   });
 
   it("does not auto-enter edit mode without ?edit=1", async () => {
@@ -435,7 +436,7 @@ describe("BonDetailPage", () => {
     await flush();
 
     expect(screen.queryByRole("textbox", { name: "Klant" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bewerken" })).toBeInTheDocument();
   });
 
   it("shows a dirty indicator in the header while editing with unsaved changes, and not before editing or when unchanged", async () => {
@@ -446,7 +447,7 @@ describe("BonDetailPage", () => {
 
     expect(screen.queryByText("Niet-bewaarde wijzigingen")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
     expect(screen.queryByText("Niet-bewaarde wijzigingen")).not.toBeInTheDocument();
 
     const naamInput = screen.getByRole("textbox", { name: "Klant" });
@@ -461,21 +462,21 @@ describe("BonDetailPage", () => {
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
     await flush();
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
     const naamInput = screen.getByRole("textbox", { name: "Klant" });
     await user.clear(naamInput);
     await user.type(naamInput, "GEWIJZIGDE NAAM");
     expect(screen.getByText("Niet-bewaarde wijzigingen")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
 
     expect(screen.queryByRole("textbox", { name: "Klant" })).not.toBeInTheDocument();
     expect(screen.queryByText("GEWIJZIGDE NAAM")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Verbeteren" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bewerken" })).toBeInTheDocument();
     expect(updateBonMock).not.toHaveBeenCalled();
 
     // Re-entering edit mode should show the original, unedited value again.
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
     expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
     expect(confirm).toHaveBeenCalledTimes(1);
     confirm.mockRestore();
@@ -491,7 +492,7 @@ describe("BonDetailPage", () => {
     expect(pakbonButton).toBeEnabled();
     expect(screen.getByRole("button", { name: "Reserveren" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
 
     expect(screen.getByRole("button", { name: "Pakbon aanmaken" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Reserveren" })).toBeInTheDocument();
@@ -505,7 +506,7 @@ describe("BonDetailPage", () => {
 
     expect(screen.getByRole("button", { name: "Pakbon aanmaken" })).toBeDisabled();
 
-    await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+    await user.click(screen.getByRole("button", { name: "Bewerken" }));
     expect(screen.getByRole("button", { name: "Pakbon aanmaken" })).toBeDisabled();
   });
 
@@ -559,7 +560,7 @@ describe("BonDetailPage", () => {
       render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
       await flush();
 
-      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+      await user.click(screen.getByRole("button", { name: "Bewerken" }));
 
       expect(screen.getByRole("spinbutton", { name: "Klnr2" })).toHaveValue(0);
       expect(screen.getByRole("spinbutton", { name: "Klnr3" })).toHaveValue(0);
@@ -581,7 +582,7 @@ describe("BonDetailPage", () => {
       render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
       await flush();
 
-      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+      await user.click(screen.getByRole("button", { name: "Bewerken" }));
 
       // Native <input type="number"> silently refuses to hold a
       // non-numeric string (both via userEvent keystrokes and via
@@ -594,7 +595,7 @@ describe("BonDetailPage", () => {
       klnr2Input.setAttribute("type", "text");
       fireEvent.change(klnr2Input, { target: { value: "not-a-number" } });
 
-      await user.click(screen.getByRole("button", { name: "Save" }));
+      await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
       expect(
         await screen.findByText(
@@ -612,7 +613,7 @@ describe("BonDetailPage", () => {
       render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
       await flush();
 
-      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+      await user.click(screen.getByRole("button", { name: "Bewerken" }));
 
       const klnr2Input = screen.getByRole("spinbutton", { name: "Klnr2" });
       await user.clear(klnr2Input);
@@ -621,7 +622,7 @@ describe("BonDetailPage", () => {
       const lnaamInput = screen.getByRole("textbox", { name: "Naam" });
       await user.type(lnaamInput, "Aflever BV");
 
-      await user.click(screen.getByRole("button", { name: "Save" }));
+      await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
       await waitFor(() => expect(updateBonMock).toHaveBeenCalledTimes(1));
       expect(updateBonMock).toHaveBeenCalledWith(
@@ -691,7 +692,7 @@ describe("BonDetailPage", () => {
       const user = userEvent.setup();
       render(<BonDetailPage bon={bonV} lijnen={mockLijnen} />);
       await flush();
-      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
+      await user.click(screen.getByRole("button", { name: "Bewerken" }));
       expect(annuleerKnop()).toBeDisabled();
       expect(
         screen.getByText("Sla je wijzigingen op of annuleer het bewerken eerst.")
@@ -802,8 +803,8 @@ describe("BonDetailPage", () => {
       await cancelVia(user);
       await waitFor(() => expect(getBonLijnenMock).toHaveBeenCalled());
       await waitFor(() => expect(annuleerKnop()).toBeDisabled());
-      await user.click(screen.getByRole("button", { name: "Verbeteren" }));
-      expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+      await user.click(screen.getByRole("button", { name: "Bewerken" }));
+      expect(screen.getByRole("button", { name: "Annuleren" })).toBeEnabled();
     });
 
     it("shows an error and keeps old rows when reloading lijnen fails after success", async () => {

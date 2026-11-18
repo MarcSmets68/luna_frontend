@@ -3,18 +3,61 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Columns3 } from "lucide-react"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
-  return (
+type TableProps = React.ComponentProps<"table"> & { mobileLabel?: string }
+
+function Table({ className, mobileLabel, ...props }: TableProps) {
+  const [expanded, setExpanded] = React.useState(false)
+  const scrollRef = React.useRef<HTMLDivElement>(null)
+  const id = React.useId()
+  const table = (
     <div
+      ref={scrollRef}
+      id={mobileLabel ? id : undefined}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto rounded-xl border border-border bg-card shadow-(--shadow-surface)"
+      className={cn("relative w-full overflow-x-auto rounded-xl border border-border bg-card shadow-(--shadow-surface)", mobileLabel && "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring")}
+      role={mobileLabel ? "region" : undefined}
+      aria-label={mobileLabel ? `${mobileLabel}, horizontaal schuifbare tabel` : undefined}
+      aria-describedby={mobileLabel ? `${id}-hint` : undefined}
+      tabIndex={mobileLabel ? 0 : undefined}
     >
       <table
         data-slot="table"
+        data-mobile-columns={mobileLabel ? (expanded ? "all" : "priority") : undefined}
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
+    </div>
+  )
+
+  if (!mobileLabel) return table
+
+  return (
+    <div className="min-w-0">
+      <div className="mb-3 flex items-center justify-between gap-3 sm:hidden">
+        <p id={`${id}-hint`} className="text-xs leading-relaxed text-muted-foreground">
+          {expanded ? "Schuif zijwaarts. De eerste kolom blijft zichtbaar." : "Belangrijkste kolommen. Toon alle kolommen voor meer gegevens."}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="min-h-11 shrink-0"
+          aria-expanded={expanded}
+          aria-controls={id}
+          aria-label={`Toon ${expanded ? "minder" : "alle"} kolommen van ${mobileLabel.toLowerCase()}`}
+          onClick={() => {
+            if (scrollRef.current) scrollRef.current.scrollLeft = 0
+            setExpanded((value) => !value)
+          }}
+        >
+          <Columns3 aria-hidden="true" />
+          {expanded ? "Minder kolommen" : "Alle kolommen"}
+        </Button>
+      </div>
+      {table}
     </div>
   )
 }
@@ -65,10 +108,11 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({ className, mobileHidden, ...props }: React.ComponentProps<"th"> & { mobileHidden?: boolean }) {
   return (
     <th
       data-slot="table-head"
+      data-mobile-secondary={mobileHidden ? "" : undefined}
       className={cn(
         "h-11 px-4 text-left align-middle text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap text-muted-foreground uppercase [&:has([role=checkbox])]:pr-0",
         className
@@ -78,10 +122,11 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({ className, mobileHidden, ...props }: React.ComponentProps<"td"> & { mobileHidden?: boolean }) {
   return (
     <td
       data-slot="table-cell"
+      data-mobile-secondary={mobileHidden ? "" : undefined}
       className={cn(
         "px-4 py-3 align-middle whitespace-nowrap tabular-nums [&:has([role=checkbox])]:pr-0",
         className

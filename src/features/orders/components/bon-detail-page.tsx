@@ -34,7 +34,8 @@ import {
 } from "@/lib/api-client";
 import { AnnuleerBonDialog } from "./annuleer-bon-dialog";
 import { BonStatusBadge } from "./bon-status-badge";
-import { annuleerBlokkade } from "../lib/bon-stempel";
+import { annuleerBlokkade, getBonTypeLabel, getStempelLabel } from "../lib/bon-stempel";
+import { OrderCodeHelp } from "./order-code-help";
 import { BonlijnProductieTable } from "./bonlijn-productie-table";
 import { BonlijnReserveringDialog } from "./bonlijn-reservering-dialog";
 import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
@@ -336,17 +337,17 @@ export function BonDetailPage({
     <>
       {annuleerKnop}
       <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
-        Cancel
+        Annuleren
       </Button>
       <Button type="button" onClick={handleSave} disabled={saving}>
-        {saving ? "Bezig..." : "Save"}
+        {saving ? "Bezig..." : "Opslaan"}
       </Button>
     </>
   ) : (
     <>
       {annuleerKnop}
       <Button type="button" size="sm" onClick={startEditing}>
-        Verbeteren
+        Bewerken
       </Button>
     </>
   );
@@ -390,6 +391,7 @@ export function BonDetailPage({
         )}
       </div>
 
+      <OrderCodeHelp />
       <Card className="mb-6">
         <CardHeader>
           <div className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
@@ -402,7 +404,7 @@ export function BonDetailPage({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <DetailField label="Bonnr" value={String(bon.bonnr)} />
                 <EditField label="Type" value={form.type} onChange={(v) => setField("type", v)} />
-                <DetailField label="Stempel" value={bon.stempel} />
+                <DetailField label="Orderstatus" value={bon.stempel ? `${getStempelLabel(bon.stempel)} (${bon.stempel})` : "Onbekend"} />
                 <EditField
                   label="Datum"
                   value={form.datum}
@@ -535,8 +537,8 @@ export function BonDetailPage({
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <DetailField label="Bonnr" value={String(bon.bonnr)} />
-                <DetailField label="Type" value={bon.type} />
-                <DetailField label="Stempel" value={bon.stempel} />
+                <DetailField label="Type" value={getBonTypeLabel(bon.type)} />
+                <DetailField label="Orderstatus" value={bon.stempel ? `${getStempelLabel(bon.stempel)} (${bon.stempel})` : "Onbekend"} />
                 <DetailField label="Datum" value={formatDatum(bon.datum)} />
                 <DetailField label="Klnr" value={String(bon.klnr)} />
                 <DetailField label="Klant" value={bon.naam} />

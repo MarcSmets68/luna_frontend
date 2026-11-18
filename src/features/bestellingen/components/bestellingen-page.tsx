@@ -110,16 +110,16 @@ export function BestellingenPage({
         <p className="text-sm text-muted-foreground">Geen bestellingen gevonden.</p>
       ) : (
         <>
-          <Table>
+          <Table mobileLabel="Bestellingen">
             <TableHeader>
               <TableRow>
                 <TableHead>Ordnr</TableHead>
-                <TableHead>Datum</TableHead>
+                <TableHead mobileHidden>Datum</TableHead>
                 <TableHead>Leverancier</TableHead>
-                <TableHead>Stad</TableHead>
-                <TableHead>Bedrag</TableHead>
-                <TableHead>Munt</TableHead>
-                <TableHead>Leverdatum</TableHead>
+                <TableHead mobileHidden>Stad</TableHead>
+                <TableHead mobileHidden>Bedrag</TableHead>
+                <TableHead mobileHidden>Munt</TableHead>
+                <TableHead mobileHidden>Leverdatum</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -140,12 +140,12 @@ export function BestellingenPage({
                   }}
                 >
                   <TableCell className="font-semibold">{item.ordnr}</TableCell>
-                  <TableCell>{formatDatum(item.datum)}</TableCell>
+                  <TableCell mobileHidden>{formatDatum(item.datum)}</TableCell>
                   <TableCell className="whitespace-normal">{item.naam}</TableCell>
-                  <TableCell>{item.stad}</TableCell>
-                  <TableCell>{formatBedrag(item.bedrag)}</TableCell>
-                  <TableCell>{item.munt}</TableCell>
-                  <TableCell>{formatDatum(item.levDatum)}</TableCell>
+                  <TableCell mobileHidden>{item.stad}</TableCell>
+                  <TableCell mobileHidden>{formatBedrag(item.bedrag)}</TableCell>
+                  <TableCell mobileHidden>{item.munt}</TableCell>
+                  <TableCell mobileHidden>{formatDatum(item.levDatum)}</TableCell>
                   <TableCell>
                     <BestellingStatusBadge stempel={item.stempel} />
                   </TableCell>

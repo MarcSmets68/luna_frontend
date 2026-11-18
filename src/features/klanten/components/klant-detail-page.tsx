@@ -207,15 +207,15 @@ export function KlantDetailPage({
   const headerActions = editing ? (
     <>
       <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
-        Cancel
+        Annuleren
       </Button>
       <Button type="button" onClick={handleSave} disabled={saving}>
-        {saving ? "Bezig..." : "Save"}
+        {saving ? "Bezig..." : "Opslaan"}
       </Button>
     </>
   ) : (
     <Button type="button" size="sm" onClick={startEditing}>
-      Verbeteren
+      Bewerken
     </Button>
   );
 
