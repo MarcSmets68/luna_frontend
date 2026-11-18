@@ -20,7 +20,7 @@ function initialsFor(session: Session): string {
   return letters.join("").toUpperCase();
 }
 
-export function Topbar({ className }: { className?: string }) {
+export function Topbar({ className, navigationTrigger }: { className?: string; navigationTrigger?: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   // useSession() (see features/auth/session.ts) keeps the SSR render and
@@ -54,15 +54,19 @@ export function Topbar({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "relative flex h-14 shrink-0 items-center justify-end border-b border-border bg-card px-7",
+        "flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 sm:px-6 lg:px-8",
         className
       )}
     >
-      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2">
+      <div className="flex items-center gap-3">
+      {navigationTrigger}
+      <div className="flex items-center gap-1 rounded-lg border border-border bg-muted p-1">
         <Button
           type="button"
           size="sm"
           variant={mode === "luna" ? "default" : "outline"}
+          aria-pressed={mode === "luna"}
+          className={cn("h-7 border-transparent px-3 shadow-none", mode !== "luna" && "bg-transparent")}
           onClick={() => handleSwitch("luna")}
         >
           Luna
@@ -71,20 +75,23 @@ export function Topbar({ className }: { className?: string }) {
           type="button"
           size="sm"
           variant={mode === "npp" ? "default" : "outline"}
+          aria-pressed={mode === "npp"}
+          className={cn("h-7 border-transparent px-3 shadow-none", mode !== "npp" && "bg-transparent")}
           onClick={() => handleSwitch("npp")}
         >
           NPP
         </Button>
       </div>
-      <div className="flex items-center gap-3">
-        <div className="text-right leading-tight">
+      </div>
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="hidden text-right leading-tight sm:block">
           <div className="text-[13px] font-semibold text-foreground">
             {session?.naam || session?.kode || "Niet ingelogd"}
           </div>
           <div className="text-[11px] text-muted-foreground">{session?.kode ?? ""}</div>
         </div>
-        <Avatar className="h-8 w-8 border border-primary bg-accent">
-          <AvatarFallback className="bg-accent text-[12px] font-bold text-primary">
+        <Avatar className="h-9 w-9 border border-primary/15 bg-accent">
+          <AvatarFallback className="bg-accent text-[12px] font-semibold text-primary-600">
             {session ? initialsFor(session) : "?"}
           </AvatarFallback>
         </Avatar>

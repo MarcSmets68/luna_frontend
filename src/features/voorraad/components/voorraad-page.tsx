@@ -1,5 +1,7 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/page-header";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -52,24 +54,16 @@ export function VoorraadPage({
 
   return (
     <div>
-      <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-        Voorraad
-      </div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-[26px] font-bold text-foreground">
-            {lageVoorraad ? "Artikelen — Lage voorraad" : "Artikelen"}
-          </h1>
+      <PageHeader section="Voorraad" title={lageVoorraad ? "Artikelen — Lage voorraad" : "Artikelen"}>
           {lageVoorraad && (
             <Link href="/voorraad" className="text-[13px] text-primary underline">
               Filter wissen
             </Link>
           )}
-        </div>
-        <div className="text-[13px] text-[#5e5e5e]">Pagina {page}</div>
-      </div>
+        <span>Pagina {page}</span>
+      </PageHeader>
 
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-border bg-card p-4 shadow-(--shadow-surface)">
         <Checkbox
           checked={toonGeblokkeerd}
           onCheckedChange={setToonGeblokkeerd}
@@ -88,10 +82,10 @@ export function VoorraadPage({
                 <TableHead>Artikel</TableHead>
                 <TableHead>Omschrijving</TableHead>
                 <TableHead>Groep</TableHead>
-                <TableHead>Verkoopprijs</TableHead>
-                <TableHead>Voorraad</TableHead>
-                <TableHead>Min.</TableHead>
-                <TableHead>Max.</TableHead>
+                <TableHead className="text-right">Verkoopprijs</TableHead>
+                <TableHead className="text-right">Voorraad</TableHead>
+                <TableHead className="text-right">Min.</TableHead>
+                <TableHead className="text-right">Max.</TableHead>
                 <TableHead>Geblokkeerd</TableHead>
               </TableRow>
             </TableHeader>
@@ -111,14 +105,18 @@ export function VoorraadPage({
                     }
                   }}
                 >
-                  <TableCell className="font-semibold">{item.artnr}</TableCell>
+                  <TableCell className="font-semibold text-primary-600">{item.artnr}</TableCell>
                   <TableCell className="whitespace-normal">{item.omschrijvingNl}</TableCell>
                   <TableCell>{item.groep}</TableCell>
-                  <TableCell>{formatPrice(item.verkoopprijs)}</TableCell>
-                  <TableCell>{item.voorraad}</TableCell>
-                  <TableCell>{item.voorraadMin}</TableCell>
-                  <TableCell>{item.voorraadMax}</TableCell>
-                  <TableCell>{item.geblokkeerd ? "Ja" : "Nee"}</TableCell>
+                  <TableCell className="text-right font-medium">{formatPrice(item.verkoopprijs)}</TableCell>
+                  <TableCell className="text-right font-semibold">{item.voorraad}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{item.voorraadMin}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{item.voorraadMax}</TableCell>
+                  <TableCell>
+                    <span className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-medium", item.geblokkeerd ? "bg-error-bg text-error-fg" : "bg-muted text-muted-foreground")}>
+                      {item.geblokkeerd ? "Ja" : "Nee"}
+                    </span>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

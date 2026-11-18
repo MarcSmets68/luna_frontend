@@ -23,7 +23,7 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
   const ticks = [max, (min + max) / 2, min];
 
   return (
-    <Card className="rounded-none border-border shadow-none">
+    <Card className="gap-0 py-0">
       <CardHeader className="border-b border-border py-3.5">
         <CardTitle className="text-sm font-semibold text-foreground">
           Omzet 12 maanden
@@ -36,7 +36,7 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
         <div className="mt-3 w-full max-w-[1350px]">
           <svg
             viewBox={`0 0 ${plotLeft + width + plotRight} ${height}`}
-            className="h-auto w-full"
+            className="h-auto max-h-64 w-full"
             role="img"
             aria-label="Omzet trend afgelopen 12 maanden"
           >
@@ -80,7 +80,7 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
 
             <polyline
               fill="none"
-              stroke="#60a172"
+              stroke="var(--chart-1)"
               strokeWidth="5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -96,7 +96,7 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
                 y1={y(items[n - 2].total)}
                 x2={x(n - 1)}
                 y2={y(items[n - 1].total)}
-                stroke="#60a172"
+                stroke="var(--chart-1)"
                 strokeWidth="5"
                 strokeDasharray="9 6"
               />
@@ -110,8 +110,8 @@ export function OmzetTrendCard({ items }: { items: DashboardOmzetTrendItem[] }) 
                   cx={x(i)}
                   cy={y(item.total)}
                   r={isLast ? 9 : 6}
-                  fill={isLast ? "white" : "#60a172"}
-                  stroke="#60a172"
+                  fill={isLast ? "white" : "var(--chart-1)"}
+                  stroke="var(--chart-1)"
                   strokeWidth="5"
                 />
               );

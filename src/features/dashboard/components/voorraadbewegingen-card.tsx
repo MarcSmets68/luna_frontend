@@ -14,7 +14,7 @@ export function VoorraadbewegingenCard({
   const empty = !data || data.aantalIn + data.aantalUit === 0;
 
   return (
-    <Card className="rounded-none border-border shadow-none">
+    <Card className="gap-0 py-0">
       <CardHeader className="border-b border-border py-3.5">
         <CardTitle className="text-sm font-semibold text-foreground">Voorraadbewegingen</CardTitle>
         <div className="text-[11px] text-muted-foreground">boekingen deze maand tot nu toe</div>

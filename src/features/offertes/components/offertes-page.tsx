@@ -1,5 +1,7 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/page-header";
+
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -95,13 +97,9 @@ export function OffertesPage({
 
   return (
     <div>
-      <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-        Offertes
-      </div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-[26px] font-bold text-foreground">Alle offertes</h1>
-        <div className="text-[13px] text-[#5e5e5e]">Pagina {page}</div>
-      </div>
+      <PageHeader section="Offertes" title="Alle offertes">
+        <span>Pagina {page}</span>
+      </PageHeader>
 
       <OffertesFilters filters={filters} onFiltersChange={setFilters} />
 
@@ -117,7 +115,7 @@ export function OffertesPage({
                 <TableHead>Datum</TableHead>
                 <TableHead>Klant</TableHead>
                 <TableHead>Stad</TableHead>
-                <TableHead>Bedrag</TableHead>
+                <TableHead className="text-right">Bedrag</TableHead>
                 <TableHead>Munt</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -138,12 +136,12 @@ export function OffertesPage({
                     }
                   }}
                 >
-                  <TableCell className="font-semibold">{item.offnr}</TableCell>
+                  <TableCell className="font-semibold text-primary-600">{item.offnr}</TableCell>
                   <TableCell>{item.versie}</TableCell>
                   <TableCell>{formatDatum(item.datum)}</TableCell>
                   <TableCell className="whitespace-normal">{item.naam}</TableCell>
                   <TableCell>{item.stad}</TableCell>
-                  <TableCell>{formatBedrag(item.bedrag)}</TableCell>
+                  <TableCell className="text-right font-medium">{formatBedrag(item.bedrag)}</TableCell>
                   <TableCell>{item.munt}</TableCell>
                   <TableCell>{statusLabel(item)}</TableCell>
                 </TableRow>

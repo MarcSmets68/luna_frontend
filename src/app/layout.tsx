@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { Questrial } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 
-// Century Gothic itself is a Monotype-licensed font with no free web
-// distribution - Questrial is loaded as the geometric-sans fallback for
-// non-Windows/Office environments (see docs/design-system.md §3).
-const questrial = Questrial({
-  variable: "--font-questrial",
-  weight: "400",
+// A variable UI face keeps dense ERP data legible at every weight.
+const geist = Geist({
+  variable: "--font-geist",
   subsets: ["latin"],
 });
 
@@ -21,7 +18,7 @@ export const dynamic = 'force-dynamic';
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="nl" className={`${questrial.variable} h-full antialiased`}>
+    <html lang="nl" className={`${geist.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
