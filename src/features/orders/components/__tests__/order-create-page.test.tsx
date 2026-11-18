@@ -49,6 +49,46 @@ beforeEach(() => {
 });
 
 describe("OrderCreatePage", () => {
+  it("keeps entered data when leaving is rejected and leaves after confirmation", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<OrderCreatePage klant={mockKlant} />);
+    await user.type(screen.getByRole("textbox", { name: "Uw referentie" }), "Mijn referentie");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox", { name: "Uw referentie" })).toHaveValue("Mijn referentie");
+    confirm.mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(pushMock).toHaveBeenCalledWith("/klanten/14644");
+    confirm.mockRestore();
+  });
+
+  it("does not ask to discard a successfully saved form", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    createBonMock.mockResolvedValue({ bonnr: 999 });
+    const user = userEvent.setup();
+    render(<OrderCreatePage klant={mockKlant} />);
+    await user.type(screen.getByRole("textbox", { name: "Uw referentie" }), "Opgeslagen");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/orders/999"));
+    expect(confirm).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  it("still warns after a failed save", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    createBonMock.mockRejectedValue(new Error("Opslaan mislukt"));
+    const user = userEvent.setup();
+    render(<OrderCreatePage klant={mockKlant} />);
+    await user.type(screen.getByRole("textbox", { name: "Uw referentie" }), "Niet opgeslagen");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Opslaan mislukt");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(confirm).toHaveBeenCalledTimes(1);
+    confirm.mockRestore();
+  });
+
   it("renders the heading and prefills naam/adres/postnr/stad/munt from the klant", () => {
     render(<OrderCreatePage klant={mockKlant} />);
     expect(screen.getByRole("heading", { name: "Nieuwe order" })).toBeInTheDocument();

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { StockbewegingView } from "../stockbeweging-view";
 import { getArtikelScan, postStockBeweging } from "@/lib/api-client";
 import { saveSession, clearSession } from "@/features/auth/session";
+import { confirmNavigation } from "@/lib/unsaved-changes";
 
 vi.mock("@/lib/api-client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
@@ -53,6 +54,7 @@ function stubSession() {
 describe("StockbewegingView", () => {
   afterEach(() => {
     vi.resetAllMocks();
+    vi.restoreAllMocks();
     clearSession();
   });
 
@@ -119,6 +121,7 @@ describe("StockbewegingView", () => {
   });
 
   it("requires the mandatory confirm dialog before booking, and books on confirm", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
     stubSession();
     const bookingResult = {
       artikel: { artnr: "ART-1", voorraad: 42, magazijn: "M1" },
@@ -143,6 +146,8 @@ describe("StockbewegingView", () => {
     await user.type(screen.getByLabelText("Aantal"), "5");
     await user.type(screen.getByLabelText("Opmerking"), "Ontvangst levering");
 
+    expect(confirmNavigation()).toBe(false);
+
     expect(mockedPostStockBeweging).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Doorgaan" }));
@@ -153,6 +158,7 @@ describe("StockbewegingView", () => {
 
     await waitFor(() => expect(screen.getByText("Boeking geslaagd")).toBeInTheDocument());
     expect(mockedPostStockBeweging).toHaveBeenCalledTimes(1);
+    expect(confirmNavigation()).toBe(true);
   });
 
   it("keeps the confirm dialog open with the error shown, and article stays resolved, on a failed booking", async () => {

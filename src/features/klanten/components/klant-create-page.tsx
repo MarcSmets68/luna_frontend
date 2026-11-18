@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useGuardedRouter, useUnsavedChanges } from "@/lib/unsaved-changes";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -80,10 +80,11 @@ const EMPTY_FORM: KlantCreateFormState = {
 };
 
 export function KlantCreatePage() {
-  const router = useRouter();
+  const router = useGuardedRouter();
   const [form, setForm] = useState<KlantCreateFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const markSaved = useUnsavedChanges(JSON.stringify(form) !== JSON.stringify(EMPTY_FORM));
 
   const setField = <K extends keyof KlantCreateFormState>(key: K, value: KlantCreateFormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -125,6 +126,7 @@ export function KlantCreatePage() {
         opm: form.opm,
       };
       await createKlant(payload);
+      markSaved();
       router.push(`/klanten/${klnr}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Er ging iets mis bij het aanmaken van de klant.");

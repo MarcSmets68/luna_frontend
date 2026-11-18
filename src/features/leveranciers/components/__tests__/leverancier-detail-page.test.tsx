@@ -100,6 +100,7 @@ describe("LeverancierDetailPage", () => {
   });
 
   it("reverts changes and does not call the API on cancel", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     render(<LeverancierDetailPage leverancier={mockLeverancier} />);
 
@@ -113,6 +114,8 @@ describe("LeverancierDetailPage", () => {
     expect(updateLeverancierMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("textbox", { name: "Naam" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "COATING PARTNERS BV" })).toBeInTheDocument();
+    expect(confirm).toHaveBeenCalledTimes(1);
+    confirm.mockRestore();
   });
 
   it("shows an error and stays in edit mode when the API call fails", async () => {

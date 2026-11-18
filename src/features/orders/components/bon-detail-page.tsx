@@ -42,6 +42,7 @@ import { LedConfigTable } from "./led-config-table";
 import { LedQcTable } from "./led-qc-table";
 import { HerstelDetailPanel } from "./herstel-detail-panel";
 import { PakbonAanmakenDialog } from "./pakbon-aanmaken-dialog";
+import { confirmNavigation, useUnsavedChanges } from "@/lib/unsaved-changes";
 
 // Number of columns in the Lijnen table (chevron, Lijnnr, Artnr,
 // Omschrijving, Aantal, Te leveren, Gereserveerd, Eff. gereserveerd, Vprijs,
@@ -215,6 +216,7 @@ export function BonDetailPage({
       (key) => original[key] !== form[key]
     );
   }, [bon, form]);
+  const markSaved = useUnsavedChanges(editing && isDirty);
 
   const setField = <K extends keyof BonFormState>(key: K, value: BonFormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -226,6 +228,8 @@ export function BonDetailPage({
   }
 
   function cancelEditing() {
+    if (!confirmNavigation()) return;
+    markSaved();
     setForm(toBonFormState(bon));
     setError(null);
     setEditing(false);
@@ -270,6 +274,7 @@ export function BonDetailPage({
         lstad: form.lstad,
       };
       await updateBon(bon.bonnr, payload);
+      markSaved();
       setEditing(false);
       router.refresh();
     } catch (e) {

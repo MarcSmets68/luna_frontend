@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 import {
   TITLE_LINE_TEXT_CLASS,
   classifyLineKind,
@@ -90,6 +91,7 @@ export function OrderLijnenEditor({
 }) {
   const [newLineKind, setNewLineKind] = useState<LineKind>("artikel");
   const [newLineFields, setNewLineFields] = useState<LineFields>(emptyLineFields());
+  useUnsavedChanges(JSON.stringify(newLineFields) !== JSON.stringify(emptyLineFields()));
 
   function updateLine(clientId: string, patch: Partial<LineFields>) {
     onChange(lijnen.map((lijn) => (lijn.clientId === clientId ? { ...lijn, ...patch } : lijn)));

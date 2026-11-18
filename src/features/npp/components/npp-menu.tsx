@@ -1,15 +1,5 @@
 "use client";
 
-// First visual draft of the NPP (production/warehouse floor) home menu -
-// see PRD §4.1 for the touch-UI principles this follows (large tiles,
-// minimal info, one task per screen) and docs/legacy-codebase-guide.md
-// §7-8 for the legacy NPP screens each tile stands in for.
-//
-// Deliberately no functionality yet: tiles don't navigate anywhere and
-// the department switch is local, unpersisted UI state. This exists
-// purely to validate the touch layout before the real design/build
-// goes through the analyst -> architect -> frontend-coder pipeline.
-
 import { useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
@@ -116,8 +106,9 @@ function NppTile({
 }) {
   const content = (
     <>
-      <Icon className="size-10 text-primary-600" strokeWidth={1.75} />
+      <Icon aria-hidden="true" className="size-10 text-primary-600" strokeWidth={1.75} />
       <span className="text-[15px] leading-snug font-medium text-foreground">{label}</span>
+      {!href && <span className="text-xs text-muted-foreground">Nog niet beschikbaar</span>}
     </>
   );
 
@@ -130,7 +121,7 @@ function NppTile({
   }
 
   return (
-    <button type="button" className={tileClassName}>
+    <button type="button" disabled aria-label={`${label} — Nog niet beschikbaar`} className={cn(tileClassName, "cursor-not-allowed opacity-60 hover:bg-card hover:text-foreground active:translate-y-0")}>
       {content}
     </button>
   );

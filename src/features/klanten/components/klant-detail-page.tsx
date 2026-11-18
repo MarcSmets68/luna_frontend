@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { confirmNavigation, useUnsavedChanges } from "@/lib/unsaved-changes";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -158,6 +159,7 @@ export function KlantDetailPage({
       (key) => original[key] !== form[key]
     );
   }, [klant, form]);
+  const markSaved = useUnsavedChanges(editing && isDirty);
 
   const setField = <K extends keyof KlantFormState>(key: K, value: KlantFormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -169,6 +171,8 @@ export function KlantDetailPage({
   }
 
   function cancelEditing() {
+    if (!confirmNavigation()) return;
+    markSaved();
     setForm(toFormState(klant));
     setError(null);
     setEditing(false);
@@ -186,6 +190,7 @@ export function KlantDetailPage({
     try {
       const payload: UpdateKlantPayload = { ...form, saldo };
       await updateKlant(klant.klnr, payload);
+      markSaved();
       setEditing(false);
       router.refresh();
     } catch (e) {

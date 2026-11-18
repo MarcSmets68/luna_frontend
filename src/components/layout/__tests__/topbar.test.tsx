@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Topbar } from "../topbar";
 import { clearSession, getSession, saveSession, type Session } from "@/features/auth/session";
-import { getInterfaceMode } from "@/features/interface-mode/interface-mode";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 
 const pushMock = vi.fn();
 let pathnameMock = "/";
@@ -80,17 +80,17 @@ describe("Topbar", () => {
     expect(nppButton.className).not.toContain("bg-primary");
   });
 
-  it("clicking NPP switches mode and navigates to /npp", async () => {
+  it("clicking NPP navigates to /npp without changing the active route prematurely", async () => {
     const user = userEvent.setup();
     render(<Topbar />);
 
     await user.click(screen.getByRole("button", { name: "NPP" }));
 
     expect(pushMock).toHaveBeenCalledWith("/npp");
-    expect(getInterfaceMode()).toBe("npp");
+    expect(screen.getByRole("button", { name: "Luna" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("clicking Luna while on /npp navigates back to / and persists mode=luna", async () => {
+  it("clicking Luna while on /npp navigates back to /", async () => {
     pathnameMock = "/npp";
     const user = userEvent.setup();
     render(<Topbar />);
@@ -98,10 +98,9 @@ describe("Topbar", () => {
     await user.click(screen.getByRole("button", { name: "Luna" }));
 
     expect(pushMock).toHaveBeenCalledWith("/");
-    expect(getInterfaceMode()).toBe("luna");
   });
 
-  it("clicking Luna while already elsewhere in the Luna app does not navigate but still sets mode (idempotent)", async () => {
+  it("clicking Luna while already elsewhere in the Luna app does not navigate", async () => {
     pathnameMock = "/klanten";
     const user = userEvent.setup();
     render(<Topbar />);
@@ -109,6 +108,36 @@ describe("Topbar", () => {
     await user.click(screen.getByRole("button", { name: "Luna" }));
 
     expect(pushMock).not.toHaveBeenCalled();
-    expect(getInterfaceMode()).toBe("luna");
+  });
+
+  it.each(["/npp/scannen", "/npp/stockbeweging", "/npp/reservaties/123", "/npp/planning", "/npp/boxoverzicht", "/npp/kwaliteitscontrole", "/npp/reservaties/mockup"])("uses the route as active mode and returns to Luna from %s", async (path) => {
+    pathnameMock = path;
+    sessionStorage.setItem("luna.interfaceMode", "luna");
+    const user = userEvent.setup();
+    render(<Topbar />);
+    expect(screen.getByRole("button", { name: "NPP" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Luna" }));
+    expect(pushMock).toHaveBeenCalledWith("/");
+  });
+
+  it("does not treat /npp-other as an NPP route", () => {
+    pathnameMock = "/npp-other";
+    render(<Topbar />);
+    expect(screen.getByRole("button", { name: "Luna" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("cancels switching and logout before side effects when changes are kept", async () => {
+    function DirtyForm() { useUnsavedChanges(true); return <Topbar />; }
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    saveSession(session);
+    render(<DirtyForm />);
+    await user.click(screen.getByRole("button", { name: "NPP" }));
+    await user.click(screen.getByRole("button", { name: "Uitloggen" }));
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(logoutMock).not.toHaveBeenCalled();
+    expect(getSession()).not.toBeNull();
+    expect(confirm).toHaveBeenCalledTimes(2);
+    confirm.mockRestore();
   });
 });

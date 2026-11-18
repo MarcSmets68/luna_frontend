@@ -451,6 +451,7 @@ describe("BonDetailPage", () => {
   });
 
   it("discards changes back to the original bon when Cancel is clicked", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     stubFetch();
     const user = userEvent.setup();
     render(<BonDetailPage bon={mockBon} lijnen={mockLijnen} />);
@@ -472,6 +473,8 @@ describe("BonDetailPage", () => {
     // Re-entering edit mode should show the original, unedited value again.
     await user.click(screen.getByRole("button", { name: "Verbeteren" }));
     expect(screen.getByRole("textbox", { name: "Klant" })).toHaveValue("CONE LIGHTING BV");
+    expect(confirm).toHaveBeenCalledTimes(1);
+    confirm.mockRestore();
   });
 
   it("keeps the 'Pakbon aanmaken' button and per-row 'Reserveren' action working unchanged while in bon edit mode", async () => {

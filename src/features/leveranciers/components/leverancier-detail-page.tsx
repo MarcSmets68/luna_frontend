@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { confirmNavigation, useUnsavedChanges } from "@/lib/unsaved-changes";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -110,6 +111,7 @@ export function LeverancierDetailPage({ leverancier }: { leverancier: Leverancie
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const markSaved = useUnsavedChanges(editing && JSON.stringify(form) !== JSON.stringify(toFormState(leverancier)));
 
   const setField = <K extends keyof LeverancierFormState>(
     key: K,
@@ -123,6 +125,8 @@ export function LeverancierDetailPage({ leverancier }: { leverancier: Leverancie
   }
 
   function cancelEditing() {
+    if (!confirmNavigation()) return;
+    markSaved();
     setForm(toFormState(leverancier));
     setError(null);
     setEditing(false);
@@ -146,6 +150,7 @@ export function LeverancierDetailPage({ leverancier }: { leverancier: Leverancie
     try {
       const payload: UpdateLeverancierPayload = { ...form, saldo, minBestel };
       await updateLeverancier(leverancier.levnr, payload);
+      markSaved();
       setEditing(false);
       router.refresh();
     } catch (e) {

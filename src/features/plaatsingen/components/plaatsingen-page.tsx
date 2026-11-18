@@ -18,6 +18,7 @@ import { formatDatum } from "@/lib/format";
 import type { PlaatsingItem } from "../types";
 import { PlaatsingenFilters, type PlaatsingenFiltersState } from "./plaatsingen-filters";
 import { PlaatsingStatusBadge } from "./plaatsing-status-badge";
+import { PlaatsingenDemoNotice } from "./plaatsingen-demo-notice";
 
 /** Debounce (ms) before a filter change is pushed to the URL - avoids
     firing a re-render on every keystroke in the Planr/Klant inputs. */
@@ -94,6 +95,7 @@ export function PlaatsingenPage({
         <div className="text-[13px] text-[#5e5e5e]">Pagina {page}</div>
       </div>
 
+      <PlaatsingenDemoNotice />
       <PlaatsingenFilters filters={filters} onFiltersChange={setFilters} />
 
       {items.length === 0 ? (

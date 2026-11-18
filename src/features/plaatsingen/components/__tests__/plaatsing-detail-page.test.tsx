@@ -48,6 +48,7 @@ describe("PlaatsingDetailPage", () => {
   it("renders the planr as heading", () => {
     render(<PlaatsingDetailPage plaatsing={mockPlaatsing} />);
     expect(screen.getByRole("heading", { name: "Plaatsing 24001" })).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("Demo — voorbeeldgegevens");
   });
 
   it("shows the status badge as Afgesloten when datumAfsluiting is set", () => {

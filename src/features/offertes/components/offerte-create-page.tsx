@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useGuardedRouter, useUnsavedChanges } from "@/lib/unsaved-changes";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -79,11 +79,13 @@ function initialFormState(klant: KlantItem): OfferteCreateFormState {
 }
 
 export function OfferteCreatePage({ klant }: { klant: KlantItem }) {
-  const router = useRouter();
+  const router = useGuardedRouter();
   const [form, setForm] = useState<OfferteCreateFormState>(() => initialFormState(klant));
   const [lijnen, setLijnen] = useState<LocalLijn[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialForm] = useState(form);
+  const markSaved = useUnsavedChanges(JSON.stringify(form) !== JSON.stringify(initialForm) || lijnen.length > 0);
 
   const setField = <K extends keyof OfferteCreateFormState>(
     key: K,
@@ -144,6 +146,7 @@ export function OfferteCreatePage({ klant }: { klant: KlantItem }) {
         }
       }
 
+      markSaved();
       if (failed.length > 0) {
         sessionStorage.setItem(
           `luna:offerte-lijn-fout:${created.offnr}:${created.versie}`,

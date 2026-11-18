@@ -8,7 +8,6 @@ import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { TestModeBanner } from "@/features/auth/components/test-mode-banner";
 import { useSession } from "@/features/auth/session";
-import { setInterfaceMode } from "@/features/interface-mode/interface-mode";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -27,15 +26,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // useState(() => getSession()...) initializer would instead re-read the
   // real flag during the hydration render itself, mismatching the server.
   const everyoneAdminActive = useSession()?.everyoneAdminActive ?? false;
-
-  // AppShell is the one common choke point every real Luna page renders
-  // through (there's no shared route-group layout.tsx). Mounting it
-  // resets the persisted interface mode back to "luna", so the /npp
-  // placeholder route (which does NOT render AppShell) is the only way
-  // to keep the topbar showing NPP as active across reloads.
-  useEffect(() => {
-    setInterfaceMode("luna");
-  }, []);
 
   return (
     <Sheet open={navigationOpen} onOpenChange={setNavigationOpen}>
