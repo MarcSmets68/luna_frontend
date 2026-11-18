@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { StrictMode, useEffect, type ReactNode } from "react";
 import {
   confirmNavigation, UNSAVED_CHANGES_MESSAGE, UnsavedChangesProvider,
   useGuardedRouter, useUnsavedChanges,
@@ -8,6 +9,20 @@ import {
 const push = vi.fn();
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace }) }));
+
+function RouterHistoryPatch({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    const originalPush = history.pushState.bind(history);
+    const originalReplace = history.replaceState.bind(history);
+    history.pushState = (...args) => originalPush(...args);
+    history.replaceState = (...args) => originalReplace(...args);
+    return () => {
+      history.pushState = originalPush;
+      history.replaceState = originalReplace;
+    };
+  }, []);
+  return children;
+}
 
 function Form({ dirty = true }: { dirty?: boolean }) {
   const markSaved = useUnsavedChanges(dirty);
@@ -28,6 +43,31 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("unsaved changes", () => {
+  it("keeps traversal indexes aligned when Next retains wrappers across Strict Mode cleanup", () => {
+    const nativePush = history.pushState;
+    const nativeReplace = history.replaceState;
+    const go = vi.spyOn(history, "go").mockImplementation(() => {});
+    const view = render(<StrictMode><RouterHistoryPatch><UnsavedChangesProvider><Form /></UnsavedChangesProvider></RouterHistoryPatch></StrictMode>);
+    try {
+      history.pushState({ __NA: true }, "", "/first");
+      const first = history.state;
+      history.pushState({ __NA: true }, "", "/second");
+      vi.mocked(window.confirm).mockReturnValue(true);
+      window.dispatchEvent(new PopStateEvent("popstate", { state: first }));
+      history.replaceState(first, "", "/first");
+      expect(history.state).toMatchObject(first);
+      history.pushState({ __NA: true }, "", "/third");
+      expect(history.state.__lunaNavigationIndex).toBe(first.__lunaNavigationIndex + 1);
+      vi.mocked(window.confirm).mockReturnValue(false);
+      window.dispatchEvent(new PopStateEvent("popstate", { state: first }));
+      expect(go).toHaveBeenCalledWith(1);
+    } finally {
+      view.unmount();
+      history.pushState = nativePush;
+      history.replaceState = nativeReplace;
+    }
+  });
+
   it("guards programmatic push/replace and allows an explicit discard", () => {
     render(<Form />);
     fireEvent.click(screen.getByText("Leave"));

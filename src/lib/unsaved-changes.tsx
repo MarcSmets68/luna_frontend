@@ -58,15 +58,20 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
     const originalReplace = history.replaceState;
     let index = historyIndex(history.state) ?? 0;
     let restoring = false;
+    let active = true;
 
     originalReplace.call(history, indexedState(history.state, index), "");
     const push: History["pushState"] = (state, unused, url) => {
+      if (!active) {
+        originalPush.call(history, state, unused, url);
+        return;
+      }
       const next = index + 1;
       originalPush.call(history, indexedState(state, next), unused, url);
       index = next;
     };
     const replace: History["replaceState"] = (state, unused, url) => {
-      originalReplace.call(history, indexedState(state, index), unused, url);
+      originalReplace.call(history, active ? indexedState(state, index) : state, unused, url);
     };
     history.pushState = push;
     history.replaceState = replace;
@@ -111,6 +116,8 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
     document.addEventListener("click", click, true);
     window.addEventListener("popstate", popState, true);
     return () => {
+      // Next may retain these wrappers after Strict Mode's effect cleanup.
+      active = false;
       window.removeEventListener("beforeunload", beforeUnload);
       document.removeEventListener("click", click, true);
       window.removeEventListener("popstate", popState, true);
