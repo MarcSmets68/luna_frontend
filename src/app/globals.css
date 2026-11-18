@@ -10,6 +10,27 @@ table[data-mobile-columns] tbody tr:focus-visible {
 }
 
 @media (width < 40rem) {
+  [data-mobile-scroll="all"] {
+    display: flex;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline-start: var(--mobile-identity-width);
+  }
+
+  [data-mobile-scroll="all"] > table {
+    flex-shrink: 0;
+  }
+
+  [data-mobile-scroll="all"] > [data-slot="table-scroll-tail"] {
+    display: block;
+    flex-shrink: 0;
+    width: var(--mobile-scroll-tail);
+  }
+
+  table[data-mobile-columns="all"] thead th:not(:first-child) {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
   table[data-mobile-columns="priority"] [data-mobile-secondary] {
     display: none;
   }
@@ -27,9 +48,8 @@ table[data-mobile-columns] tbody tr:focus-visible {
     left: 0;
     z-index: 1;
     min-width: 5rem;
-    max-width: 9rem;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    overflow-wrap: normal;
     background: var(--card);
     box-shadow: 1px 0 0 var(--border);
   }

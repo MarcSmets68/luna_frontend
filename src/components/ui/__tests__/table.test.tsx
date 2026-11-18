@@ -39,10 +39,16 @@ describe("responsive Table", () => {
     const toggle = screen.getByRole("button", { name: "Toon alle kolommen van artikelen" });
     expect(toggle).toHaveAttribute("aria-controls", region.id);
     expect(toggle).toHaveAttribute("aria-expanded", "false");
+    Object.defineProperty(region, "clientWidth", { value: 342 });
+    Object.defineProperty(screen.getByRole("columnheader", { name: "Artikel" }), "offsetWidth", { value: 170 });
+    Object.defineProperty(screen.getByRole("columnheader", { name: "Groep" }), "offsetWidth", { value: 80 });
     region.scrollLeft = 180;
     await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(region.scrollLeft).toBe(0);
+    expect(region).toHaveAttribute("data-mobile-scroll", "all");
+    expect(region.style.getPropertyValue("--mobile-identity-width")).toBe("170px");
+    expect(region.style.getPropertyValue("--mobile-scroll-tail")).toBe("92px");
     expect(screen.getByRole("table")).toHaveAttribute("data-mobile-columns", "all");
     expect(screen.getByText("Schuif zijwaarts. De eerste kolom blijft zichtbaar.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Toon minder kolommen van artikelen" }));

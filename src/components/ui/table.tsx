@@ -12,11 +12,36 @@ function Table({ className, mobileLabel, ...props }: TableProps) {
   const [expanded, setExpanded] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const id = React.useId()
+
+  React.useEffect(() => {
+    if (!mobileLabel) return
+    const container = scrollRef.current
+    const table = container?.querySelector("table")
+    if (!container || !table) return
+
+    const measureColumns = () => {
+      const headings = Array.from(table.querySelectorAll<HTMLElement>("thead th")).filter((head) => head.offsetWidth > 0)
+      const firstWidth = headings[0]?.offsetWidth ?? 0
+      const lastWidth = headings.at(-1)?.offsetWidth ?? 0
+      container.style.setProperty("--mobile-identity-width", `${firstWidth}px`)
+      container.style.setProperty("--mobile-scroll-tail", `${Math.max(0, container.clientWidth - firstWidth - lastWidth)}px`)
+    }
+
+    measureColumns()
+    if (typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(measureColumns)
+    observer.observe(container)
+    observer.observe(table)
+    table.querySelectorAll("thead th").forEach((head) => observer.observe(head))
+    return () => observer.disconnect()
+  }, [mobileLabel, expanded])
+
   const table = (
     <div
       ref={scrollRef}
       id={mobileLabel ? id : undefined}
       data-slot="table-container"
+      data-mobile-scroll={mobileLabel ? (expanded ? "all" : "priority") : undefined}
       className={cn("relative w-full overflow-x-auto rounded-xl border border-border bg-card shadow-(--shadow-surface)", mobileLabel && "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring")}
       role={mobileLabel ? "region" : undefined}
       aria-label={mobileLabel ? `${mobileLabel}, horizontaal schuifbare tabel` : undefined}
@@ -29,6 +54,7 @@ function Table({ className, mobileLabel, ...props }: TableProps) {
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
+      {mobileLabel && expanded && <div aria-hidden="true" data-slot="table-scroll-tail" className="hidden" />}
     </div>
   )
 
