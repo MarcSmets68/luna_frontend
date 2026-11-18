@@ -249,6 +249,16 @@ describe("OfferteDetailPage", () => {
   it("disables the 'Omzetten naar Order' button when offerte.stempel is not 'O'", () => {
     render(<OfferteDetailPage offerte={{ ...mockOfferte, stempel: "D" }} lijnen={mockLijnen} />);
     expect(screen.getByRole("button", { name: "Omzetten naar Order" })).toBeDisabled();
+    expect(screen.getByText("Alleen open offertes kunnen omgezet worden.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Omzetten naar Order" })).toHaveAccessibleDescription(
+      "Alleen open offertes kunnen omgezet worden."
+    );
+  });
+
+  it("explains line autosave without showing a conversion restriction on open offers", () => {
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={[]} />);
+    expect(screen.getByText("Wijzigingen aan lijnen worden automatisch opgeslagen.")).toBeVisible();
+    expect(screen.queryByText("Alleen open offertes kunnen omgezet worden.")).not.toBeInTheDocument();
   });
 
   it("converts the offerte to an order and redirects to the new bon in edit mode", async () => {

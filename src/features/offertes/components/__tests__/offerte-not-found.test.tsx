@@ -7,5 +7,6 @@ describe("OfferteNotFound", () => {
     render(<OfferteNotFound offnr={999999} versie={2} />);
     expect(screen.getByRole("heading", { name: "Offerte niet gevonden" })).toBeInTheDocument();
     expect(screen.getByText(/Offerte 999999\/2 bestaat niet of is verwijderd\./)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Terug naar overzicht" })).toHaveAttribute("href", "/offertes/alle");
   });
 });
