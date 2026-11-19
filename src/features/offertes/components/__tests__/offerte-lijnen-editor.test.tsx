@@ -722,6 +722,30 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
     rect.mockRestore();
   });
 
+  it.each([
+    { viewport: 375, inputLeft: 77, left: 47, width: 320 },
+    { viewport: 375, inputLeft: -20, left: 8, width: 320 },
+    { viewport: 300, inputLeft: 77, left: 8, width: 284 },
+    { viewport: 1024, inputLeft: 77, left: 77, width: 320 },
+  ])("keeps suggestions inside an $viewport px viewport for input x=$inputLeft", async ({ viewport, inputLeft, left, width }) => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: viewport });
+    zoekMock.mockResolvedValue({ items: [LED], truncated: false });
+    render(<LocalHarness />);
+    const rect = vi.spyOn(newArtnr(), "getBoundingClientRect").mockReturnValue(new DOMRect(inputLeft, 80, 112, 36));
+    try {
+      await user.type(newArtnr(), "LED");
+      await advance();
+      expect(screen.getByRole("listbox")).toHaveStyle({ left: `${left}px`, width: `${width}px`, top: "120px" });
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 280 });
+      fireEvent.resize(window);
+      expect(screen.getByRole("listbox")).toHaveStyle({ left: "8px", width: "264px" });
+    } finally {
+      rect.mockRestore();
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    }
+  });
+
   it("does not search below 2 chars and searches once after the debounce at 2+", async () => {
     render(<LocalHarness />);
     await user.type(newArtnr(), "L");
