@@ -702,6 +702,7 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
     expect(newArtnr()).toHaveFocus();
     expect(newArtnr()).toHaveValue("LED100");
     expect(newArtnr()).toHaveAttribute("aria-expanded", "false");
+    expect(newArtnr()).toHaveAttribute("autocomplete", "off");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
