@@ -8,9 +8,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatBedrag, formatDatum } from "@/lib/format";
-import { deletePakbon, type PakbonItem, type PaklijnItem } from "@/lib/api-client";
+import {
+  deletePakbon,
+  getPakbon,
+  getPaklijnen,
+  updatePakbon,
+  type PakbonItem,
+  type PaklijnItem,
+} from "@/lib/api-client";
 import { PakbonAfhalenDialog } from "./pakbon-afhalen-dialog";
 import { PaklijnTable } from "./paklijn-table";
+import { PakbonEditDialog } from "./pakbon-edit-dialog";
+import { PakbonNotFound } from "./pakbon-not-found";
+import { downloadPakbonPdf } from "../lib/pakbon-pdf";
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -35,22 +45,71 @@ export function PakbonDetailPage({
   const [lijnen, setLijnen] = useState(paklijnen);
   const [afhalenOpen, setAfhalenOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [missing, setMissing] = useState(false);
+  const [reloading, setReloading] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const locked = current.afgehaald || current.facnr > 0;
+
+  async function reload() {
+    setReloading(true);
+    setActionError(null);
+    try {
+      const kop = await getPakbon(current.paknr);
+      if (!kop) {
+        setMissing(true);
+        return;
+      }
+      const rows = await getPaklijnen(current.paknr);
+      setCurrent(kop);
+      setLijnen(rows);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Vernieuwen van de pakbon mislukt.");
+    } finally {
+      setReloading(false);
+    }
+  }
+
+  async function handlePrint() {
+    setPrinting(true);
+    setActionError(null);
+    try {
+      downloadPakbonPdf(current, lijnen);
+      if (!current.afgedrukt) {
+        try {
+          await updatePakbon(current.paknr, { afgedrukt: true });
+          setCurrent((prev) => ({ ...prev, afgedrukt: true }));
+        } catch (e) {
+          setActionError(
+            `PDF aangemaakt, maar afdrukstatus opslaan mislukt: ${e instanceof Error ? e.message : "Onbekende fout"}`
+          );
+        }
+      }
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Afdrukken van de pakbon mislukt.");
+    } finally {
+      setPrinting(false);
+    }
+  }
 
   async function handleDelete() {
+    if (locked) return;
     if (!window.confirm(`Pakbon ${current.paknr} verwijderen?`)) return;
     setDeleting(true);
-    setDeleteError(null);
+    setActionError(null);
     try {
       await deletePakbon(current.paknr);
       router.push("/pakbonnen");
     } catch (e) {
-      setDeleteError(
+      setActionError(
         e instanceof Error ? e.message : "Er ging iets mis bij het verwijderen van de pakbon."
       );
       setDeleting(false);
     }
   }
+
+  if (missing) return <PakbonNotFound paknr={String(current.paknr)} />;
 
   return (
     <div>
@@ -64,27 +123,63 @@ export function PakbonDetailPage({
       <div className="mb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         Pakbonnen
       </div>
-      <div className="mb-6 flex items-baseline justify-between">
+      <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-[26px] font-bold text-foreground">Pakbon {current.paknr}</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="text-[13px] text-[#5e5e5e]">
             Klant{" "}
             <Link href={`/klanten/${current.klnr}`} className="underline">
               {current.naam}
             </Link>
           </div>
-          {!current.afgehaald && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void reload()}
+            disabled={reloading}
+          >
+            {reloading ? "Bezig..." : "Vernieuwen"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void handlePrint()}
+            disabled={printing}
+          >
+            Afdrukken
+          </Button>
+          {!locked && (
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              Bewerken
+            </Button>
+          )}
+          {!locked && (
             <Button type="button" variant="outline" size="sm" onClick={() => setAfhalenOpen(true)}>
               Afhalen
             </Button>
           )}
-          <Button type="button" variant="outline" size="sm" onClick={handleDelete} disabled={deleting}>
-            {deleting ? "Bezig..." : "Verwijderen"}
-          </Button>
+          {!locked && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Bezig..." : "Verwijderen"}
+            </Button>
+          )}
         </div>
       </div>
 
-      {deleteError && <p className="mb-4 text-sm text-destructive">{deleteError}</p>}
+      {actionError && <p className="mb-4 text-sm text-destructive">{actionError}</p>}
+      {locked && (
+        <p role="status" className="mb-4 rounded-md border bg-muted p-3 text-sm">
+          {current.afgehaald
+            ? `Afgehaald op ${formatDatum(current.afgehaaldDatum)} door ${current.afgehaaldId} — niet meer bewerkbaar`
+            : `Gefactureerd (factuur ${current.facnr}) — niet meer bewerkbaar`}
+        </p>
+      )}
 
       <Card className="mb-6">
         <CardContent>
@@ -97,6 +192,9 @@ export function PakbonDetailPage({
             <DetailField label="Postnr" value={current.postnr} />
             <DetailField label="Stad" value={current.stad} />
             <DetailField label="Leveradres" value={current.ladres} />
+            <DetailField label="Levernaam" value={current.lnaam} />
+            <DetailField label="Leverpostnr" value={current.lpostnr} />
+            <DetailField label="Leverstad" value={current.lstad} />
             <DetailField label="Munt" value={current.munt} />
             <DetailField label="Bedrag" value={formatBedrag(current.nBedrag)} />
             <DetailField label="Btw" value={formatBedrag(current.totBtw)} />
@@ -115,17 +213,37 @@ export function PakbonDetailPage({
         </CardContent>
       </Card>
 
-      <PaklijnTable paknr={current.paknr} items={lijnen} onItemsChange={setLijnen} />
-
-      <PakbonAfhalenDialog
+      <PaklijnTable
         paknr={current.paknr}
-        open={afhalenOpen}
-        onOpenChange={setAfhalenOpen}
-        onAfgehaald={(updated) => {
-          setCurrent(updated);
-          setAfhalenOpen(false);
-        }}
+        items={lijnen}
+        onItemsChange={setLijnen}
+        locked={locked}
+        onReload={reload}
       />
+
+      {editOpen && !locked && (
+        <PakbonEditDialog
+          pakbon={current}
+          onClose={() => setEditOpen(false)}
+          onSaved={(updated) => {
+            setCurrent(updated);
+            setEditOpen(false);
+          }}
+        />
+      )}
+
+      {!locked && (
+        <PakbonAfhalenDialog
+          paknr={current.paknr}
+          open={afhalenOpen}
+          onOpenChange={setAfhalenOpen}
+          onAfgehaald={(updated) => {
+            setCurrent(updated);
+            setAfhalenOpen(false);
+            void reload();
+          }}
+        />
+      )}
     </div>
   );
 }
