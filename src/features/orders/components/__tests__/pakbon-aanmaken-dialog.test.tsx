@@ -1,17 +1,30 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PakbonAanmakenDialog } from "../pakbon-aanmaken-dialog";
+import {
+  PakbonAanmakenDialog,
+  buildPakbonPayload,
+  buildTitelPaklijnPayload,
+} from "../pakbon-aanmaken-dialog";
+import { ApiError } from "@/lib/api-client";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
 
 const createPakbonMock = vi.fn();
 const createPaklijnMock = vi.fn();
+const getBonLijnenMock = vi.fn();
+const getKlantMock = vi.fn();
+const deletePakbonMock = vi.fn();
+const getPaklijnenMock = vi.fn();
 vi.mock("@/lib/api-client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
   return {
     ...actual,
     createPakbon: (...args: unknown[]) => createPakbonMock(...args),
     createPaklijn: (...args: unknown[]) => createPaklijnMock(...args),
+    getBonLijnen: (...args: unknown[]) => getBonLijnenMock(...args),
+    getKlant: (...args: unknown[]) => getKlantMock(...args),
+    deletePakbon: (...args: unknown[]) => deletePakbonMock(...args),
+    getPaklijnen: (...args: unknown[]) => getPaklijnenMock(...args),
   };
 });
 
@@ -99,19 +112,364 @@ beforeEach(() => {
   createPakbonMock.mockReset();
   createPaklijnMock.mockReset();
   pushMock.mockReset();
+  getBonLijnenMock.mockReset().mockResolvedValue(mockLijnen);
+  getKlantMock.mockReset().mockResolvedValue({ naam1: "Factuur tweede naam" });
+  deletePakbonMock.mockReset().mockResolvedValue({});
+  getPaklijnenMock.mockReset().mockResolvedValue([]);
 });
 
 describe("PakbonAanmakenDialog", () => {
+  it("builds a zero-value title payload without changing the source", () => {
+    const title = lijn({ artnr: "K00", korting: 15 });
+    expect(buildTitelPaklijnPayload(title)).toMatchObject({
+      artnr: "K00",
+      aantal: 0,
+      teLeveren: 0,
+      vprijs: 0,
+      aprijs: 0,
+      korting: 0,
+      bedrag: 0,
+      bonnr: title.bonnr,
+      blijnnr: title.lijnnr,
+    });
+    expect(title.korting).toBe(15);
+  });
+
+  it("shows a meaningful conflict message for automatic numbering", async () => {
+    createPakbonMock.mockRejectedValue(new ApiError(409, "Conflict"));
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(await screen.findByText(
+      "Automatische nummering is mislukt: het pakbonnummer bestaat al. Probeer opnieuw of kies zelf een ander nummer."
+    )).toBeInTheDocument();
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
+  });
+
+  it("shows per-row results and excludes titles from the summary", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("Backend lijnfout"));
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(await screen.findByText("Pakbon 99 aangemaakt; 1 van 2 lijnen toegevoegd.")).toBeInTheDocument();
+    expect(screen.getByText("Backend lijnfout")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pakbon aanmaken" })).not.toBeInTheDocument();
+    const addedRow = screen.getByText("Leverbaar").closest("tr")!;
+    const failedRow = screen.getByText("Tweede leverbaar").closest("tr")!;
+    expect(within(addedRow).getByText("Toegevoegd")).toBeInTheDocument();
+    expect(within(failedRow).getByText("Mislukt")).toBeInTheDocument();
+  });
+
+  it("marks remaining rows separately from the failed row", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockRejectedValue(new Error("Titel geweigerd"));
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Titel geweigerd");
+    const titleRow = screen.getByText("Titel").closest("tr")!;
+    expect(within(titleRow).getByText("Mislukt")).toBeInTheDocument();
+    expect(screen.getAllByText("Nog toe te voegen")).toHaveLength(2);
+  });
+
+  it.each(["button", "escape", "overlay"])("allows closing after partial failure with %s", async (method) => {
+    const onOpenChange = vi.fn();
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockRejectedValue(new Error("Lijnfout"));
+    render(<PakbonAanmakenDialog bon={mockBon} lijnen={mockLijnen} open onOpenChange={onOpenChange} />);
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Lijnfout");
+    if (method === "button") {
+      await userEvent.click(screen.getByRole("button", { name: "Sluiten" }));
+    } else if (method === "escape") {
+      await userEvent.keyboard("{Escape}");
+    } else {
+      await userEvent.click(document.querySelector('[data-slot="dialog-overlay"]')!);
+    }
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(deletePakbonMock).not.toHaveBeenCalled();
+  });
+
+  it("hides title rows for sections without deliverable lines", () => {
+    renderDialog([
+      lijn({ lijnnr: 1, artnr: "K00", omschrijving: "Lege sectie" }),
+      lijn({ lijnnr: 2, teLeveren: 0 }),
+      lijn({ lijnnr: 3, artnr: "K00", omschrijving: "Leverbare sectie" }),
+      lijn({ lijnnr: 4 }),
+      lijn({ lijnnr: 5, artnr: "K00", omschrijving: "Laatste lege sectie" }),
+    ]);
+    expect(screen.queryByText("Lege sectie")).not.toBeInTheDocument();
+    expect(screen.queryByText("Laatste lege sectie")).not.toBeInTheDocument();
+    expect(screen.getByText("Leverbare sectie")).toBeInTheDocument();
+  });
+
+  it.each([
+    [{}, { lnaam: mockBon.naam, ladres: mockBon.adres, lpostnr: mockBon.postnr, lstad: mockBon.stad }],
+    [{ lnaam: " Magazijn ", ladres: "Straat", lpostnr: "1", lstad: "Gent" }, { lnaam: " Magazijn ", ladres: "Straat", lpostnr: "1", lstad: "Gent" }],
+    [{ lnaam1: "Tweede naam" }, { lnaam: "", ladres: "", lpostnr: "", lstad: "" }],
+    [{ ladres: "Losadres" }, { lnaam: "", ladres: "Losadres", lpostnr: "", lstad: "" }],
+    [{ lnaam: "  " }, { lnaam: mockBon.naam, ladres: mockBon.adres, lpostnr: mockBon.postnr, lstad: mockBon.stad }],
+  ])("maps complete or partial delivery addresses without mixing", (address, expected) => {
+    const payload = buildPakbonPayload({ ...mockBon, ...address }, undefined, "Naam 2");
+    expect(payload).toMatchObject({ ...expected, naam1: "Naam 2", naam: mockBon.naam, adres: mockBon.adres });
+    expect(payload).not.toHaveProperty("lnaam1");
+    expect(payload).not.toHaveProperty("paknr");
+    expect(payload).not.toHaveProperty("projectnr");
+  });
+
+  it.each([null, new Error("Klant onbereikbaar")])("does not block on missing customer", async (klant) => {
+    if (klant instanceof Error) getKlantMock.mockRejectedValue(klant);
+    else getKlantMock.mockResolvedValue(klant);
+    createPakbonMock.mockResolvedValue({ paknr: 123 });
+    createPaklijnMock.mockResolvedValue({});
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/pakbonnen/123"));
+    expect(createPakbonMock.mock.calls[0][0]).toMatchObject({ naam1: "" });
+    expect(createPakbonMock.mock.calls[0][0]).not.toHaveProperty("paknr");
+  });
+
+  it("loads naam1 at submit and uses backend paknr", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 123 });
+    createPaklijnMock.mockResolvedValue({});
+    renderDialog();
+    expect(getKlantMock).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/pakbonnen/123"));
+    expect(getKlantMock).toHaveBeenCalledWith(mockBon.klnr);
+    expect(createPakbonMock.mock.calls[0][0]).toMatchObject({ naam1: "Factuur tweede naam" });
+    expect(createPaklijnMock.mock.calls.every(([paknr]) => paknr === 123)).toBe(true);
+  });
+
+  it.each([new ApiError(409, "Conflict"), new Error("Backend niet bereikbaar")])("shows create errors", async (error) => {
+    createPakbonMock.mockRejectedValue(error);
+    renderDialog();
+    await userEvent.type(screen.getByLabelText("Paknr"), "77");
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(await screen.findByText(error instanceof ApiError ? "Pakbon 77 bestaat al. Kies een ander nummer of laat het veld leeg." : error.message)).toBeInTheDocument();
+  });
+
+  it.each(["0", "-2", "1.5"])("rejects invalid manual paknr %s", async (value) => {
+    renderDialog();
+    await userEvent.type(screen.getByLabelText("Paknr"), value);
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(await screen.findByText("Vul een geldig paknr in (positief geheel getal).")).toBeInTheDocument();
+    expect(createPakbonMock).not.toHaveBeenCalled();
+  });
+
+  it("shows all row errors together for overprecise, empty and excessive quantities", async () => {
+    const user = userEvent.setup();
+    renderDialog([lijn({ lijnnr: 1 }), lijn({ lijnnr: 2 }), lijn({ lijnnr: 3 })]);
+    for (const [nr, value] of [[1, "1.2345"], [2, ""], [3, "11"]] as const) {
+      const input = screen.getByLabelText(`Aantal voor lijn ${nr}`);
+      expect(input).toHaveAttribute("inputmode", "decimal");
+      await user.clear(input);
+      if (value) await user.type(input, value);
+    }
+    await user.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(screen.getByText("Lijn 1: vul een positief aantal in (max. 3 decimalen).")).toBeInTheDocument();
+    expect(screen.getByText("Lijn 2: vul een positief aantal in (max. 3 decimalen).")).toBeInTheDocument();
+    expect(screen.getByText("Lijn 3: aantal (11) mag niet groter zijn dan te leveren (10).")).toBeInTheDocument();
+    expect(createPakbonMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["abc", "0", "-1", "1.2345", "1,2345", "1,2.3"])("rejects invalid quantity %s", async (value) => {
+    renderDialog([lijn({})]);
+    await userEvent.clear(screen.getByLabelText("Aantal voor lijn 1"));
+    await userEvent.type(screen.getByLabelText("Aantal voor lijn 1"), value);
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(screen.getByText("Lijn 1: vul een positief aantal in (max. 3 decimalen).")).toBeInTheDocument();
+    expect(createPakbonMock).not.toHaveBeenCalled();
+  });
+
+  it.each([[], [lijn({ lijnnr: 2, teLeveren: 2 })]].map((fresh) => ({ fresh })))("aborts when fresh lines are gone or insufficient", async ({ fresh }) => {
+    getBonLijnenMock.mockResolvedValue(fresh);
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(await screen.findByText(`Lijn 2: nog te leveren is ${fresh[0]?.teLeveren ?? 0}. Pas het aantal aan.`)).toBeInTheDocument();
+    expect(screen.getByText("Lijn 4: nog te leveren is 0. Pas het aantal aan.")).toBeInTheDocument();
+    expect(createPakbonMock).not.toHaveBeenCalled();
+    expect(createPaklijnMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["2,5", "2.5", "1,234", "1.234"])("sends decimal quantity %s as a number with rounded amount", async (value) => {
+    const rows = [lijn({ vprijs: 1.99, korting: 7 })];
+    getBonLijnenMock.mockResolvedValue(rows);
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockResolvedValue({});
+    renderDialog(rows);
+    await userEvent.clear(screen.getByLabelText("Aantal voor lijn 1"));
+    await userEvent.type(screen.getByLabelText("Aantal voor lijn 1"), value);
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/pakbonnen/99"));
+    const quantity = Number(value.replace(",", "."));
+    expect(createPaklijnMock).toHaveBeenCalledWith(99, expect.objectContaining({
+      aantal: quantity,
+      teLeveren: quantity,
+      bedrag: quantity === 2.5 ? 4.63 : 2.28,
+    }));
+  });
+
+  it("applies the delivery limit to comma decimals", async () => {
+    renderDialog([lijn({ teLeveren: 2 })]);
+    await userEvent.clear(screen.getByLabelText("Aantal voor lijn 1"));
+    await userEvent.type(screen.getByLabelText("Aantal voor lijn 1"), "2,5");
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(screen.getByText("Lijn 1: aantal (2.5) mag niet groter zijn dan te leveren (2).")).toBeInTheDocument();
+    expect(createPakbonMock).not.toHaveBeenCalled();
+  });
+
+  it("checks fresh delivery limits using comma decimals", async () => {
+    getBonLijnenMock.mockResolvedValue([lijn({ teLeveren: 2.4 })]);
+    renderDialog([lijn({ teLeveren: 3 })]);
+    await userEvent.clear(screen.getByLabelText("Aantal voor lijn 1"));
+    await userEvent.type(screen.getByLabelText("Aantal voor lijn 1"), "2,5");
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(await screen.findByText("Lijn 1: nog te leveren is 2.4. Pas het aantal aan.")).toBeInTheDocument();
+    expect(createPakbonMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps hold selectable but not preselected", async () => {
+    renderDialog([lijn({ hold: true })]);
+    expect(screen.getByText("Hold")).toHaveAttribute("title", "Lijn staat op hold");
+    const checkbox = screen.getByLabelText("Lijn 1 opnemen in pakbon");
+    expect(checkbox).not.toBeChecked();
+    await userEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+  });
+
+  it("includes titles only for selected sections, in bon order, hiding special rows", async () => {
+    const rows = [lijn({ lijnnr: 1, artnr: "K00", omschrijving: "Leeg" }), lijn({ lijnnr: 2, hold: true }), lijn({ lijnnr: 3, artnr: "K00", omschrijving: "Sectie" }), lijn({ lijnnr: 4 }), lijn({ lijnnr: 5, subtotaal: true, omschrijving: "Verborgen" }), lijn({ lijnnr: 6, kolomtitel: true }), lijn({ lijnnr: 7, infolijn: true })];
+    getBonLijnenMock.mockResolvedValue(rows);
+    createPakbonMock.mockResolvedValue({ paknr: 88 });
+    createPaklijnMock.mockResolvedValue({});
+    renderDialog(rows);
+    expect(screen.queryByText("Verborgen")).not.toBeInTheDocument();
+    expect(screen.getByText("Sectie")).toHaveAttribute("colspan", "6");
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalled());
+    expect(createPaklijnMock.mock.calls.map(([, payload]) => payload.blijnnr)).toEqual([3, 4]);
+  });
+
+  it("retries only missing lines on the same header and locks selection", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("Fout")).mockResolvedValue({});
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Pakbon 99 aangemaakt; 0 van 2 lijnen toegevoegd.");
+    expect(screen.getByLabelText("Lijn 2 opnemen in pakbon")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByLabelText("Aantal voor lijn 2")).toBeDisabled();
+    expect(screen.getByLabelText("Paknr")).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon openen" }));
+    expect(pushMock).toHaveBeenCalledWith("/pakbonnen/99");
+    await userEvent.click(screen.getByRole("button", { name: "Ontbrekende lijnen opnieuw proberen" }));
+    await waitFor(() => expect(createPaklijnMock).toHaveBeenCalledTimes(4));
+    expect(createPaklijnMock.mock.calls.map(([nr, payload]) => [nr, payload.blijnnr])).toEqual([[99, 1], [99, 2], [99, 2], [99, 4]]);
+    expect(createPakbonMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes an empty created pakbon", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockRejectedValue(new Error("Fout"));
+    const close = vi.fn();
+    render(<PakbonAanmakenDialog bon={mockBon} lijnen={mockLijnen} open onOpenChange={close} />);
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Lege pakbon verwijderen" }));
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false));
+    expect(deletePakbonMock).toHaveBeenCalledWith(99);
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("does not duplicate a line whose successful response was lost", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("Verbinding verbroken"))
+      .mockRejectedValueOnce(new Error("Volgende lijn geweigerd"))
+      .mockResolvedValue({});
+    getPaklijnenMock.mockResolvedValue([
+      { bonnr: 100, blijnnr: 1 },
+      { bonnr: 100, blijnnr: 2 },
+      { bonnr: 999, blijnnr: 4 },
+    ]);
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Verbinding verbroken");
+    await userEvent.click(screen.getByRole("button", { name: "Ontbrekende lijnen opnieuw proberen" }));
+    await screen.findByText("Volgende lijn geweigerd");
+    expect(getPaklijnenMock).toHaveBeenCalledWith(99);
+    expect(screen.getByText("Pakbon 99 aangemaakt; 1 van 2 lijnen toegevoegd.")).toBeInTheDocument();
+    const addedRow = screen.getByText("Leverbaar").closest("tr")!;
+    expect(within(addedRow).getByText("Toegevoegd")).toBeInTheDocument();
+    expect(createPaklijnMock.mock.calls.map(([, payload]) => payload.blijnnr)).toEqual([1, 2, 4]);
+    await userEvent.click(screen.getByRole("button", { name: "Ontbrekende lijnen opnieuw proberen" }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/pakbonnen/99"));
+    expect(createPaklijnMock.mock.calls.map(([, payload]) => payload.blijnnr)).toEqual([1, 2, 4, 4]);
+    expect(createPakbonMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("finishes without posting when all pending lines already exist", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockRejectedValueOnce(new Error("Verbinding verbroken"));
+    getPaklijnenMock.mockResolvedValue([
+      { bonnr: 100, blijnnr: 1 },
+      { bonnr: 100, blijnnr: 2 },
+      { bonnr: 100, blijnnr: 4 },
+    ]);
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Verbinding verbroken");
+    await userEvent.click(screen.getByRole("button", { name: "Ontbrekende lijnen opnieuw proberen" }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/pakbonnen/99"));
+    expect(createPaklijnMock).toHaveBeenCalledTimes(1);
+    expect(createPakbonMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not post when checking existing paklijnen fails", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockRejectedValue(new Error("Verbinding verbroken"));
+    getPaklijnenMock.mockRejectedValue(new Error("Pakbonlijnen onbereikbaar"));
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Verbinding verbroken");
+    await userEvent.click(screen.getByRole("button", { name: "Ontbrekende lijnen opnieuw proberen" }));
+    expect(await screen.findByText("Pakbonlijnen onbereikbaar")).toBeInTheDocument();
+    expect(createPaklijnMock).toHaveBeenCalledTimes(1);
+    expect(createPakbonMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("aborts if reloading lines fails", async () => {
+    getBonLijnenMock.mockRejectedValue(new Error("Lijnen onbereikbaar"));
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(await screen.findByText("Lijnen onbereikbaar")).toBeInTheDocument();
+    expect(createPakbonMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps recovery available after a failed delete", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockRejectedValue(new Error("Lijnfout"));
+    deletePakbonMock.mockRejectedValue(new Error("Verwijderfout"));
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Lege pakbon verwijderen" }));
+    expect(await screen.findByText("Verwijderfout")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ontbrekende lijnen opnieuw proberen" })).toBeEnabled();
+    expect(createPakbonMock).toHaveBeenCalledTimes(1);
+  });
   it("only lists deliverable lines (no title lines, no teLeveren = 0), preselected with teLeveren", () => {
     renderDialog();
 
     expect(screen.getByText("Leverbaar")).toBeInTheDocument();
     expect(screen.getByText("Tweede leverbaar")).toBeInTheDocument();
-    expect(screen.queryByText("Titel")).not.toBeInTheDocument();
+    expect(screen.getByText("Titel")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Lijn 1 opnemen in pakbon")).not.toBeInTheDocument();
     expect(screen.queryByText("Al geleverd")).not.toBeInTheDocument();
 
-    expect(screen.getByLabelText("Aantal voor lijn 2")).toHaveValue(10);
-    expect(screen.getByLabelText("Aantal voor lijn 4")).toHaveValue(3);
+    expect(screen.getByLabelText("Aantal voor lijn 2")).toHaveValue("10");
+    expect(screen.getByLabelText("Aantal voor lijn 4")).toHaveValue("3");
   });
 
   it("creates the pakbon head then one paklijn per selected line and navigates to it", async () => {
@@ -140,7 +498,8 @@ describe("PakbonAanmakenDialog", () => {
       uRef: "Ref",
     });
 
-    expect(createPaklijnMock).toHaveBeenCalledTimes(1);
+    expect(createPaklijnMock).toHaveBeenCalledTimes(2);
+    expect(createPaklijnMock.mock.calls[0][1]).toMatchObject({ artnr: "K00", aantal: 0, teLeveren: 0, vprijs: 0, aprijs: 0, korting: 0, bedrag: 0, blijnnr: 1 });
     expect(createPaklijnMock).toHaveBeenCalledWith(
       555,
       expect.objectContaining({
@@ -173,14 +532,9 @@ describe("PakbonAanmakenDialog", () => {
     expect(createPakbonMock).not.toHaveBeenCalled();
   });
 
-  it("requires a paknr and at least one selected line", async () => {
+  it("requires at least one selected line", async () => {
     const user = userEvent.setup();
     renderDialog();
-
-    await user.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
-    expect(
-      await screen.findByText("Vul een geldig paknr in (positief geheel getal).")
-    ).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Paknr"), "7");
     await user.click(screen.getByLabelText("Lijn 2 opnemen in pakbon"));
@@ -204,7 +558,7 @@ describe("PakbonAanmakenDialog", () => {
 
     expect(
       await screen.findByText(
-        "Lijn geweigerd. Pakbon 9 is aangemaakt met lijn(en) 2; de overige lijnen zijn niet toegevoegd."
+        "Pakbon 9 aangemaakt; 0 van 2 lijnen toegevoegd."
       )
     ).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
@@ -221,7 +575,7 @@ describe("PakbonAanmakenDialog", () => {
     await user.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
 
     expect(
-      await screen.findByText("Lijn geweigerd. Pakbon 9 is aangemaakt maar bevat nog geen lijnen.")
+      await screen.findByText("Pakbon 9 aangemaakt; 0 van 2 lijnen toegevoegd.")
     ).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });

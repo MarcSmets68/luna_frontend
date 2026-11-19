@@ -42,7 +42,7 @@ import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
 import { LedConfigTable } from "./led-config-table";
 import { LedQcTable } from "./led-qc-table";
 import { HerstelDetailPanel } from "./herstel-detail-panel";
-import { PakbonAanmakenDialog } from "./pakbon-aanmaken-dialog";
+import { PakbonAanmakenDialog, leverbareLijnen } from "./pakbon-aanmaken-dialog";
 import { confirmNavigation, useUnsavedChanges } from "@/lib/unsaved-changes";
 
 // Number of columns in the Lijnen table (chevron, Lijnnr, Artnr,
@@ -184,6 +184,7 @@ export function BonDetailPage({
   // refresh a single row without a full page re-fetch.
   const [bon, setBon] = useState<BonItem>(initialBon);
   const [rows, setRows] = useState<BonLijnItem[]>(lijnen);
+  const heeftLeverbareLijnen = leverbareLijnen(rows).length > 0;
   const [expandedLijnnr, setExpandedLijnnr] = useState<number | null>(null);
   const [reserveringTarget, setReserveringTarget] = useState<BonLijnItem | null>(null);
   const [pakbonDialogOpen, setPakbonDialogOpen] = useState(false);
@@ -641,15 +642,17 @@ export function BonDetailPage({
 
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-[16px] font-semibold text-foreground">Lijnen</h2>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={rows.length === 0}
-              onClick={() => setPakbonDialogOpen(true)}
-            >
-              Pakbon aanmaken
-            </Button>
+            <span title={!heeftLeverbareLijnen ? "Niets meer te leveren" : undefined}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!heeftLeverbareLijnen}
+                onClick={() => setPakbonDialogOpen(true)}
+              >
+                Pakbon aanmaken
+              </Button>
+            </span>
           </div>
 
           {lijnenFout && <p className="mb-2 text-sm text-destructive">{lijnenFout}</p>}
