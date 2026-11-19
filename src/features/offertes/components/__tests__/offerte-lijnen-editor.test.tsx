@@ -330,7 +330,8 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       "Lijn verwijderen? Dit kan niet ongedaan worden gemaakt."
     );
     await waitFor(() => expect(deleteOfflijnMock).toHaveBeenCalledWith(100, 1, 10));
-    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledWith([]));
+    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledTimes(1));
+    expect(onLijnenChange.mock.calls[0][0]([lijn])).toEqual([]);
   });
 
   it("does not delete when the confirm dialog is cancelled", async () => {
@@ -355,7 +356,7 @@ describe("OfferteLijnenEditor - persisted mode", () => {
     expect(onLijnenChange).not.toHaveBeenCalled();
   });
 
-  it("calls reorderOfflijn and replaces the list with the full reordered response", async () => {
+  it("calls reorderOfflijn and applies the returned order to the latest lines", async () => {
     const user = userEvent.setup();
     const onLijnenChange = vi.fn();
     const lijnA = makeOfflijn({ lijnnr: 10, artnr: "AAA" });
@@ -376,7 +377,26 @@ describe("OfferteLijnenEditor - persisted mode", () => {
     await user.click(downButtons[0]);
 
     await waitFor(() => expect(reorderOfflijnMock).toHaveBeenCalledWith(100, 1, 10, "down"));
-    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledWith([lijnB, lijnA]));
+    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledTimes(1));
+    expect(onLijnenChange.mock.calls[0][0]([lijnA, lijnB])).toEqual([lijnB, lijnA]);
+    const updatedA = { ...lijnA, aantal: 7 };
+    const added = makeOfflijn({ lijnnr: 30 });
+    expect(onLijnenChange.mock.calls[0][0]([updatedA, added])).toEqual([updatedA, added]);
+  });
+
+  it("blocks another reorder while allowing unrelated row edits during a reorder", async () => {
+    let resolvePending!: (value: OfflijnItem[]) => void;
+    const pending = new Promise<OfflijnItem[]>((resolve) => { resolvePending = resolve; });
+    const lines = [makeOfflijn({ lijnnr: 10 }), makeOfflijn({ lijnnr: 20 }), makeOfflijn({ lijnnr: 30 })];
+    reorderOfflijnMock.mockReturnValue(pending);
+    render(<OfferteLijnenEditor mode="persisted" offnr={100} versie={1} lijnen={lines} onLijnenChange={vi.fn()} />);
+    await userEvent.click(screen.getAllByRole("button", { name: "Omlaag" })[0]);
+    for (const button of screen.getAllByRole("button", { name: /^(Omhoog|Omlaag)$/ })) {
+      expect(button).toBeDisabled();
+    }
+    expect(screen.getByRole("spinbutton", { name: "Aantal lijn 20" })).toBeEnabled();
+    await act(async () => { resolvePending([lines[1], lines[0], lines[2]]); });
+    expect(screen.getAllByRole("button", { name: "Omlaag" })[0]).toBeEnabled();
   });
 
   it("shows a readable error and leaves the list untouched when the reorder guard rejects", async () => {
@@ -450,7 +470,8 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       1,
       expect.objectContaining({ artnr: "NEW1", subtotaal: false, kolomtitel: false, infolijn: false })
     );
-    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledWith([lijn, created]));
+    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledTimes(1));
+    expect(onLijnenChange.mock.calls[0][0]([lijn])).toEqual([lijn, created]);
   });
 
   it("sends only the subtotaal flag (mutually exclusive with kolomtitel/infolijn) when adding a subtotaal line", async () => {

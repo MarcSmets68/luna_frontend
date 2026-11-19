@@ -63,7 +63,7 @@ type OfferteLijnenEditorProps =
       offnr: number;
       versie: number;
       lijnen: OfflijnItem[];
-      onLijnenChange: (lijnen: OfflijnItem[]) => void;
+      onLijnenChange: (update: (lijnen: OfflijnItem[]) => OfflijnItem[]) => void;
     };
 
 const NEW_LINE_TYPE_OPTIONS: { value: LineKind; label: string }[] = [
@@ -379,7 +379,16 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
   const { mode } = props;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [busyKeys, setBusyKeys] = useState<Set<string>>(new Set());
+  const reordering = [...busyKeys].some((key) => key.startsWith("move-"));
+  function setBusy(key: string, busy: boolean) {
+    setBusyKeys((prev) => {
+      const next = new Set(prev);
+      if (busy) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }
   const [savedLines, setSavedLines] = useState<Record<string, number>>({});
   function markLineSaved(lijnnr: number) {
     setSavedLines((prev) => ({ ...prev, [lijnnr]: (prev[lijnnr] ?? 0) + 1 }));
@@ -450,48 +459,56 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
   // ---- persisted mode helpers ----
   async function updatePersisted(lijnnr: number, patch: Partial<LineFields>): Promise<boolean> {
     if (mode !== "persisted") return false;
-    setBusyKey(`update-${lijnnr}`);
+    setBusy(`update-${lijnnr}`, true);
     setError(null);
     try {
       const updated = await updateOfflijn(props.offnr, props.versie, lijnnr, patch);
-      props.onLijnenChange(props.lijnen.map((l) => (l.lijnnr === lijnnr ? updated : l)));
+      props.onLijnenChange((latest) => latest.map((l) => (l.lijnnr === lijnnr ? updated : l)));
       markLineSaved(lijnnr);
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Er ging iets mis bij het opslaan van de lijn.");
       return false;
     } finally {
-      setBusyKey(null);
+      setBusy(`update-${lijnnr}`, false);
     }
   }
 
   async function deletePersisted(lijnnr: number) {
     if (mode !== "persisted") return;
     if (!window.confirm("Lijn verwijderen? Dit kan niet ongedaan worden gemaakt.")) return;
-    setBusyKey(`delete-${lijnnr}`);
+    setBusy(`delete-${lijnnr}`, true);
     setError(null);
     try {
       await deleteOfflijn(props.offnr, props.versie, lijnnr);
-      props.onLijnenChange(props.lijnen.filter((l) => l.lijnnr !== lijnnr));
+      props.onLijnenChange((latest) => latest.filter((l) => l.lijnnr !== lijnnr));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Er ging iets mis bij het verwijderen van de lijn.");
     } finally {
-      setBusyKey(null);
+      setBusy(`delete-${lijnnr}`, false);
     }
   }
 
   async function movePersisted(lijnnr: number, direction: "up" | "down") {
     if (mode !== "persisted") return;
-    setBusyKey(`move-${lijnnr}`);
+    setBusy(`move-${lijnnr}`, true);
     setError(null);
     try {
       const reordered = await reorderOfflijn(props.offnr, props.versie, lijnnr, direction);
-      props.onLijnenChange(reordered);
+      props.onLijnenChange((latest) => {
+        const byId = new Map(latest.map((lijn) => [lijn.lijnnr, lijn]));
+        const ordered = reordered.flatMap((lijn) => {
+          const current = byId.get(lijn.lijnnr);
+          byId.delete(lijn.lijnnr);
+          return current ? [current] : [];
+        });
+        return [...ordered, ...byId.values()];
+      });
       markLineSaved(lijnnr);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Er ging iets mis bij het herordenen van de lijn.");
     } finally {
-      setBusyKey(null);
+      setBusy(`move-${lijnnr}`, false);
     }
   }
 
@@ -503,18 +520,18 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
       ...flags,
       artnr: flags.artnr ?? newLineFields.artnr,
     };
-    setBusyKey("add");
+    setBusy("add", true);
     setError(null);
     try {
       const created = await createOfflijn(props.offnr, props.versie, payload);
-      props.onLijnenChange([...props.lijnen, created]);
+      props.onLijnenChange((latest) => [...latest, created]);
       markLineSaved(created.lijnnr);
       setNewLineFields(emptyLineFields());
       setNewLineKind("artikel");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Er ging iets mis bij het toevoegen van de lijn.");
     } finally {
-      setBusyKey(null);
+      setBusy("add", false);
     }
   }
 
@@ -559,9 +576,9 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
           onMoveUp: () => movePersisted(lijn.lijnnr, "up"),
           onMoveDown: () => movePersisted(lijn.lijnnr, "down"),
           busy:
-            busyKey === `update-${lijn.lijnnr}` ||
-            busyKey === `delete-${lijn.lijnnr}` ||
-            busyKey === `move-${lijn.lijnnr}`,
+            busyKeys.has(`update-${lijn.lijnnr}`) ||
+            busyKeys.has(`delete-${lijn.lijnnr}`) ||
+            busyKeys.has(`move-${lijn.lijnnr}`),
         }));
 
   const isSpecialKind = (kind: LineKind) => kind !== "artikel";
@@ -606,7 +623,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                         variant="ghost"
                         size="icon-xs"
                         aria-label="Omhoog"
-                        disabled={row.isFirst || row.busy}
+                        disabled={row.isFirst || row.busy || reordering}
                         onClick={row.onMoveUp}
                       >
                         <ArrowUp />
@@ -616,7 +633,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                         variant="ghost"
                         size="icon-xs"
                         aria-label="Omlaag"
-                        disabled={row.isLast || row.busy}
+                        disabled={row.isLast || row.busy || reordering}
                         onClick={row.onMoveDown}
                       >
                         <ArrowDown />
@@ -669,7 +686,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                         variant="ghost"
                         size="icon-xs"
                         aria-label="Omhoog"
-                        disabled={row.isFirst || row.busy}
+                        disabled={row.isFirst || row.busy || reordering}
                         onClick={row.onMoveUp}
                       >
                         <ArrowUp />
@@ -679,7 +696,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                         variant="ghost"
                         size="icon-xs"
                         aria-label="Omlaag"
-                        disabled={row.isLast || row.busy}
+                        disabled={row.isLast || row.busy || reordering}
                         onClick={row.onMoveDown}
                       >
                         <ArrowDown />
@@ -1032,7 +1049,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                 type="button"
                 size="sm"
                 onClick={mode === "local" ? addLocal : addPersisted}
-                disabled={mode === "persisted" && busyKey === "add"}
+                disabled={mode === "persisted" && busyKeys.has("add")}
               >
                 <Plus />
                 Lijn toevoegen
