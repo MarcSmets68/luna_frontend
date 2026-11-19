@@ -92,12 +92,11 @@ export async function getPakbon(paknr: number): Promise<PakbonItem | null> {
 }
 
 /**
- * Creation payload for a pakbon - `paknr` is required (chosen by the
- * caller, matching the leverancier CRUD convention in this client) and
- * every other field is optional.
+ * Creation payload for a pakbon. Omit `paknr` to let the backend assign
+ * a number from its number series. Every field is optional.
  */
 export type CreatePakbonPayload = Partial<Omit<PakbonItem, "paknr">> & {
-  paknr: number;
+  paknr?: number;
 };
 
 /**

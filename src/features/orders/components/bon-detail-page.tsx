@@ -42,7 +42,7 @@ import { BonlijnPakbonBadge } from "./bonlijn-pakbon-badge";
 import { LedConfigTable } from "./led-config-table";
 import { LedQcTable } from "./led-qc-table";
 import { HerstelDetailPanel } from "./herstel-detail-panel";
-import { PakbonAanmakenDialog } from "./pakbon-aanmaken-dialog";
+import { PakbonAanmakenDialog, leverbareLijnen } from "./pakbon-aanmaken-dialog";
 import { confirmNavigation, useUnsavedChanges } from "@/lib/unsaved-changes";
 
 // Number of columns in the Lijnen table (chevron, Lijnnr, Artnr,
@@ -641,15 +641,17 @@ export function BonDetailPage({
 
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-[16px] font-semibold text-foreground">Lijnen</h2>
+            <span title={leverbareLijnen(rows).length === 0 ? "Niets meer te leveren" : undefined}>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              disabled={rows.length === 0}
+              disabled={leverbareLijnen(rows).length === 0}
               onClick={() => setPakbonDialogOpen(true)}
             >
               Pakbon aanmaken
             </Button>
+            </span>
           </div>
 
           {lijnenFout && <p className="mb-2 text-sm text-destructive">{lijnenFout}</p>}
