@@ -29,6 +29,7 @@ import {
   deletePakbon,
   getBonLijnen,
   getKlant,
+  getPaklijnen,
   ApiError,
   type BonItem,
   type BonLijnItem,
@@ -208,7 +209,18 @@ export function PakbonAanmakenDialog({
     setError(null);
     setFailedLijnnr(null);
     try {
-      await postLijnen(createdPaknr, pending, succeeded);
+      const existing = await getPaklijnen(createdPaknr);
+      const confirmed = pending.filter((payload) =>
+        existing.some((lijn) => lijn.bonnr === payload.bonnr && lijn.blijnnr === payload.blijnnr)
+      );
+      const confirmedNumbers = new Set(confirmed.map((payload) => payload.blijnnr));
+      const remaining = pending.filter((payload) => !confirmedNumbers.has(payload.blijnnr));
+      const added = [...new Set([...succeeded, ...confirmedNumbers])];
+      setSucceeded(added);
+      setPending(remaining);
+      await postLijnen(createdPaknr, remaining, added);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Pakbonlijnen konden niet geladen worden.");
     } finally {
       setSaving(false);
     }

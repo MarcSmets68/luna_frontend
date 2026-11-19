@@ -14,6 +14,7 @@ const createPaklijnMock = vi.fn();
 const getBonLijnenMock = vi.fn();
 const getKlantMock = vi.fn();
 const deletePakbonMock = vi.fn();
+const getPaklijnenMock = vi.fn();
 vi.mock("@/lib/api-client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api-client")>("@/lib/api-client");
   return {
@@ -23,6 +24,7 @@ vi.mock("@/lib/api-client", async () => {
     getBonLijnen: (...args: unknown[]) => getBonLijnenMock(...args),
     getKlant: (...args: unknown[]) => getKlantMock(...args),
     deletePakbon: (...args: unknown[]) => deletePakbonMock(...args),
+    getPaklijnen: (...args: unknown[]) => getPaklijnenMock(...args),
   };
 });
 
@@ -113,6 +115,7 @@ beforeEach(() => {
   getBonLijnenMock.mockReset().mockResolvedValue(mockLijnen);
   getKlantMock.mockReset().mockResolvedValue({ naam1: "Factuur tweede naam" });
   deletePakbonMock.mockReset().mockResolvedValue({});
+  getPaklijnenMock.mockReset().mockResolvedValue([]);
 });
 
 describe("PakbonAanmakenDialog", () => {
@@ -338,6 +341,65 @@ describe("PakbonAanmakenDialog", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Lege pakbon verwijderen" }));
     await waitFor(() => expect(close).toHaveBeenCalledWith(false));
     expect(deletePakbonMock).toHaveBeenCalledWith(99);
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("does not duplicate a line whose successful response was lost", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("Verbinding verbroken"))
+      .mockRejectedValueOnce(new Error("Volgende lijn geweigerd"))
+      .mockResolvedValue({});
+    getPaklijnenMock.mockResolvedValue([
+      { bonnr: 100, blijnnr: 1 },
+      { bonnr: 100, blijnnr: 2 },
+      { bonnr: 999, blijnnr: 4 },
+    ]);
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Verbinding verbroken");
+    await userEvent.click(screen.getByRole("button", { name: "Ontbrekende lijnen opnieuw proberen" }));
+    await screen.findByText("Volgende lijn geweigerd");
+    expect(getPaklijnenMock).toHaveBeenCalledWith(99);
+    expect(screen.getByText("Pakbon 99 aangemaakt; 1 van 2 lijnen toegevoegd.")).toBeInTheDocument();
+    const addedRow = screen.getByText("Leverbaar").closest("tr")!;
+    expect(within(addedRow).getByText("Toegevoegd")).toBeInTheDocument();
+    expect(createPaklijnMock.mock.calls.map(([, payload]) => payload.blijnnr)).toEqual([1, 2, 4]);
+    await userEvent.click(screen.getByRole("button", { name: "Ontbrekende lijnen opnieuw proberen" }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/pakbonnen/99"));
+    expect(createPaklijnMock.mock.calls.map(([, payload]) => payload.blijnnr)).toEqual([1, 2, 4, 4]);
+    expect(createPakbonMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("finishes without posting when all pending lines already exist", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockRejectedValueOnce(new Error("Verbinding verbroken"));
+    getPaklijnenMock.mockResolvedValue([
+      { bonnr: 100, blijnnr: 1 },
+      { bonnr: 100, blijnnr: 2 },
+      { bonnr: 100, blijnnr: 4 },
+    ]);
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Verbinding verbroken");
+    await userEvent.click(screen.getByRole("button", { name: "Ontbrekende lijnen opnieuw proberen" }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/pakbonnen/99"));
+    expect(createPaklijnMock).toHaveBeenCalledTimes(1);
+    expect(createPakbonMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not post when checking existing paklijnen fails", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockRejectedValue(new Error("Verbinding verbroken"));
+    getPaklijnenMock.mockRejectedValue(new Error("Pakbonlijnen onbereikbaar"));
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Verbinding verbroken");
+    await userEvent.click(screen.getByRole("button", { name: "Ontbrekende lijnen opnieuw proberen" }));
+    expect(await screen.findByText("Pakbonlijnen onbereikbaar")).toBeInTheDocument();
+    expect(createPaklijnMock).toHaveBeenCalledTimes(1);
+    expect(createPakbonMock).toHaveBeenCalledTimes(1);
     expect(pushMock).not.toHaveBeenCalled();
   });
 
