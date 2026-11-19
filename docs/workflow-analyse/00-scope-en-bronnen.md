@@ -48,16 +48,20 @@
 
 - [FEIT] Volgens Marc wordt voor boekhouding ook Luna gebruikt, met een Peppol-module. Bron: Marc, intakeantwoord op vraag 11.
 
+### NPP en Bestelling-20LAK vandaag
+
+- [FEIT] Zowel productie als magazijn gebruiken NPP. Bestelling-20LAK is nog in gebruik als voorlopige oplossing. Bron: Marc, intakeantwoord op vraag 12.
+
 ## Beschikbare bronnen
 
 | Bron | Wat is vastgesteld? | Wat bewijst de bron niet? |
 | --- | --- | --- |
-| **B1 — Opdrachtbrief en intake** | [FEIT] De brief geeft de scope, randvoorwaarden en belangrijkste systemen. De intake verduidelijkt de organisatiestructuur, de aanvraagkanalen, het projecteigenaarschap, de pijnpunten, de prioriteiten en het gebruik van enkele systemen. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1–11. | [OPEN VRAAG] Welke rollen beheren de overdrachten, en in welke systemen? |
+| **B1 — Opdrachtbrief en intake** | [FEIT] De brief geeft de scope, randvoorwaarden en belangrijkste systemen. De intake verduidelijkt de organisatiestructuur, de aanvraagkanalen, het projecteigenaarschap, de pijnpunten, de prioriteiten en het gebruik van enkele systemen. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1–12. | [OPEN VRAAG] Welke rollen beheren de overdrachten, en in welke systemen? |
 | **B2 — Luna-frontend** | [FEIT] De [schermcode](https://github.com/MarcSmets68/luna_frontend/tree/dbce3a2a8419cd507465d81ec4654518b39f533e/src/app) bevat onder meer offertes, orders, pakbonnen, voorraad, facturatie en NPP. De [API-client](https://github.com/MarcSmets68/luna_frontend/blob/dbce3a2a8419cd507465d81ec4654518b39f533e/src/lib/api-client.ts) is beschikbaar om later de koppelingen te volgen. | [OPEN VRAAG] Welke schermen worden door welke rollen gebruikt, en waar gebeurt het werk nog buiten Luna? |
 | **B3 — Luna-backend** | [FEIT] De aparte repo `luna_backend` bevat de [OpenEdge/PASOE-documentatie](https://github.com/MarcSmets68/luna_backend/blob/f7f3ae61832e5b893378e50a1e9bc89ddd305835/README.md), [ABL-webhandlers](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/Web), [bedrijfslogica](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/BusinessLogic) en [Bruno-voorbeelden van API-aanroepen](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/bruno). In de bekeken revisie zijn geen `.df`-bestanden aanwezig. | [OPEN VRAAG] Welke versie draait er, en waar staan het volledige legacy-schema en de oorspronkelijke procedures? |
 | **B4 — Afzonderlijke OpenEdge-code (privé)** | [FEIT] Een andere leesbare OpenEdge-repo bevat `.df`-bestanden voor zijn eigen klant- en orderschema. De bestanden zijn apart gehouden van de Luna-bronnen. Bron: de schemadefinities in die repo; private vindplaats niet gepubliceerd. | [OPEN VRAAG] Is er een bevestigde link met de huidige omgeving? De bestanden tellen niet als bewijs voor het gedeelde Luna-schema. |
 | **B5 — Afzonderlijke NPP-code (privé)** | [FEIT] Naast de NPP-code in B2 en B3 is een afzonderlijke NPP-repo leesbaar, met onder meer schermcode voor reservaties. Bron: de code van het reservatiescherm in die repo; private vindplaats niet gepubliceerd. | [OPEN VRAAG] Welke applicatie en versie gebruiken productie en magazijn op scanner en touchscreen? |
-| **B6 — Bestelling-20LAK** | [FEIT] De [invoerpagina](https://github.com/MarcSmets68/bestelling-20LAK/blob/e4b47432d5cf5e798ac72924b59d7eee5b415913/client/pages/Index.tsx) bevat CSV-invoer en de [gegevenspagina](https://github.com/MarcSmets68/bestelling-20LAK/blob/e4b47432d5cf5e798ac72924b59d7eee5b415913/client/pages/Data.tsx) verwerkt de ingelezen regels. | [OPEN VRAAG] Wordt deze route vandaag gebruikt naast de lakproductiefunctionaliteit in Luna, en zo ja door wie? |
+| **B6 — Bestelling-20LAK** | [FEIT] De [invoerpagina](https://github.com/MarcSmets68/bestelling-20LAK/blob/e4b47432d5cf5e798ac72924b59d7eee5b415913/client/pages/Index.tsx) bevat CSV-invoer en de [gegevenspagina](https://github.com/MarcSmets68/bestelling-20LAK/blob/e4b47432d5cf5e798ac72924b59d7eee5b415913/client/pages/Data.tsx) verwerkt de ingelezen regels. Marc bevestigt voorlopig gebruik in B1. | [OPEN VRAAG] Wie gebruikt Bestelling-20LAK en op welk moment naast de lakproductiefunctionaliteit in Luna? |
 | **B7 — Publieke websites** | [FEIT] De startpagina's van [Nomaled](https://www.nomaled.be/) en [Lichthuis](https://www.lichthuis.be/) zijn leesbaar. Lichthuis vermeldt lichtadvies, lichtstudie, relighting en maatwerk. Bron: de publieke startpagina's. | [OPEN VRAAG] Is er naast het B2B-portaal en de toonzaal ook een webshop voor particulieren? De publieke startpagina's zijn geen bewijs van de werking van het portaal of een webshop. |
 
 ## Ontbrekende of niet bevestigde bronnen
@@ -96,7 +100,7 @@
 
 10. [FEIT] NPP en het B2B-portaal zijn als essentieel benoemd. Zie [Essentiële koppelingen](#essentiële-koppelingen). [OPEN VRAAG] Moeten monday.com, Gmail, Calendar, Drive, boekhouding, een eventuele webshop of andere koppelingen al bij de eerste uitrol mee? Welk systeem is de hoofdbron per verplichte koppeling?
 11. [FEIT] Voor boekhouding gebruiken jullie ook Luna met een Peppol-module. Zie [Boekhouding en Peppol](#boekhouding-en-peppol). [OPEN VRAAG] Welke boekhoudstappen dekt Luna af, welke andere pakketten gebruiken jullie, en welke gegevens worden automatisch, via export of manueel uitgewisseld?
-12. [OPEN VRAAG] Werken productie en magazijn vandaag met de aparte NPP-app, NPP in Luna of iets anders? Hoe past Bestelling-20LAK in het huidige werk?
+12. [FEIT] Productie en magazijn gebruiken NPP. Bestelling-20LAK is nog een voorlopige oplossing. Zie [NPP en Bestelling-20LAK vandaag](#npp-en-bestelling-20lak-vandaag). [OPEN VRAAG] Welke NPP-versie gebruiken ze, en wie gebruikt Bestelling-20LAK op welk moment?
 13. [OPEN VRAAG] Waar kunnen we het actuele `.df`-schema zonder records en de legacy-code of een demo van de gebruikte schermen alleen-lezen raadplegen?
 14. [OPEN VRAAG] Welke monday.com-borden en Drive-sjablonen mogen we raadplegen, rechtstreeks of via geanonimiseerde exports?
 
