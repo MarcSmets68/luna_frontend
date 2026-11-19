@@ -54,11 +54,11 @@ describe("OrderCreatePage", () => {
     const user = userEvent.setup();
     render(<OrderCreatePage klant={mockKlant} />);
     await user.type(screen.getByRole("textbox", { name: "Uw referentie" }), "Mijn referentie");
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
     expect(pushMock).not.toHaveBeenCalled();
     expect(screen.getByRole("textbox", { name: "Uw referentie" })).toHaveValue("Mijn referentie");
     confirm.mockReturnValue(true);
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
     expect(pushMock).toHaveBeenCalledWith("/klanten/14644");
     confirm.mockRestore();
   });
@@ -69,7 +69,7 @@ describe("OrderCreatePage", () => {
     const user = userEvent.setup();
     render(<OrderCreatePage klant={mockKlant} />);
     await user.type(screen.getByRole("textbox", { name: "Uw referentie" }), "Opgeslagen");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/orders/999"));
     expect(confirm).not.toHaveBeenCalled();
     confirm.mockRestore();
@@ -81,9 +81,9 @@ describe("OrderCreatePage", () => {
     const user = userEvent.setup();
     render(<OrderCreatePage klant={mockKlant} />);
     await user.type(screen.getByRole("textbox", { name: "Uw referentie" }), "Niet opgeslagen");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
     await screen.findByText("Opslaan mislukt");
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
     expect(pushMock).not.toHaveBeenCalled();
     expect(confirm).toHaveBeenCalledTimes(1);
     confirm.mockRestore();
@@ -114,7 +114,7 @@ describe("OrderCreatePage", () => {
 
     const datumInput = screen.getByLabelText("Datum") as HTMLInputElement;
     await user.clear(datumInput);
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Datum is verplicht.")).toBeInTheDocument();
     expect(createBonMock).not.toHaveBeenCalled();
@@ -125,7 +125,7 @@ describe("OrderCreatePage", () => {
     createBonMock.mockResolvedValue({ bonnr: 999, klnr: 14644, type: "ORDERBEVESTIGING" });
 
     render(<OrderCreatePage klant={mockKlant} />);
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(createBonMock).toHaveBeenCalledTimes(1));
     expect(createBonMock).toHaveBeenCalledWith(
@@ -144,7 +144,7 @@ describe("OrderCreatePage", () => {
 
     await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "ABC");
     await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(createBonLijnMock).toHaveBeenCalledTimes(1));
     expect(createBonLijnMock).toHaveBeenCalledWith(999, expect.objectContaining({ artnr: "ABC" }));
@@ -160,7 +160,7 @@ describe("OrderCreatePage", () => {
 
     await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "ABC");
     await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/orders/999?lijnFout=1"));
     const stored = sessionStorage.getItem("luna:bon-lijn-fout:999");
@@ -203,7 +203,7 @@ describe("OrderCreatePage", () => {
     await user.type(screen.getByRole("spinbutton", { name: "Bedrag nieuwe lijn" }), "25");
     await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
 
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(createBonMock).toHaveBeenCalledTimes(1));
     expect(createBonMock).toHaveBeenCalledWith(expect.objectContaining({ bedrag: 75 }));
@@ -216,7 +216,7 @@ describe("OrderCreatePage", () => {
     createBonMock.mockRejectedValue(new Error("klnr is verplicht"));
 
     render(<OrderCreatePage klant={mockKlant} />);
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("klnr is verplicht")).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
@@ -226,7 +226,7 @@ describe("OrderCreatePage", () => {
     const user = userEvent.setup();
     render(<OrderCreatePage klant={mockKlant} />);
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
     expect(pushMock).toHaveBeenCalledWith("/klanten/14644");
   });
 });

@@ -32,7 +32,7 @@ describe("KlantCreatePage", () => {
     const user = userEvent.setup();
     render(<KlantCreatePage />);
 
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Klantnr moet een geldig positief getal zijn.")).toBeInTheDocument();
     expect(createKlantMock).not.toHaveBeenCalled();
@@ -46,7 +46,7 @@ describe("KlantCreatePage", () => {
 
     await user.type(screen.getByRole("spinbutton", { name: "Klantnr" }), "777");
     await user.type(screen.getByRole("textbox", { name: "Naam" }), "Nieuwe Klant");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(createKlantMock).toHaveBeenCalledTimes(1));
     expect(createKlantMock).toHaveBeenCalledWith(
@@ -62,7 +62,7 @@ describe("KlantCreatePage", () => {
     render(<KlantCreatePage />);
 
     await user.type(screen.getByRole("spinbutton", { name: "Klantnr" }), "777");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Klant 777 bestaat al.")).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
@@ -72,7 +72,7 @@ describe("KlantCreatePage", () => {
     const user = userEvent.setup();
     render(<KlantCreatePage />);
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
     expect(pushMock).toHaveBeenCalledWith("/klanten");
   });
 });

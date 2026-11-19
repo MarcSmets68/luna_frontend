@@ -125,15 +125,15 @@ export function LeveranciersPage({
         <p className="text-sm text-muted-foreground">Geen leveranciers gevonden.</p>
       ) : (
         <>
-          <Table>
+          <Table mobileLabel="Leveranciers">
             <TableHeader>
               <TableRow>
                 <TableHead>Levnr</TableHead>
                 <TableHead>Naam</TableHead>
-                <TableHead>Adres</TableHead>
-                <TableHead>Postnr</TableHead>
-                <TableHead>Stad</TableHead>
-                <TableHead>Saldo</TableHead>
+                <TableHead mobileHidden>Adres</TableHead>
+                <TableHead mobileHidden>Postnr</TableHead>
+                <TableHead mobileHidden>Stad</TableHead>
+                <TableHead mobileHidden>Saldo</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
@@ -155,10 +155,10 @@ export function LeveranciersPage({
                 >
                   <TableCell className="font-semibold">{item.levnr}</TableCell>
                   <TableCell className="whitespace-normal">{item.naam}</TableCell>
-                  <TableCell>{item.adres}</TableCell>
-                  <TableCell>{item.postnr}</TableCell>
-                  <TableCell>{item.stad}</TableCell>
-                  <TableCell>{formatSaldo(item.saldo)}</TableCell>
+                  <TableCell mobileHidden>{item.adres}</TableCell>
+                  <TableCell mobileHidden>{item.postnr}</TableCell>
+                  <TableCell mobileHidden>{item.stad}</TableCell>
+                  <TableCell mobileHidden>{formatSaldo(item.saldo)}</TableCell>
                   <TableCell>
                     <Button
                       type="button"

@@ -218,10 +218,10 @@ export function KlantCreatePage() {
               onClick={() => router.push("/klanten")}
               disabled={saving}
             >
-              Cancel
+              Annuleren
             </Button>
             <Button type="button" onClick={handleSave} disabled={saving}>
-              {saving ? "Bezig..." : "Save"}
+              {saving ? "Bezig..." : "Opslaan"}
             </Button>
           </div>
         </CardContent>

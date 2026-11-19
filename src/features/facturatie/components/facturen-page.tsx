@@ -49,15 +49,15 @@ export function FacturenPage({
         <p className="text-sm text-muted-foreground">Geen facturen gevonden.</p>
       ) : (
         <>
-          <Table>
+          <Table mobileLabel="Facturen">
             <TableHeader>
               <TableRow>
                 <TableHead>Factuurnr</TableHead>
-                <TableHead>Datum</TableHead>
+                <TableHead mobileHidden>Datum</TableHead>
                 <TableHead>Klant</TableHead>
-                <TableHead>Stad</TableHead>
+                <TableHead mobileHidden>Stad</TableHead>
                 <TableHead>Bedrag</TableHead>
-                <TableHead>Vervaldatum</TableHead>
+                <TableHead mobileHidden>Vervaldatum</TableHead>
                 <TableHead>Betaald</TableHead>
               </TableRow>
             </TableHeader>
@@ -78,13 +78,13 @@ export function FacturenPage({
                   }}
                 >
                   <TableCell className="font-semibold">{item.facnr}</TableCell>
-                  <TableCell>{formatDatum(item.datum)}</TableCell>
+                  <TableCell mobileHidden>{formatDatum(item.datum)}</TableCell>
                   <TableCell className="whitespace-normal">{item.naam}</TableCell>
-                  <TableCell>{item.stad}</TableCell>
+                  <TableCell mobileHidden>{item.stad}</TableCell>
                   <TableCell>
                     {formatBedrag(item.totaal)} {item.munt}
                   </TableCell>
-                  <TableCell>{formatDatum(item.vervaldat)}</TableCell>
+                  <TableCell mobileHidden>{formatDatum(item.vervaldat)}</TableCell>
                   <TableCell>{betaaldLabel(item)}</TableCell>
                 </TableRow>
               ))}

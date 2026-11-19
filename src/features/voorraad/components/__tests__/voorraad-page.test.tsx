@@ -36,6 +36,21 @@ const mockItems: ArtikelItem[] = [
 ];
 
 describe("VoorraadPage", () => {
+
+  it("prioritizes 3 mobile columns while retaining matching headings, data and row identity", () => {
+    render(<VoorraadPage items={mockItems} page={1} hasMore={false} />);
+    const table = screen.getByRole("table");
+    const headings = table.querySelectorAll("thead th");
+    const cells = table.querySelectorAll("tbody tr:first-child td");
+    expect(table).toHaveAttribute("data-mobile-columns", "priority");
+    expect(cells).toHaveLength(headings.length);
+    expect(headings[0]).not.toHaveAttribute("data-mobile-secondary");
+    expect(cells[0]).not.toHaveAttribute("data-mobile-secondary");
+    expect([...headings].filter((head) => !head.hasAttribute("data-mobile-secondary"))).toHaveLength(3);
+    headings.forEach((head, index) => {
+      expect(cells[index].hasAttribute("data-mobile-secondary")).toBe(head.hasAttribute("data-mobile-secondary"));
+    });
+  });
   it("submits article/description searches while retaining flags and resetting pagination", async () => {
     const user = userEvent.setup();
     render(<VoorraadPage items={[]} page={3} hasMore={false} lageVoorraad toonGeblokkeerd />);
