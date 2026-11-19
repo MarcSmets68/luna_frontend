@@ -22,12 +22,13 @@
 
 - [FEIT] Lichthuis heeft een team van twee lichtadviseurs, intern lichtarchitecten genoemd. Nomaled heeft een productieatelier. Bron: Marc, intakeantwoord op vraag 4.
 - [FEIT] Administratie, boekhouding en magazijn ondersteunen zowel Lichthuis als Nomaled. Bron: Marc, intakeantwoord op vraag 4.
+- [FEIT] De persoon die de offerte heeft opgesteld, is de eigenaar van het project. Bron: Marc, intakeantwoord op vraag 5.
 
 ## Beschikbare bronnen
 
 | Bron | Wat is vastgesteld? | Wat bewijst de bron niet? |
 | --- | --- | --- |
-| **B1 — Opdrachtbrief en intake** | [FEIT] De brief benoemt onder meer Sikta, NPP, de bestaande ABL-toepassing, monday.com en Google-diensten. Hij geeft de scope en randvoorwaarden. De intake verduidelijkt de rolverdeling, de firmanaam, de gedeelde klantendatabank, de gebruikelijke aanvraagkanalen en de teams op hoofdlijnen. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1–4. | [OPEN VRAAG] Welke rollen beheren de overdrachten, en in welke systemen? |
+| **B1 — Opdrachtbrief en intake** | [FEIT] De brief benoemt onder meer Sikta, NPP, de bestaande ABL-toepassing, monday.com en Google-diensten. Hij geeft de scope en randvoorwaarden. De intake verduidelijkt de rolverdeling, de firmanaam, de gedeelde klantendatabank, de gebruikelijke aanvraagkanalen, de teams op hoofdlijnen en het projecteigenaarschap. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1–5. | [OPEN VRAAG] Welke rollen beheren de overdrachten, en in welke systemen? |
 | **B2 — Luna-frontend** | [FEIT] De [schermcode](https://github.com/MarcSmets68/luna_frontend/tree/dbce3a2a8419cd507465d81ec4654518b39f533e/src/app) bevat onder meer offertes, orders, pakbonnen, voorraad, facturatie en NPP. De [API-client](https://github.com/MarcSmets68/luna_frontend/blob/dbce3a2a8419cd507465d81ec4654518b39f533e/src/lib/api-client.ts) is beschikbaar om later de koppelingen te volgen. | [OPEN VRAAG] Welke schermen worden door welke rollen gebruikt, en waar gebeurt het werk nog buiten Luna? |
 | **B3 — Luna-backend** | [FEIT] De aparte repo `luna_backend` bevat de [OpenEdge/PASOE-documentatie](https://github.com/MarcSmets68/luna_backend/blob/f7f3ae61832e5b893378e50a1e9bc89ddd305835/README.md), [ABL-webhandlers](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/Web), [bedrijfslogica](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/BusinessLogic) en [Bruno-voorbeelden van API-aanroepen](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/bruno). In de bekeken revisie zijn geen `.df`-bestanden aanwezig. | [OPEN VRAAG] Welke versie draait er, en waar staan het volledige legacy-schema en de oorspronkelijke procedures? |
 | **B4 — Afzonderlijke OpenEdge-code (privé)** | [FEIT] Een andere leesbare OpenEdge-repo bevat `.df`-bestanden voor zijn eigen klant- en orderschema. De bestanden zijn apart gehouden van de Luna-bronnen. Bron: de schemadefinities in die repo; private vindplaats niet gepubliceerd. | [OPEN VRAAG] Is er een bevestigde link met de huidige omgeving? De bestanden tellen niet als bewijs voor het gedeelde Luna-schema. |
@@ -58,7 +59,7 @@
 ### Afdelingen en rollen
 
 4. [FEIT] De eigen en gedeelde teams zijn op hoofdlijnen bevestigd. Zie [Eigen en gedeelde teams](#eigen-en-gedeelde-teams).
-5. [OPEN VRAAG] Wie is eigenaar van een project van aanvraag tot levering, en wie beslist bij overdrachten of uitzonderingen?
+5. [FEIT] De projecteigenaar is de opsteller van de offerte. Zie [Eigen en gedeelde teams](#eigen-en-gedeelde-teams). [OPEN VRAAG] Wie beslist bij overdrachten of uitzonderingen?
 
 ### Pijnpunten en prioriteiten
 
