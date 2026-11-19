@@ -258,28 +258,28 @@ describe("PakbonAanmakenDialog", () => {
     expect(createPakbonMock).not.toHaveBeenCalled();
   });
 
-  it("shows all row errors together for fractional, empty and excessive quantities", async () => {
+  it("shows all row errors together for overprecise, empty and excessive quantities", async () => {
     const user = userEvent.setup();
     renderDialog([lijn({ lijnnr: 1 }), lijn({ lijnnr: 2 }), lijn({ lijnnr: 3 })]);
-    for (const [nr, value] of [[1, "1.5"], [2, ""], [3, "11"]] as const) {
+    for (const [nr, value] of [[1, "1.2345"], [2, ""], [3, "11"]] as const) {
       const input = screen.getByLabelText(`Aantal voor lijn ${nr}`);
-      expect(input).toHaveAttribute("step", "1");
+      expect(input).toHaveAttribute("inputmode", "decimal");
       await user.clear(input);
       if (value) await user.type(input, value);
     }
     await user.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
-    expect(screen.getByText("Lijn 1: vul een positief geheel aantal in.")).toBeInTheDocument();
-    expect(screen.getByText("Lijn 2: vul een positief geheel aantal in.")).toBeInTheDocument();
+    expect(screen.getByText("Lijn 1: vul een positief aantal in (max. 3 decimalen).")).toBeInTheDocument();
+    expect(screen.getByText("Lijn 2: vul een positief aantal in (max. 3 decimalen).")).toBeInTheDocument();
     expect(screen.getByText("Lijn 3: aantal (11) mag niet groter zijn dan te leveren (10).")).toBeInTheDocument();
     expect(createPakbonMock).not.toHaveBeenCalled();
   });
 
-  it.each(["abc", "0", "-1"])("rejects invalid quantity %s", async (value) => {
+  it.each(["abc", "0", "-1", "1.2345", "1,2345", "1,2.3"])("rejects invalid quantity %s", async (value) => {
     renderDialog([lijn({})]);
     await userEvent.clear(screen.getByLabelText("Aantal voor lijn 1"));
     await userEvent.type(screen.getByLabelText("Aantal voor lijn 1"), value);
     await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
-    expect(screen.getByText("Lijn 1: vul een positief geheel aantal in.")).toBeInTheDocument();
+    expect(screen.getByText("Lijn 1: vul een positief aantal in (max. 3 decimalen).")).toBeInTheDocument();
     expect(createPakbonMock).not.toHaveBeenCalled();
   });
 
@@ -291,6 +291,43 @@ describe("PakbonAanmakenDialog", () => {
     expect(screen.getByText("Lijn 4: nog te leveren is 0. Pas het aantal aan.")).toBeInTheDocument();
     expect(createPakbonMock).not.toHaveBeenCalled();
     expect(createPaklijnMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["2,5", "2.5", "1,234", "1.234"])("sends decimal quantity %s as a number with rounded amount", async (value) => {
+    const rows = [lijn({ vprijs: 1.99, korting: 7 })];
+    getBonLijnenMock.mockResolvedValue(rows);
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockResolvedValue({});
+    renderDialog(rows);
+    await userEvent.clear(screen.getByLabelText("Aantal voor lijn 1"));
+    await userEvent.type(screen.getByLabelText("Aantal voor lijn 1"), value);
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/pakbonnen/99"));
+    const quantity = Number(value.replace(",", "."));
+    expect(createPaklijnMock).toHaveBeenCalledWith(99, expect.objectContaining({
+      aantal: quantity,
+      teLeveren: quantity,
+      bedrag: quantity === 2.5 ? 4.63 : 2.28,
+    }));
+  });
+
+  it("applies the delivery limit to comma decimals", async () => {
+    renderDialog([lijn({ teLeveren: 2 })]);
+    await userEvent.clear(screen.getByLabelText("Aantal voor lijn 1"));
+    await userEvent.type(screen.getByLabelText("Aantal voor lijn 1"), "2,5");
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(screen.getByText("Lijn 1: aantal (2.5) mag niet groter zijn dan te leveren (2).")).toBeInTheDocument();
+    expect(createPakbonMock).not.toHaveBeenCalled();
+  });
+
+  it("checks fresh delivery limits using comma decimals", async () => {
+    getBonLijnenMock.mockResolvedValue([lijn({ teLeveren: 2.4 })]);
+    renderDialog([lijn({ teLeveren: 3 })]);
+    await userEvent.clear(screen.getByLabelText("Aantal voor lijn 1"));
+    await userEvent.type(screen.getByLabelText("Aantal voor lijn 1"), "2,5");
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(await screen.findByText("Lijn 1: nog te leveren is 2.4. Pas het aantal aan.")).toBeInTheDocument();
+    expect(createPakbonMock).not.toHaveBeenCalled();
   });
 
   it("keeps hold selectable but not preselected", async () => {
@@ -431,8 +468,8 @@ describe("PakbonAanmakenDialog", () => {
     expect(screen.queryByLabelText("Lijn 1 opnemen in pakbon")).not.toBeInTheDocument();
     expect(screen.queryByText("Al geleverd")).not.toBeInTheDocument();
 
-    expect(screen.getByLabelText("Aantal voor lijn 2")).toHaveValue(10);
-    expect(screen.getByLabelText("Aantal voor lijn 4")).toHaveValue(3);
+    expect(screen.getByLabelText("Aantal voor lijn 2")).toHaveValue("10");
+    expect(screen.getByLabelText("Aantal voor lijn 4")).toHaveValue("3");
   });
 
   it("creates the pakbon head then one paklijn per selected line and navigates to it", async () => {

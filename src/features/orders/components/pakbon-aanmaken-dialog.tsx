@@ -62,6 +62,12 @@ function initialSelectie(lijnen: BonLijnItem[]): LijnSelectie[] {
   }));
 }
 
+function parseAantal(value: string): number {
+  const normalized = value.trim().replace(",", ".");
+  if (!/^(?:\d+(?:\.\d{1,3})?|\.\d{1,3})$/.test(normalized)) return NaN;
+  return Number(normalized);
+}
+
 export function buildPakbonPayload(
   bon: BonItem,
   paknr?: number,
@@ -299,9 +305,9 @@ export function PakbonAanmakenDialog({
 
     const errors: Record<number, string> = {};
     for (const s of gekozen) {
-      const aantal = Number(s.aantal);
-      if (!s.aantal.trim() || !Number.isInteger(aantal) || aantal <= 0) {
-        errors[s.lijn.lijnnr] = `Lijn ${s.lijn.lijnnr}: vul een positief geheel aantal in.`;
+      const aantal = parseAantal(s.aantal);
+      if (!Number.isFinite(aantal) || aantal <= 0) {
+        errors[s.lijn.lijnnr] = `Lijn ${s.lijn.lijnnr}: vul een positief aantal in (max. 3 decimalen).`;
       } else if (aantal > s.lijn.teLeveren) {
         errors[s.lijn.lijnnr] = `Lijn ${s.lijn.lijnnr}: aantal (${aantal}) mag niet groter zijn dan te leveren (${s.lijn.teLeveren}).`;
       }
@@ -317,7 +323,7 @@ export function PakbonAanmakenDialog({
       const stale: Record<number, string> = {};
       for (const s of gekozen) {
         const current = fresh.find((lijn) => lijn.lijnnr === s.lijn.lijnnr);
-        if (!current || current.teLeveren < Number(s.aantal)) {
+        if (!current || current.teLeveren < parseAantal(s.aantal)) {
           stale[s.lijn.lijnnr] = `Lijn ${s.lijn.lijnnr}: nog te leveren is ${current?.teLeveren ?? 0}. Pas het aantal aan.`;
         }
       }
@@ -346,7 +352,7 @@ export function PakbonAanmakenDialog({
           todo.push(buildTitelPaklijnPayload(title));
           title = undefined;
         }
-        todo.push(buildPaklijnPayload(lijn, Number(selected.aantal)));
+        todo.push(buildPaklijnPayload(lijn, parseAantal(selected.aantal)));
       }
       const created = await createPakbon(buildPakbonPayload(bon, paknrValue, klant?.naam1 ?? ""));
       setCreatedPaknr(created.paknr);
@@ -454,10 +460,8 @@ export function PakbonAanmakenDialog({
                       <TableCell>{lijn.teLeveren}</TableCell>
                       <TableCell>
                         <Input
-                          type="number"
-                          min={1}
-                          step={1}
-                          max={lijn.teLeveren}
+                          type="text"
+                          inputMode="decimal"
                           value={aantal}
                           disabled={!geselecteerd || saving || createdPaknr !== null}
                           aria-invalid={!!lijnErrors[lijn.lijnnr]}
