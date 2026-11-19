@@ -161,6 +161,16 @@ const mockTitleLijn: BonLijnItem = {
 };
 
 describe("BonDetailPage", () => {
+  it.each([[], mockLijnen.map((lijn) => ({ ...lijn, teLeveren: 0 })), mockLijnen.map((lijn) => ({ ...lijn, artnr: "K00" }))].map((lijnen) => ({ lijnen })))("disables packing slip creation when nothing is deliverable", async ({ lijnen }) => {
+    stubFetch();
+    searchParamsMock.mockReturnValue(new URLSearchParams("tab=lijnen"));
+    render(<BonDetailPage bon={mockBon} lijnen={lijnen} />);
+    await userEvent.click(screen.getByRole("tab", { name: /Lijnen/ }));
+    const button = screen.getByRole("button", { name: "Pakbon aanmaken" });
+    expect(button).toBeDisabled();
+    expect(button.parentElement).toHaveAttribute("title", "Niets meer te leveren");
+    await flush();
+  });
   it("returns to the supplied order filter set and page", () => {
     render(<BonDetailPage bon={mockBon} lijnen={[]} backHref="/orders/alle?page=3&naam=Atelier" />);
     expect(screen.getByRole("link", { name: /Terug naar overzicht/ })).toHaveAttribute("href", "/orders/alle?page=3&naam=Atelier");

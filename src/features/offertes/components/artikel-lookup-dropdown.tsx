@@ -126,6 +126,7 @@ export function ArtikelLookupDropdown({
       {cloneElement(input, {
         role: "combobox",
         "aria-autocomplete": "list",
+        autoComplete: "off",
         "aria-expanded": active,
         "aria-controls": listboxId,
         "aria-activedescendant": active && items?.[highlight] ? `${listboxId}-${highlight}` : undefined,

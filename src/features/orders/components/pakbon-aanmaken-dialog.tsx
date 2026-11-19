@@ -21,10 +21,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { isTitleLine } from "@/lib/line-classification";
+import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
+import { Badge } from "@/components/ui/badge";
 import {
   createPakbon,
   createPaklijn,
+  deletePakbon,
+  getBonLijnen,
+  getKlant,
+  getPaklijnen,
+  ApiError,
   type BonItem,
   type BonLijnItem,
   type CreatePakbonPayload,
@@ -37,7 +43,7 @@ type LijnSelectie = {
   aantal: string;
 };
 
-function leverbareLijnen(lijnen: BonLijnItem[]): BonLijnItem[] {
+export function leverbareLijnen(lijnen: BonLijnItem[]): BonLijnItem[] {
   return lijnen.filter(
     (lijn) =>
       !isTitleLine(lijn.artnr) &&
@@ -51,25 +57,39 @@ function leverbareLijnen(lijnen: BonLijnItem[]): BonLijnItem[] {
 function initialSelectie(lijnen: BonLijnItem[]): LijnSelectie[] {
   return leverbareLijnen(lijnen).map((lijn) => ({
     lijn,
-    geselecteerd: true,
+    geselecteerd: !lijn.hold,
     aantal: String(lijn.teLeveren),
   }));
 }
 
-export function buildPakbonPayload(bon: BonItem, paknr: number): CreatePakbonPayload {
+function parseAantal(value: string): number {
+  const normalized = value.trim().replace(",", ".");
+  if (!/^(?:\d+(?:\.\d{1,3})?|\.\d{1,3})$/.test(normalized)) return NaN;
+  return Number(normalized);
+}
+
+export function buildPakbonPayload(
+  bon: BonItem,
+  paknr?: number,
+  naam1 = ""
+): CreatePakbonPayload {
+  const leveradres = [bon.lnaam, bon.lnaam1, bon.ladres, bon.lpostnr, bon.lstad].some(
+    (value) => value.trim()
+  );
   return {
-    paknr,
+    ...(paknr === undefined ? {} : { paknr }),
     stempel: bon.stempel,
     datum: new Date().toISOString().slice(0, 10),
     klnr: bon.klnr,
     naam: bon.naam,
+    naam1,
     adres: bon.adres,
     postnr: bon.postnr,
     stad: bon.stad,
-    lnaam: bon.naam,
-    ladres: bon.adres,
-    lpostnr: bon.postnr,
-    lstad: bon.stad,
+    lnaam: leveradres ? bon.lnaam : bon.naam,
+    ladres: leveradres ? bon.ladres : bon.adres,
+    lpostnr: leveradres ? bon.lpostnr : bon.postnr,
+    lstad: leveradres ? bon.lstad : bon.stad,
     munt: bon.munt,
     uRef: bon.uRef,
     opm: bon.opm,
@@ -105,13 +125,21 @@ export function buildPaklijnPayload(lijn: BonLijnItem, aantal: number): CreatePa
   };
 }
 
+export function buildTitelPaklijnPayload(titelLijn: BonLijnItem): CreatePaklijnPayload {
+  return {
+    ...buildPaklijnPayload(titelLijn, 0),
+    vprijs: 0,
+    aprijs: 0,
+    korting: 0,
+    bedrag: 0,
+  };
+}
+
 /**
- * Maakt een pakbon aan vanuit een bon: de gebruiker kiest een paknr en
- * welke leverbare bonlijnen (met welk aantal) mee gaan. Het voorgestelde
- * aantal is `teLeveren`; meer dan dat wordt client-side geweigerd, de
- * server blijft de bron van waarheid. Kop en lijnen worden sequentieel
- * aangemaakt (POST /pakbon, dan POST /pakbon/{paknr}/lijn per lijn); een
- * fout bij een lijn stopt het proces en toont welke lijnen wél gelukt zijn.
+ * Laat leverbare bonlijnen en aantallen kiezen, met optionele nummering.
+ * Controleert de actuele te leveren aantallen voordat de kop wordt aangemaakt.
+ * Voegt sectietitels en lijnen sequentieel toe; na een fout kunnen ontbrekende
+ * lijnen op dezelfde pakbon opnieuw worden geprobeerd of kan de gebruiker sluiten.
  */
 export function PakbonAanmakenDialog({
   bon,
@@ -129,14 +157,92 @@ export function PakbonAanmakenDialog({
   const [selectie, setSelectie] = useState<LijnSelectie[]>(() => initialSelectie(lijnen));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lijnErrors, setLijnErrors] = useState<Record<number, string>>({});
+  const [createdPaknr, setCreatedPaknr] = useState<number | null>(null);
+  const [pending, setPending] = useState<CreatePaklijnPayload[]>([]);
+  const [succeeded, setSucceeded] = useState<number[]>([]);
+  const [failedLijnnr, setFailedLijnnr] = useState<number | null>(null);
+  const selectedLineCount = selectie.filter((s) => s.geselecteerd).length;
+  const addedLineCount = selectie.filter((s) => succeeded.includes(s.lijn.lijnnr)).length;
+
+  const visibleTitleNumbers = new Set<number>();
+  let sectionTitle: BonLijnItem | undefined;
+  for (const lijn of lijnen) {
+    if (lijn.subtotaal || lijn.kolomtitel || lijn.infolijn) continue;
+    if (isTitleLine(lijn.artnr)) {
+      sectionTitle = lijn;
+    } else if (sectionTitle && selectie.some((s) => s.lijn.lijnnr === lijn.lijnnr)) {
+      visibleTitleNumbers.add(sectionTitle.lijnnr);
+    }
+  }
+
+  function reset() {
+    setError(null);
+    setPaknr("");
+    setSelectie(initialSelectie(lijnen));
+    setLijnErrors({});
+    setCreatedPaknr(null);
+    setPending([]);
+    setSucceeded([]);
+    setFailedLijnnr(null);
+  }
+
+  function close() {
+    reset();
+    onOpenChange(false);
+  }
 
   function handleOpenChange(nextOpen: boolean) {
+    if (saving) return;
     if (!nextOpen) {
-      setError(null);
-      setPaknr("");
-      setSelectie(initialSelectie(lijnen));
+      close();
+      return;
     }
     onOpenChange(nextOpen);
+  }
+
+  function handleClose() {
+    handleOpenChange(false);
+  }
+
+  function handleOpenPakbon() {
+    router.push(`/pakbonnen/${createdPaknr}`);
+  }
+
+  async function handleRetry() {
+    if (createdPaknr === null) return;
+    setSaving(true);
+    setError(null);
+    setFailedLijnnr(null);
+    try {
+      const existing = await getPaklijnen(createdPaknr);
+      const confirmed = pending.filter((payload) =>
+        existing.some((lijn) => lijn.bonnr === payload.bonnr && lijn.blijnnr === payload.blijnnr)
+      );
+      const confirmedNumbers = new Set(confirmed.map((payload) => payload.blijnnr));
+      const remaining = pending.filter((payload) => !confirmedNumbers.has(payload.blijnnr));
+      const added = [...new Set([...succeeded, ...confirmedNumbers])];
+      setSucceeded(added);
+      setPending(remaining);
+      await postLijnen(createdPaknr, remaining, added);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Pakbonlijnen konden niet geladen worden.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteEmpty() {
+    if (createdPaknr === null) return;
+    setSaving(true);
+    try {
+      await deletePakbon(createdPaknr);
+      close();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Verwijderen mislukt.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function updateSelectie(lijnnr: number, patch: Partial<Omit<LijnSelectie, "lijn">>) {
@@ -145,9 +251,48 @@ export function PakbonAanmakenDialog({
     );
   }
 
+  async function postLijnen(nummer: number, todo: CreatePaklijnPayload[], done: number[]) {
+    const gelukt = [...done];
+    for (let index = 0; index < todo.length; index++) {
+      try {
+        await createPaklijn(nummer, todo[index]);
+        gelukt.push(todo[index].blijnnr);
+        setSucceeded([...gelukt]);
+        setPending(todo.slice(index + 1));
+      } catch (e) {
+        setPending(todo.slice(index));
+        setFailedLijnnr(todo[index].blijnnr);
+        setError(e instanceof Error ? e.message : "Lijn kon niet toegevoegd worden.");
+        return;
+      }
+    }
+    close();
+    router.push(`/pakbonnen/${nummer}`);
+  }
+
+  function renderStatus(lijnnr: number) {
+    if (createdPaknr === null) return null;
+    if (succeeded.includes(lijnnr)) {
+      return (
+        <Badge variant="secondary">Toegevoegd</Badge>
+      );
+    }
+    if (failedLijnnr === lijnnr) {
+      return (
+        <Badge variant="outline">Mislukt</Badge>
+      );
+    }
+    if (pending.some((lijn) => lijn.blijnnr === lijnnr)) {
+      return (
+        <Badge variant="outline">Nog toe te voegen</Badge>
+      );
+    }
+    return null;
+  }
+
   async function handleConfirm() {
-    const paknrValue = Number(paknr);
-    if (!paknr.trim() || !Number.isInteger(paknrValue) || paknrValue <= 0) {
+    const paknrValue = paknr.trim() ? Number(paknr) : undefined;
+    if (paknrValue !== undefined && (!Number.isInteger(paknrValue) || paknrValue <= 0)) {
       setError("Vul een geldig paknr in (positief geheel getal).");
       return;
     }
@@ -158,46 +303,72 @@ export function PakbonAanmakenDialog({
       return;
     }
 
+    const errors: Record<number, string> = {};
     for (const s of gekozen) {
-      const aantal = Number(s.aantal);
+      const aantal = parseAantal(s.aantal);
       if (!Number.isFinite(aantal) || aantal <= 0) {
-        setError(`Lijn ${s.lijn.lijnnr}: vul een aantal groter dan 0 in.`);
-        return;
-      }
-      if (aantal > s.lijn.teLeveren) {
-        setError(
-          `Lijn ${s.lijn.lijnnr}: aantal (${aantal}) mag niet groter zijn dan te leveren (${s.lijn.teLeveren}).`
-        );
-        return;
+        errors[s.lijn.lijnnr] = `Lijn ${s.lijn.lijnnr}: vul een positief aantal in (max. 3 decimalen).`;
+      } else if (aantal > s.lijn.teLeveren) {
+        errors[s.lijn.lijnnr] = `Lijn ${s.lijn.lijnnr}: aantal (${aantal}) mag niet groter zijn dan te leveren (${s.lijn.teLeveren}).`;
       }
     }
+    setLijnErrors(errors);
+    if (Object.keys(errors).length) return;
 
     setSaving(true);
     setError(null);
-    const gelukt: number[] = [];
-    let kopAangemaakt = false;
     try {
-      const created = await createPakbon(buildPakbonPayload(bon, paknrValue));
-      kopAangemaakt = true;
+      const klant = await getKlant(bon.klnr).catch(() => null);
+      const fresh = await getBonLijnen(bon.bonnr);
+      const stale: Record<number, string> = {};
       for (const s of gekozen) {
-        await createPaklijn(created.paknr, buildPaklijnPayload(s.lijn, Number(s.aantal)));
-        gelukt.push(s.lijn.lijnnr);
+        const current = fresh.find((lijn) => lijn.lijnnr === s.lijn.lijnnr);
+        if (!current || current.teLeveren < parseAantal(s.aantal)) {
+          stale[s.lijn.lijnnr] = `Lijn ${s.lijn.lijnnr}: nog te leveren is ${current?.teLeveren ?? 0}. Pas het aantal aan.`;
+        }
       }
-      handleOpenChange(false);
-      router.push(`/pakbonnen/${created.paknr}`);
+      setSelectie((prev) =>
+        prev.map((s) => ({
+          ...s,
+          lijn: {
+            ...s.lijn,
+            teLeveren: fresh.find((lijn) => lijn.lijnnr === s.lijn.lijnnr)?.teLeveren ?? 0,
+          },
+        }))
+      );
+      setLijnErrors(stale);
+      if (Object.keys(stale).length) return;
+      const todo: CreatePaklijnPayload[] = [];
+      let title: BonLijnItem | undefined;
+      for (const lijn of lijnen) {
+        if (lijn.subtotaal || lijn.kolomtitel || lijn.infolijn) continue;
+        if (isTitleLine(lijn.artnr)) {
+          title = lijn;
+          continue;
+        }
+        const selected = gekozen.find((s) => s.lijn.lijnnr === lijn.lijnnr);
+        if (!selected) continue;
+        if (title) {
+          todo.push(buildTitelPaklijnPayload(title));
+          title = undefined;
+        }
+        todo.push(buildPaklijnPayload(lijn, parseAantal(selected.aantal)));
+      }
+      const created = await createPakbon(buildPakbonPayload(bon, paknrValue, klant?.naam1 ?? ""));
+      setCreatedPaknr(created.paknr);
+      setPending(todo);
+      await postLijnen(created.paknr, todo, []);
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Er ging iets mis bij het aanmaken van de pakbon.";
-      if (!kopAangemaakt) {
-        setError(message);
-      } else if (gelukt.length > 0) {
+      if (e instanceof ApiError && e.status === 409) {
         setError(
-          `${message} Pakbon ${paknrValue} is aangemaakt met lijn(en) ${gelukt.join(", ")}; de overige lijnen zijn niet toegevoegd.`
+          paknrValue === undefined
+            ? "Automatische nummering is mislukt: het pakbonnummer bestaat al. Probeer opnieuw of kies zelf een ander nummer."
+            : `Pakbon ${paknrValue} bestaat al. Kies een ander nummer of laat het veld leeg.`
         );
       } else {
-        setError(
-          `${message} Pakbon ${paknrValue} is aangemaakt maar bevat nog geen lijnen.`
-        );
+        setError(message);
       }
     } finally {
       setSaving(false);
@@ -210,7 +381,7 @@ export function PakbonAanmakenDialog({
         <DialogHeader className="shrink-0">
           <DialogTitle>Pakbon aanmaken</DialogTitle>
           <DialogDescription>
-            Bon {bon.bonnr} - {bon.naam}. Kies een paknr en de lijnen die op deze pakbon komen.
+            Bon {bon.bonnr} - {bon.naam}. Kies de lijnen die op deze pakbon komen.
           </DialogDescription>
         </DialogHeader>
 
@@ -218,11 +389,17 @@ export function PakbonAanmakenDialog({
           Paknr
           <Input
             type="number"
+            placeholder="Automatisch"
+            step={1}
+            disabled={saving || createdPaknr !== null}
             value={paknr}
             onChange={(e) => setPaknr(e.target.value)}
             className="mt-1 max-w-48 font-normal normal-case"
           />
         </label>
+        <p className="text-sm text-muted-foreground">
+          Laat het paknr leeg voor automatische nummering.
+        </p>
 
         {selectie.length === 0 ? (
           <p className="text-sm text-muted-foreground shrink-0">
@@ -242,57 +419,116 @@ export function PakbonAanmakenDialog({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {selectie.map(({ lijn, geselecteerd, aantal }) => (
-                  <TableRow key={lijn.lijnnr}>
-                    <TableCell>
-                      <Checkbox
-                        checked={geselecteerd}
-                        onCheckedChange={(checked) =>
-                          updateSelectie(lijn.lijnnr, { geselecteerd: checked === true })
-                        }
-                        aria-label={`Lijn ${lijn.lijnnr} opnemen in pakbon`}
-                      />
-                    </TableCell>
-                    <TableCell className="font-semibold">{lijn.lijnnr}</TableCell>
-                    <TableCell>{lijn.artnr}</TableCell>
-                    <TableCell className="whitespace-normal">{lijn.omschrijving}</TableCell>
-                    <TableCell>{lijn.teLeveren}</TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={lijn.teLeveren}
-                        value={aantal}
-                        disabled={!geselecteerd}
-                        aria-label={`Aantal voor lijn ${lijn.lijnnr}`}
-                        onChange={(e) => updateSelectie(lijn.lijnnr, { aantal: e.target.value })}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {lijnen.map((row) => {
+                  if (row.subtotaal || row.kolomtitel || row.infolijn) return null;
+                  if (isTitleLine(row.artnr)) {
+                    if (!visibleTitleNumbers.has(row.lijnnr)) return null;
+                    return (
+                      <TableRow key={row.lijnnr}>
+                        <TableCell colSpan={6} className={TITLE_LINE_TEXT_CLASS}>
+                          {row.omschrijving} {renderStatus(row.lijnnr)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  const selected = selectie.find((s) => s.lijn.lijnnr === row.lijnnr);
+                  if (!selected) return null;
+                  const { lijn, geselecteerd, aantal } = selected;
+                  return (
+                    <TableRow key={lijn.lijnnr}>
+                      <TableCell>
+                        <Checkbox
+                          checked={geselecteerd}
+                          disabled={saving || createdPaknr !== null}
+                          onCheckedChange={(checked) =>
+                            updateSelectie(lijn.lijnnr, { geselecteerd: checked === true })
+                          }
+                          aria-label={`Lijn ${lijn.lijnnr} opnemen in pakbon`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-semibold">{lijn.lijnnr}</TableCell>
+                      <TableCell>{lijn.artnr}</TableCell>
+                      <TableCell className="whitespace-normal">
+                        {lijn.omschrijving}
+                        {lijn.hold && (
+                          <Badge variant="outline" title="Lijn staat op hold" aria-label="Lijn staat op hold">
+                            Hold
+                          </Badge>
+                        )}
+                        {renderStatus(lijn.lijnnr)}
+                      </TableCell>
+                      <TableCell>{lijn.teLeveren}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={aantal}
+                          disabled={!geselecteerd || saving || createdPaknr !== null}
+                          aria-invalid={!!lijnErrors[lijn.lijnnr]}
+                          aria-describedby={lijnErrors[lijn.lijnnr] ? `lijn-error-${lijn.lijnnr}` : undefined}
+                          aria-label={`Aantal voor lijn ${lijn.lijnnr}`}
+                          onChange={(e) => updateSelectie(lijn.lijnnr, { aantal: e.target.value })}
+                        />
+                        {lijnErrors[lijn.lijnnr] && (
+                          <p
+                            id={`lijn-error-${lijn.lijnnr}`}
+                            className="max-w-28 whitespace-normal break-words text-sm text-destructive"
+                          >
+                            {lijnErrors[lijn.lijnnr]}
+                          </p>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
         )}
 
-        {error && <p className="text-sm text-destructive shrink-0">{error}</p>}
+        {createdPaknr !== null && (
+          <p className="text-sm shrink-0">
+            Pakbon {createdPaknr} aangemaakt; {addedLineCount} van {selectedLineCount} lijnen toegevoegd.
+          </p>
+        )}
+        {error && (
+          <p className="text-sm text-destructive shrink-0">{error}</p>
+        )}
 
         <DialogFooter className="shrink-0">
+          {createdPaknr !== null && (
+            <>
+              <Button disabled={saving} onClick={handleRetry}>
+                Ontbrekende lijnen opnieuw proberen
+              </Button>
+              {succeeded.length === 0 ? (
+                <Button variant="outline" disabled={saving} onClick={handleDeleteEmpty}>
+                  Lege pakbon verwijderen
+                </Button>
+              ) : (
+                <Button disabled={saving} onClick={handleOpenPakbon}>
+                  Pakbon openen
+                </Button>
+              )}
+            </>
+          )}
           <Button
             type="button"
             variant="outline"
-            onClick={() => handleOpenChange(false)}
+            onClick={handleClose}
             disabled={saving}
           >
-            Annuleren
+            {createdPaknr !== null ? "Sluiten" : "Annuleren"}
           </Button>
-          <Button
-            type="button"
-            onClick={handleConfirm}
-            disabled={saving || selectie.length === 0}
-          >
-            {saving ? "Bezig..." : "Pakbon aanmaken"}
-          </Button>
+          {createdPaknr === null && (
+            <Button
+              type="button"
+              onClick={handleConfirm}
+              disabled={saving || selectie.length === 0}
+            >
+              {saving ? "Bezig..." : "Pakbon aanmaken"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
