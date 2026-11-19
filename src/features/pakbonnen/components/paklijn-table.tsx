@@ -14,28 +14,35 @@ import { Button } from "@/components/ui/button";
 import { formatBedrag } from "@/lib/format";
 import { deletePaklijn, type PaklijnItem } from "@/lib/api-client";
 import { PaklijnRowForm } from "./paklijn-row-form";
+import { isTitleLine, TITLE_LINE_TEXT_CLASS } from "@/lib/line-classification";
 
 /** Paklijn (packing slip lines) table for a pakbon, with CRUD actions. */
 export function PaklijnTable({
   paknr,
   items,
   onItemsChange,
+  locked = false,
+  onReload,
 }: {
   paknr: number;
   items: PaklijnItem[];
   onItemsChange: (items: PaklijnItem[]) => void;
+  locked?: boolean;
+  onReload?: () => Promise<void>;
 }) {
   const [formTarget, setFormTarget] = useState<PaklijnItem | "new" | null>(null);
   const [deletingLijnnr, setDeletingLijnnr] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function handleDelete(item: PaklijnItem) {
+    if (locked) return;
     if (!window.confirm(`Paklijn ${item.lijnnr} verwijderen?`)) return;
     setDeletingLijnnr(item.lijnnr);
     setDeleteError(null);
     try {
       await deletePaklijn(paknr, item.lijnnr);
       onItemsChange(items.filter((row) => row.lijnnr !== item.lijnnr));
+      await onReload?.();
     } catch (e) {
       setDeleteError(
         e instanceof Error ? e.message : "Er ging iets mis bij het verwijderen van de paklijn."
@@ -49,10 +56,10 @@ export function PaklijnTable({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[16px] font-semibold text-foreground">Paklijnen</h2>
-        <Button type="button" size="sm" onClick={() => setFormTarget("new")}>
+        {!locked && <Button type="button" size="sm" onClick={() => setFormTarget("new")}>
           <Plus />
           Paklijn toevoegen
-        </Button>
+        </Button>}
       </div>
 
       {deleteError && <p className="mb-2 text-sm text-destructive">{deleteError}</p>}
@@ -75,7 +82,14 @@ export function PaklijnTable({
           </TableHeader>
           <TableBody>
             {items.map((row) => (
-              <TableRow key={row.lijnnr} className="cursor-pointer" onClick={() => setFormTarget(row)}>
+              <TableRow key={row.lijnnr} className={locked ? undefined : "cursor-pointer"} onClick={() => { if (!locked) setFormTarget(row); }}>
+                {isTitleLine(row.artnr) ? <TableCell colSpan={8} className={TITLE_LINE_TEXT_CLASS}>
+                  <div className="flex items-center justify-between font-semibold">
+                    {row.omschr}
+                    {!locked && <Button type="button" variant="ghost" size="icon-sm" aria-label={`Verwijder paklijn ${row.lijnnr}`}
+                      disabled={deletingLijnnr === row.lijnnr} onClick={(event) => { event.stopPropagation(); handleDelete(row); }}><Trash2 /></Button>}
+                  </div>
+                </TableCell> : <>
                 <TableCell className="font-semibold">{row.lijnnr}</TableCell>
                 <TableCell>{row.artnr}</TableCell>
                 <TableCell className="whitespace-normal">{row.omschr}</TableCell>
@@ -84,7 +98,7 @@ export function PaklijnTable({
                 <TableCell>{row.afgehaald}</TableCell>
                 <TableCell>{formatBedrag(row.bedrag)}</TableCell>
                 <TableCell>
-                  <Button
+                  {!locked && <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
@@ -96,15 +110,16 @@ export function PaklijnTable({
                     }}
                   >
                     <Trash2 />
-                  </Button>
+                  </Button>}
                 </TableCell>
+                </>}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
 
-      {formTarget && (
+      {!locked && formTarget && (
         <PaklijnRowForm
           paknr={paknr}
           item={formTarget === "new" ? undefined : formTarget}
@@ -120,6 +135,7 @@ export function PaklijnTable({
                 : [...items, saved]
             );
             setFormTarget(null);
+            void onReload?.();
           }}
         />
       )}
