@@ -4,13 +4,25 @@ import type { PakbonItem, PaklijnItem } from "@/lib/api-client";
 import { drawNomaledHeader, NOMA_GREEN } from "@/lib/export/pdf-header";
 import { buildPakbonRows, buildPakbonSections } from "./pakbon-export";
 
+function tableEnd(doc: jsPDF): number {
+  return (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+}
+
 export function downloadPakbonPdf(pakbon: PakbonItem, lines: PaklijnItem[]) {
   const doc = new jsPDF();
   const { header, sections } = buildPakbonSections(pakbon, lines);
-  const body: RowInput[] = buildPakbonRows(lines).map((row) => row.kind === "article" ? row.cells : [{
-    content: row.cells[0], colSpan: 4,
-    styles: row.kind === "title" ? { fontStyle: "bold", textColor: NOMA_GREEN } : {},
-  }]);
+  const body: RowInput[] = buildPakbonRows(lines).map((row) => {
+    if (row.kind === "article") return row.cells;
+    return [
+      {
+        content: row.cells[0],
+        colSpan: 4,
+        styles: row.kind === "title"
+          ? { fontStyle: "bold", textColor: NOMA_GREEN }
+          : { fontStyle: "italic" },
+      },
+    ];
+  });
   const generated = `Gegenereerd op ${new Date().toLocaleDateString("nl-BE")}`;
   doc.setFontSize(10);
   const headerLines = header.flatMap((line) => doc.splitTextToSize(line, 180) as string[]);
@@ -23,7 +35,7 @@ export function downloadPakbonPdf(pakbon: PakbonItem, lines: PaklijnItem[]) {
     body: sections.map(([label, ...text]) => [label, text.join("\n")]),
     columnStyles: { 0: { fontStyle: "bold", cellWidth: 45 } },
   });
-  const sectionEnd = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+  const sectionEnd = tableEnd(doc);
   autoTable(doc, {
     startY: sectionEnd + 6,
     margin: { top: headerBottom, bottom: 18 },
@@ -33,8 +45,11 @@ export function downloadPakbonPdf(pakbon: PakbonItem, lines: PaklijnItem[]) {
     headStyles: { fillColor: NOMA_GREEN },
     columnStyles: { 3: { halign: "right" } },
   });
-  let end = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
-  if (end > 260) { doc.addPage(); end = headerBottom + 14; }
+  let end = tableEnd(doc) + 14;
+  if (end > 260) {
+    doc.addPage();
+    end = headerBottom + 14;
+  }
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(37, 45, 47);
@@ -43,7 +58,9 @@ export function downloadPakbonPdf(pakbon: PakbonItem, lines: PaklijnItem[]) {
   const total = doc.getNumberOfPages();
   for (let page = 1; page <= total; page++) {
     doc.setPage(page);
-    drawNomaledHeader(doc, `Pakbon ${pakbon.paknr}`, headerLines, generated);
+    if (page > 1) {
+      drawNomaledHeader(doc, `Pakbon ${pakbon.paknr}`, headerLines, generated);
+    }
     doc.text(`pagina ${page}/${total}`, 195, 287, { align: "right" });
   }
   doc.save(`pakbon-${pakbon.paknr}.pdf`);

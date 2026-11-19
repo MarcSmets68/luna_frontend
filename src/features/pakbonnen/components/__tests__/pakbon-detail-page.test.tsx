@@ -4,13 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PakbonItem, PaklijnItem } from "@/lib/api-client";
 import { PakbonDetailPage } from "../pakbon-detail-page";
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), lines: vi.fn(), update: vi.fn(), remove: vi.fn(), save: vi.fn(), table: vi.fn(), collect: vi.fn(), deleteLine: vi.fn(), updateLine: vi.fn(), createLine: vi.fn() }));
+const mocks = vi.hoisted(() => ({ get: vi.fn(), lines: vi.fn(), update: vi.fn(), remove: vi.fn(), save: vi.fn(), table: vi.fn(), collect: vi.fn(), deleteLine: vi.fn(), updateLine: vi.fn(), createLine: vi.fn(), text: vi.fn(), pages: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/api-client", async (original) => ({ ...await original<object>(), getPakbon: mocks.get, getPaklijnen: mocks.lines, updatePakbon: mocks.update, deletePakbon: mocks.remove, afhalenPakbon: mocks.collect, deletePaklijn: mocks.deleteLine, updatePaklijn: mocks.updateLine, createPaklijn: mocks.createLine }));
 vi.mock("jspdf", () => ({ jsPDF: class {
   lastAutoTable = { finalY: 90 };
-  setFont = vi.fn(); setFontSize = vi.fn(); setTextColor = vi.fn(); text = vi.fn(); line = vi.fn();
-  getTextWidth = () => 10; splitTextToSize = (text: string) => [text]; getNumberOfPages = () => 1; setPage = vi.fn(); addPage = vi.fn(); save = mocks.save;
+  setFont = vi.fn(); setFontSize = vi.fn(); setTextColor = vi.fn(); text = mocks.text; line = vi.fn();
+  getTextWidth = () => 10; splitTextToSize = (text: string) => [text]; getNumberOfPages = mocks.pages; setPage = vi.fn(); addPage = vi.fn(); save = mocks.save;
 } }));
 vi.mock("jspdf-autotable", () => ({ default: mocks.table }));
 
@@ -20,6 +20,7 @@ function show(values: Partial<PakbonItem> = {}) { render(<PakbonDetailPage pakbo
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.pages.mockReturnValue(1);
   mocks.get.mockResolvedValue(kop); mocks.lines.mockResolvedValue([line]); mocks.update.mockResolvedValue(kop);
   vi.spyOn(window, "confirm").mockReturnValue(true);
 });
@@ -82,6 +83,26 @@ describe("PakbonDetailPage", () => {
     expect(mocks.update).toHaveBeenCalledWith(500, { afgedrukt: true });
     expect(mocks.table.mock.calls[1][1].head).toEqual([["Bonnr", "Artnr", "Omschrijving", "Aantal"]]);
     expect(screen.getByText("Afgedrukt").parentElement).toHaveTextContent("Ja");
+    expect(mocks.text.mock.calls.filter(([text]) => text === "Pakbon 500")).toHaveLength(1);
+  });
+  it("draws one header per page and explicitly styles text rows", async () => {
+    show();
+    mocks.pages.mockReturnValue(2);
+    mocks.lines.mockResolvedValue([
+      line,
+      { ...line, lijnnr: 2, artnr: "", infolijn: true },
+      { ...line, lijnnr: 3, artnr: "", kolomtitel: true },
+    ]);
+    await userEvent.click(screen.getByRole("button", { name: "Vernieuwen" }));
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(4));
+    await userEvent.click(screen.getByRole("button", { name: "Afdrukken" }));
+    expect(mocks.text.mock.calls.filter(([text]) => text === "Pakbon 500")).toHaveLength(2);
+    expect(mocks.text).toHaveBeenCalledWith("pagina 1/2", 195, 287, { align: "right" });
+    expect(mocks.text).toHaveBeenCalledWith("pagina 2/2", 195, 287, { align: "right" });
+    const body = mocks.table.mock.calls[1][1].body;
+    expect(body[0][0].styles).toEqual({ fontStyle: "bold", textColor: [96, 161, 114] });
+    expect(body[1][0].styles).toEqual({ fontStyle: "italic" });
+    expect(body[2][0].styles).toEqual({ fontStyle: "italic" });
   });
   it("keeps the download on print-status failure and does not remark printed documents", async () => {
     show(); mocks.update.mockRejectedValue(new Error("Status geweigerd"));

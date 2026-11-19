@@ -56,10 +56,12 @@ export function PaklijnTable({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[16px] font-semibold text-foreground">Paklijnen</h2>
-        {!locked && <Button type="button" size="sm" onClick={() => setFormTarget("new")}>
-          <Plus />
-          Paklijn toevoegen
-        </Button>}
+        {!locked && (
+          <Button type="button" size="sm" onClick={() => setFormTarget("new")}>
+            <Plus />
+            Paklijn toevoegen
+          </Button>
+        )}
       </div>
 
       {deleteError && <p className="mb-2 text-sm text-destructive">{deleteError}</p>}
@@ -82,37 +84,62 @@ export function PaklijnTable({
           </TableHeader>
           <TableBody>
             {items.map((row) => (
-              <TableRow key={row.lijnnr} className={locked ? undefined : "cursor-pointer"} onClick={() => { if (!locked) setFormTarget(row); }}>
-                {isTitleLine(row.artnr) ? <TableCell colSpan={8} className={TITLE_LINE_TEXT_CLASS}>
-                  <div className="flex items-center justify-between font-semibold">
-                    {row.omschr}
-                    {!locked && <Button type="button" variant="ghost" size="icon-sm" aria-label={`Verwijder paklijn ${row.lijnnr}`}
-                      disabled={deletingLijnnr === row.lijnnr} onClick={(event) => { event.stopPropagation(); handleDelete(row); }}><Trash2 /></Button>}
-                  </div>
-                </TableCell> : <>
-                <TableCell className="font-semibold">{row.lijnnr}</TableCell>
-                <TableCell>{row.artnr}</TableCell>
-                <TableCell className="whitespace-normal">{row.omschr}</TableCell>
-                <TableCell>{row.aantal}</TableCell>
-                <TableCell>{row.teLeveren}</TableCell>
-                <TableCell>{row.afgehaald}</TableCell>
-                <TableCell>{formatBedrag(row.bedrag)}</TableCell>
-                <TableCell>
-                  {!locked && <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Verwijder paklijn ${row.lijnnr}`}
-                    disabled={deletingLijnnr === row.lijnnr}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleDelete(row);
-                    }}
-                  >
-                    <Trash2 />
-                  </Button>}
-                </TableCell>
-                </>}
+              <TableRow
+                key={row.lijnnr}
+                className={locked ? undefined : "cursor-pointer"}
+                onClick={() => {
+                  if (!locked) setFormTarget(row);
+                }}
+              >
+                {isTitleLine(row.artnr) ? (
+                  <TableCell colSpan={8} className={TITLE_LINE_TEXT_CLASS}>
+                    <div className="flex items-center justify-between font-semibold">
+                      {row.omschr}
+                      {!locked && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Verwijder paklijn ${row.lijnnr}`}
+                          disabled={deletingLijnnr === row.lijnnr}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDelete(row);
+                          }}
+                        >
+                          <Trash2 />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                ) : (
+                  <>
+                    <TableCell className="font-semibold">{row.lijnnr}</TableCell>
+                    <TableCell>{row.artnr}</TableCell>
+                    <TableCell className="whitespace-normal">{row.omschr}</TableCell>
+                    <TableCell>{row.aantal}</TableCell>
+                    <TableCell>{row.teLeveren}</TableCell>
+                    <TableCell>{row.afgehaald}</TableCell>
+                    <TableCell>{formatBedrag(row.bedrag)}</TableCell>
+                    <TableCell>
+                      {!locked && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Verwijder paklijn ${row.lijnnr}`}
+                          disabled={deletingLijnnr === row.lijnnr}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDelete(row);
+                          }}
+                        >
+                          <Trash2 />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </>
+                )}
               </TableRow>
             ))}
           </TableBody>
