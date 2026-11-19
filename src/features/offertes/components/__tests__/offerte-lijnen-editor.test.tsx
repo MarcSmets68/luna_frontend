@@ -1,8 +1,10 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OfferteLijnenEditor, type LocalLijn } from "../offerte-lijnen-editor";
+import { ArtikelLookupDropdown } from "../artikel-lookup-dropdown";
 import type { OfflijnItem } from "@/lib/api-client";
 
 const createOfflijnMock = vi.fn();
@@ -94,6 +96,7 @@ describe("OfferteLijnenEditor - local mode", () => {
   it("pins move/delete actions and their header to the right for every line kind", () => {
     render(<LocalHarness initial={[makeLocalLijn(), makeLocalLijn({ clientId: "title", artnr: "K00" })]} />);
     expect(screen.getByRole("table").parentElement).toHaveClass("overflow-x-auto", "scroll-pr-48");
+    expect(screen.getByRole("textbox", { name: "Omschrijving lijn 10" })).toHaveClass("w-32", "sm:w-full");
     expect(screen.getByRole("columnheader", { name: "Acties" })).toHaveClass("sticky", "right-0", "bg-muted");
     const deletes = screen.getAllByRole("button", { name: /^Verwijder lijn/ });
     expect(deletes).toHaveLength(2);
@@ -677,6 +680,47 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
   }
   const newArtnr = () => screen.getByRole("combobox", { name: "Artnr nieuwe lijn" });
   const val = (name: string) => (screen.getByLabelText(name) as HTMLInputElement).value;
+
+  it("does not render a portal during server rendering", () => {
+    const html = renderToString(<ArtikelLookupDropdown input={<input />} term="LED" open onSelect={vi.fn()} onClose={vi.fn()} />);
+    expect(html).toContain('role="combobox"');
+    expect(html).not.toContain('role="listbox"');
+  });
+
+  it("portals suggestions outside the table and keeps mouse selection focused on the input", async () => {
+    zoekMock.mockResolvedValue({ items: [LED], truncated: false });
+    render(<LocalHarness />);
+    await user.type(newArtnr(), "LED");
+    await advance();
+    const listbox = screen.getByRole("listbox");
+    expect(listbox.parentElement).toBe(document.body);
+    expect(screen.getByRole("table").parentElement).not.toContainElement(listbox);
+    expect(listbox).toHaveClass("fixed", "z-30", "w-80", "max-h-60");
+    fireEvent.keyDown(document.body, { key: "ArrowDown" });
+    expect(newArtnr()).not.toHaveAttribute("aria-activedescendant");
+    await user.click(within(listbox).getByRole("option"));
+    expect(newArtnr()).toHaveFocus();
+    expect(newArtnr()).toHaveValue("LED100");
+    expect(newArtnr()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("positions against the input on open, ancestor scroll and resize, flipping above when needed", async () => {
+    zoekMock.mockResolvedValue({ items: [LED], truncated: false });
+    render(<LocalHarness />);
+    const rect = vi.spyOn(newArtnr(), "getBoundingClientRect").mockReturnValue(new DOMRect(40, 80, 112, 36));
+    await user.type(newArtnr(), "LED");
+    await advance();
+    const listbox = screen.getByRole("listbox");
+    expect(listbox).toHaveStyle({ left: "40px", top: "120px" });
+    rect.mockReturnValue(new DOMRect(20, 120, 112, 36));
+    fireEvent.scroll(screen.getByRole("table").parentElement!);
+    expect(listbox).toHaveStyle({ left: "20px", top: "160px" });
+    rect.mockReturnValue(new DOMRect(20, window.innerHeight - 60, 112, 36));
+    fireEvent.resize(window);
+    expect(listbox).toHaveStyle({ top: `${window.innerHeight - 64}px`, transform: "translateY(-100%)" });
+    rect.mockRestore();
+  });
 
   it("does not search below 2 chars and searches once after the debounce at 2+", async () => {
     render(<LocalHarness />);

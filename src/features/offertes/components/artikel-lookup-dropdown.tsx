@@ -4,11 +4,13 @@ import {
   cloneElement,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type InputHTMLAttributes,
   type ReactElement,
 } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { zoekArtikelenAction, type ArtikelLookupItem } from "../lib/actions";
 
@@ -48,6 +50,9 @@ export function ArtikelLookupDropdown({
   const [highlight, setHighlight] = useState(-1);
   const requestId = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [position, setPosition] = useState<{ left: number; top: number; above: boolean } | null>(null);
+  const hasPortal = position !== null;
   const listboxId = useId();
 
   useEffect(() => {
@@ -70,11 +75,30 @@ export function ArtikelLookupDropdown({
   const current = state && state.term === trimmed ? state : null;
   const items = current?.items;
 
+  useLayoutEffect(() => {
+    function updatePosition() {
+      const anchor = anchorRef.current?.querySelector("input");
+      if (!anchor) return;
+      const rect = anchor.getBoundingClientRect();
+      const height = rootRef.current?.getBoundingClientRect().height || 240;
+      const above = window.innerHeight - rect.bottom - 4 < height;
+      setPosition({ left: rect.left, top: above ? rect.top - 4 : rect.bottom + 4, above });
+    }
+    updatePosition();
+    if (!active) return;
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [active, current, hasPortal]);
+
   useEffect(() => {
     if (!active) return;
     function onKeyDown(e: KeyboardEvent) {
-      const container = rootRef.current?.parentElement;
-      if (!container || !(e.target instanceof Node) || !container.contains(e.target)) return;
+      const container = anchorRef.current?.parentElement;
+      if (!(e.target instanceof Node) || (!container?.contains(e.target) && !rootRef.current?.contains(e.target))) return;
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
@@ -96,7 +120,7 @@ export function ArtikelLookupDropdown({
   }, [active, items, highlight, onClose, onSelect]);
 
   return (
-    <>
+    <span ref={anchorRef} className="contents">
       {cloneElement(input, {
         role: "combobox",
         "aria-autocomplete": "list",
@@ -104,13 +128,14 @@ export function ArtikelLookupDropdown({
         "aria-controls": listboxId,
         "aria-activedescendant": active && items?.[highlight] ? `${listboxId}-${highlight}` : undefined,
       })}
-      <div
+      {position && createPortal(<div
         ref={rootRef}
         id={listboxId}
         hidden={!active}
         role="listbox"
         aria-label="Artikelen"
-        className="absolute z-20 mt-1 max-h-60 w-80 overflow-y-auto rounded-lg bg-popover text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10"
+        style={{ left: position.left, top: position.top, transform: position.above ? "translateY(-100%)" : undefined }}
+        className="fixed z-30 max-h-60 w-80 overflow-y-auto rounded-lg bg-popover text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10"
       >
         {!current && <div className="px-2.5 py-1.5 text-muted-foreground">Zoeken...</div>}
         {current?.failed && <div role="alert" className="px-2.5 py-1.5 text-destructive">Zoeken mislukt</div>}
@@ -143,7 +168,7 @@ export function ArtikelLookupDropdown({
             Meer resultaten — verfijn je zoekopdracht
           </div>
         )}
-      </div>
-    </>
+      </div>, document.body)}
+    </span>
   );
 }
