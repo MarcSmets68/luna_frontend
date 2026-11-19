@@ -9,14 +9,15 @@
 
 ### Rolverdeling Nomaled en Lichthuis
 
-- [FEIT] Volgens Marc vallen Nomaled en Lichthuis onder dezelfde firma. Nomaled maakt vooral verlichtingsarmaturen en verkoopt aan dealers (B2B). Lichthuis maakt lichtstudies en verkoopt aan klanten. Daarbij kan Lichthuis ook producten van Nomaled gebruiken. Bron: Marc, intakeantwoord op vraag 1.
+- [FEIT] Nomaled en Lichthuis zijn commerciële namen van dezelfde firma, Lichtarchitectuur Mol. Klanten van beide activiteiten staan in dezelfde databank en krijgen hun offertes en facturen via Lichtarchitectuur Mol. Bron: Marc, intakeantwoord op vraag 2.
+- [FEIT] Nomaled maakt vooral verlichtingsarmaturen en verkoopt aan dealers (B2B). Lichthuis maakt lichtstudies en verkoopt aan klanten. Daarbij kan Lichthuis ook producten van Nomaled gebruiken. Bron: Marc, intakeantwoord op vraag 1.
 - [AANNAME] De bedoelde dealerregio is de Benelux. Bron: voorlopige lezing van het intakeantwoord op vraag 1; de regio is nog te bevestigen.
 
 ## Beschikbare bronnen
 
 | Bron | Wat is vastgesteld? | Wat bewijst de bron niet? |
 | --- | --- | --- |
-| **B1 — Opdrachtbrief en intake** | [FEIT] De brief benoemt onder meer Sikta, NPP, de bestaande ABL-toepassing, monday.com en Google-diensten. Hij geeft de scope en randvoorwaarden. Het eerste intakeantwoord verduidelijkt de rolverdeling op hoofdlijnen. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoord op vraag 1. | [OPEN VRAAG] Welke teams, systemen en overdrachten horen vandaag bij elke activiteit? |
+| **B1 — Opdrachtbrief en intake** | [FEIT] De brief benoemt onder meer Sikta, NPP, de bestaande ABL-toepassing, monday.com en Google-diensten. Hij geeft de scope en randvoorwaarden. De intake verduidelijkt de rolverdeling, de firmanaam en de gedeelde klantendatabank. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1 en 2. | [OPEN VRAAG] Welke teams, systemen en overdrachten horen vandaag bij elke activiteit? |
 | **B2 — Luna-frontend** | [FEIT] De [schermcode](https://github.com/MarcSmets68/luna_frontend/tree/dbce3a2a8419cd507465d81ec4654518b39f533e/src/app) bevat onder meer offertes, orders, pakbonnen, voorraad, facturatie en NPP. De [API-client](https://github.com/MarcSmets68/luna_frontend/blob/dbce3a2a8419cd507465d81ec4654518b39f533e/src/lib/api-client.ts) is beschikbaar om later de koppelingen te volgen. | [OPEN VRAAG] Welke schermen worden door welke rollen gebruikt, en waar gebeurt het werk nog buiten Luna? |
 | **B3 — Luna-backend** | [FEIT] De aparte repo `luna_backend` bevat de [OpenEdge/PASOE-documentatie](https://github.com/MarcSmets68/luna_backend/blob/f7f3ae61832e5b893378e50a1e9bc89ddd305835/README.md), [ABL-webhandlers](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/Web), [bedrijfslogica](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/BusinessLogic) en [Bruno-voorbeelden van API-aanroepen](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/bruno). In de bekeken revisie zijn geen `.df`-bestanden aanwezig. | [OPEN VRAAG] Welke versie draait er, en waar staan het volledige legacy-schema en de oorspronkelijke procedures? |
 | **B4 — Afzonderlijke OpenEdge-code (privé)** | [FEIT] Een andere leesbare OpenEdge-repo bevat `.df`-bestanden voor zijn eigen klant- en orderschema. De bestanden zijn apart gehouden van de Luna-bronnen. Bron: de schemadefinities in die repo; private vindplaats niet gepubliceerd. | [OPEN VRAAG] Is er een bevestigde link met de huidige omgeving? De bestanden tellen niet als bewijs voor het gedeelde Luna-schema. |
@@ -41,7 +42,7 @@
 ### Nomaled en Lichthuis
 
 1. [FEIT] Vraag over eigen en gedeelde activiteiten beantwoord. Zie [Rolverdeling Nomaled en Lichthuis](#rolverdeling-nomaled-en-lichthuis).
-2. [OPEN VRAAG] Wanneer wordt een klant of project tussen Nomaled en Lichthuis doorverwezen, en onder welke naam gaan offertes en facturen buiten?
+2. [FEIT] De firma achter de offertes en facturen is bevestigd. Zie [Rolverdeling Nomaled en Lichthuis](#rolverdeling-nomaled-en-lichthuis). [OPEN VRAAG] Wanneer en hoe wordt een klant of project tussen Nomaled en Lichthuis doorverwezen?
 3. [OPEN VRAAG] Via welke kanalen komen aanvragen en bestellingen binnen bij Nomaled en bij Lichthuis, en welke rol spelen de toonzaal en webshop vandaag?
 
 ### Afdelingen en rollen
