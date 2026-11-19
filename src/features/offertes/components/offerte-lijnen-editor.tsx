@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useId, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -234,8 +234,8 @@ function PersistedFieldInput({
   if (!onPickArtikel) return input;
   return (
     <div className="relative">
-      {input}
       <ArtikelLookupDropdown
+        input={input}
         term={String(localValue)}
         open={lookupOpen}
         onSelect={(item) => void pickArtikel(item)}
@@ -262,19 +262,21 @@ function LocalArtnrLookupInput({
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <Input
-        type="text"
-        value={value}
-        disabled={disabled}
-        className={className}
-        aria-label={ariaLabel}
-        onBlur={() => setOpen(false)}
-        onChange={(e) => {
-          void onFieldChange({ artnr: e.target.value });
-          setOpen(true);
-        }}
-      />
       <ArtikelLookupDropdown
+        input={
+          <Input
+            type="text"
+            value={value}
+            disabled={disabled}
+            className={className}
+            aria-label={ariaLabel}
+            onBlur={() => setOpen(false)}
+            onChange={(e) => {
+              void onFieldChange({ artnr: e.target.value });
+              setOpen(true);
+            }}
+          />
+        }
         term={value}
         open={open}
         onSelect={(item) => {
@@ -376,6 +378,7 @@ function SavedLineStatus() {
 }
 
 export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
+  const detailsId = useId();
   const { mode } = props;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -582,13 +585,46 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
         }));
 
   const isSpecialKind = (kind: LineKind) => kind !== "artikel";
+  const actions = (row: Row) => (
+    <div className="flex items-center gap-1">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Omhoog"
+        disabled={row.isFirst || row.busy || reordering}
+        onClick={row.onMoveUp}
+      >
+        <ArrowUp />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Omlaag"
+        disabled={row.isLast || row.busy || reordering}
+        onClick={row.onMoveDown}
+      >
+        <ArrowDown />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label={`Verwijder lijn ${row.displayLijnnr}`}
+        disabled={row.busy}
+        onClick={row.onDelete}
+      >
+        <Trash2 />
+      </Button>
+    </div>
+  );
 
   return (
     <div>
-      <Table>
+      <Table containerClassName="scroll-pr-48">
         <TableHeader>
           <TableRow>
-            <TableHead />
             <TableHead>Lijnnr</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Artnr</TableHead>
@@ -600,13 +636,13 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
             <TableHead>Bedrag</TableHead>
             <TableHead>Aankoopprijs</TableHead>
             <TableHead />
-            <TableHead />
+            <TableHead className="sticky right-0 z-20 bg-muted">Acties</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={13} className="text-sm text-muted-foreground">
+              <TableCell colSpan={12} className="text-sm text-muted-foreground">
                 Geen lijnen.
               </TableCell>
             </TableRow>
@@ -616,30 +652,6 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
             if (isSpecialKind(row.kind)) {
               return (
                 <TableRow key={row.key} onChangeCapture={() => clearLineSaved(row.key)}>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Omhoog"
-                        disabled={row.isFirst || row.busy || reordering}
-                        onClick={row.onMoveUp}
-                      >
-                        <ArrowUp />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Omlaag"
-                        disabled={row.isLast || row.busy || reordering}
-                        onClick={row.onMoveDown}
-                      >
-                        <ArrowDown />
-                      </Button>
-                    </div>
-                  </TableCell>
                   <TableCell className="font-semibold">
                     {row.displayLijnnr}
                     {savedLines[row.key] && <SavedLineStatus key={savedLines[row.key]} />}
@@ -648,7 +660,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                     <KindBadge kind={row.kind} />
                   </TableCell>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className={cn("whitespace-normal", row.kind === "titel" && TITLE_LINE_TEXT_CLASS)}
                   >
                     <LineField
@@ -660,17 +672,8 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                       disabled={row.busy}
                     />
                   </TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={`Verwijder lijn ${row.displayLijnnr}`}
-                      disabled={row.busy}
-                      onClick={row.onDelete}
-                    >
-                      <Trash2 />
-                    </Button>
+                  <TableCell className="sticky right-0 z-10 bg-card">
+                    {actions(row)}
                   </TableCell>
                 </TableRow>
               );
@@ -679,30 +682,6 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
             return (
               <Fragment key={row.key}>
                 <TableRow onChangeCapture={() => clearLineSaved(row.key)}>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Omhoog"
-                        disabled={row.isFirst || row.busy || reordering}
-                        onClick={row.onMoveUp}
-                      >
-                        <ArrowUp />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Omlaag"
-                        disabled={row.isLast || row.busy || reordering}
-                        onClick={row.onMoveDown}
-                      >
-                        <ArrowDown />
-                      </Button>
-                    </div>
-                  </TableCell>
                   <TableCell className="font-semibold">
                     {row.displayLijnnr}
                     {savedLines[row.key] && <SavedLineStatus key={savedLines[row.key]} />}
@@ -810,27 +789,20 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleExpanded(row.key)}
+                      aria-expanded={isExpanded}
+                      aria-controls={`${detailsId}-${row.key}`}
                     >
                       {isExpanded ? "Minder velden" : "Meer velden"}
                     </Button>
                   </TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={`Verwijder lijn ${row.displayLijnnr}`}
-                      disabled={row.busy}
-                      onClick={row.onDelete}
-                    >
-                      <Trash2 />
-                    </Button>
+                  <TableCell className="sticky right-0 z-10 bg-card">
+                    {actions(row)}
                   </TableCell>
                 </TableRow>
-                {isExpanded ? (
-                  <TableRow key={`${row.key}-extra`} onChangeCapture={() => clearLineSaved(row.key)}>
-                    <TableCell colSpan={13} className="whitespace-normal bg-muted/30">
-                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <TableRow hidden={!isExpanded} key={`${row.key}-extra`} onChangeCapture={() => clearLineSaved(row.key)}>
+                  <TableCell colSpan={12} className="whitespace-normal bg-muted/30">
+                    <div id={`${detailsId}-${row.key}`} role="region" aria-label={`Details lijn ${row.displayLijnnr}`} className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      {isExpanded && <>
                         <label className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
                           BTW-kode
                           <LineField
@@ -899,17 +871,16 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                           />
                           <span className="text-sm text-foreground">Blokkeren</span>
                         </label>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : null}
+                      </>}
+                    </div>
+                  </TableCell>
+                </TableRow>
               </Fragment>
             );
           })}
 
           {/* Nieuwe lijn toevoegen */}
           <TableRow>
-            <TableCell />
             <TableCell />
             <TableCell>
               <select
@@ -929,17 +900,19 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
               <>
                 <TableCell>
                   <div className="relative">
-                    <Input
-                      value={newLineFields.artnr}
-                      onChange={(e) => {
-                        setNewLineFields((prev) => ({ ...prev, artnr: e.target.value }));
-                        setNewLineLookupOpen(true);
-                      }}
-                      onBlur={() => setNewLineLookupOpen(false)}
-                      aria-label="Artnr nieuwe lijn"
-                      className="w-28"
-                    />
                     <ArtikelLookupDropdown
+                      input={
+                        <Input
+                          value={newLineFields.artnr}
+                          onChange={(e) => {
+                            setNewLineFields((prev) => ({ ...prev, artnr: e.target.value }));
+                            setNewLineLookupOpen(true);
+                          }}
+                          onBlur={() => setNewLineLookupOpen(false)}
+                          aria-label="Artnr nieuwe lijn"
+                          className="w-28"
+                        />
+                      }
                       term={newLineFields.artnr}
                       open={newLineLookupOpen}
                       onSelect={(item) => {
@@ -1034,7 +1007,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                 <TableCell />
               </>
             ) : (
-              <TableCell colSpan={8} className="whitespace-normal">
+              <TableCell colSpan={9} className="whitespace-normal">
                 <Input
                   value={newLineFields.omschrijvingOfferte}
                   onChange={(e) =>
@@ -1044,7 +1017,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                 />
               </TableCell>
             )}
-            <TableCell>
+            <TableCell className="sticky right-0 z-10 bg-card">
               <Button
                 type="button"
                 size="sm"
@@ -1059,7 +1032,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
         </TableBody>
       </Table>
 
-      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+      {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
     </div>
   );
 }

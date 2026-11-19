@@ -111,6 +111,13 @@ const mockTitleLijn: OfflijnItem = {
 };
 
 describe("OfferteDetailPage", () => {
+  it("stacks labels on mobile while retaining the fixed label column from sm", async () => {
+    render(<OfferteDetailPage offerte={mockOfferte} lijnen={[]} />);
+    expect(screen.getByText("Offnr").parentElement).toHaveClass("grid-cols-1", "sm:grid-cols-[140px_1fr]");
+    await userEvent.click(screen.getByRole("button", { name: "Verbeteren" }));
+    expect(screen.getByLabelText("Naam").closest("label")).toHaveClass("grid-cols-1", "sm:grid-cols-[140px_1fr]");
+  });
+
   it("renders the offerte heading and klant link", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
     expect(screen.getByRole("heading", { name: "Offerte 2167769/1" })).toBeInTheDocument();
@@ -152,7 +159,7 @@ describe("OfferteDetailPage", () => {
   it("renders a K00 title line with the fallback description in the primary-600 color", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={[mockTitleLijn]} />);
     const input = screen.getByDisplayValue("SECTIE TITEL");
-    expect(input.closest("td")).toHaveAttribute("colspan", "8");
+    expect(input.closest("td")).toHaveAttribute("colspan", "9");
     expect(input.closest("td")?.className).toContain("text-primary-600");
   });
 
@@ -215,7 +222,7 @@ describe("OfferteDetailPage", () => {
     await user.click(screen.getByRole("button", { name: "Verbeteren" }));
     await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
-    expect(await screen.findByText("Offerte 2167769/1 not found")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Offerte 2167769/1 not found");
     expect(screen.getByRole("button", { name: "Opslaan" })).toBeInTheDocument();
   });
 
@@ -232,7 +239,7 @@ describe("OfferteDetailPage", () => {
     expect(
       screen.getByText(/Niet alle lijnen zijn opgeslagen/)
     ).toBeInTheDocument();
-    expect(screen.getByText(/Ontbrekende lijn: 400 Bad Request/)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Ontbrekende lijn: 400 Bad Request");
     expect(sessionStorage.getItem(key)).toBeNull();
   });
 
@@ -409,9 +416,9 @@ describe("OfferteDetailPage", () => {
       }
       expect(screen.getByRole("spinbutton", { name: "Bedrag lijn 1" })).toHaveValue(888);
       if (mutation === "update") expect(screen.getByRole("spinbutton", { name: "Bedrag lijn 2" })).toHaveValue(777);
-      if (mutation === "add") expect(screen.getByRole("textbox", { name: "Artnr lijn 3" })).toHaveValue("ART-003");
-      if (mutation === "delete") expect(screen.queryByRole("textbox", { name: "Artnr lijn 2" })).not.toBeInTheDocument();
-      if (mutation === "reorder") expect(screen.getAllByRole("textbox", { name: /^Artnr lijn/ }).map((input) => (input as HTMLInputElement).value)).toEqual(["ART-002", "ART-001"]);
+      if (mutation === "add") expect(screen.getByRole("combobox", { name: "Artnr lijn 3" })).toHaveValue("ART-003");
+      if (mutation === "delete") expect(screen.queryByRole("combobox", { name: "Artnr lijn 2" })).not.toBeInTheDocument();
+      if (mutation === "reorder") expect(screen.getAllByRole("combobox", { name: /^Artnr lijn/ }).map((input) => (input as HTMLInputElement).value)).toEqual(["ART-002", "ART-001"]);
       expect(refreshMock).toHaveBeenCalledTimes(2);
       expect(screen.getAllByRole("status").some((status) => status.textContent === "Opgeslagen")).toBe(true);
     });
@@ -436,9 +443,9 @@ describe("OfferteDetailPage", () => {
     render(<OfferteDetailPage offerte={mockOfferte} lijnen={mockLijnen} />);
     await user.click(screen.getByRole("button", { name: "Omzetten naar Order" }));
 
-    expect(
-      await screen.findByText("Offerte 2167769/1 has stempel 'D' and cannot be converted")
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Offerte 2167769/1 has stempel 'D' and cannot be converted"
+    );
     expect(pushMock).not.toHaveBeenCalled();
     expect(
       screen.getByRole("heading", { name: "Offerte 2167769/1" })

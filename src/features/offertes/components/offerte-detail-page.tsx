@@ -24,7 +24,7 @@ import {
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+    <div className="grid grid-cols-1 gap-1 sm:grid-cols-[140px_1fr] sm:items-center sm:gap-3">
       <div className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
         {label}
       </div>
@@ -45,7 +45,7 @@ function EditField({
   type?: string;
 }) {
   return (
-    <label className="grid grid-cols-[140px_1fr] items-center gap-3">
+    <label className="grid grid-cols-1 gap-1 sm:grid-cols-[140px_1fr] sm:items-center sm:gap-3">
       <span className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
         {label}
       </span>
@@ -288,7 +288,7 @@ export function OfferteDetailPage({
       )}
 
       {convertError && (
-        <p className="mb-4 text-sm text-destructive">{convertError}</p>
+        <p role="alert" className="mb-4 text-sm text-destructive">{convertError}</p>
       )}
 
       <Card className="mb-6">
@@ -368,7 +368,7 @@ export function OfferteDetailPage({
                 </p>
               </div>
 
-              {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+              {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
             </>
           ) : (
             <>
@@ -437,7 +437,7 @@ export function OfferteDetailPage({
       </p>
 
       {lijnFouten.length > 0 && (
-        <Card className="mb-4 border-destructive">
+        <Card role="alert" className="mb-4 border-destructive">
           <CardContent>
             <p className="text-sm font-semibold text-destructive">
               Niet alle lijnen zijn opgeslagen. De volgende lijn(en) ontbreken - voeg ze hieronder

@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  cloneElement,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type InputHTMLAttributes,
+  type ReactElement,
+} from "react";
 import { cn } from "@/lib/utils";
 import { zoekArtikelenAction, type ArtikelLookupItem } from "../lib/actions";
 
@@ -22,11 +30,13 @@ type SearchState = {
  * suggestion is highlighted.
  */
 export function ArtikelLookupDropdown({
+  input,
   term,
   open,
   onSelect,
   onClose,
 }: {
+  input: ReactElement<InputHTMLAttributes<HTMLInputElement>>;
   term: string;
   open: boolean;
   onSelect: (item: ArtikelLookupItem) => void;
@@ -38,6 +48,7 @@ export function ArtikelLookupDropdown({
   const [highlight, setHighlight] = useState(-1);
   const requestId = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
 
   useEffect(() => {
     if (!active) return;
@@ -84,45 +95,55 @@ export function ArtikelLookupDropdown({
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [active, items, highlight, onClose, onSelect]);
 
-  if (!active) return <div ref={rootRef} hidden />;
-
   return (
-    <div
-      ref={rootRef}
-      role="listbox"
-      aria-label="Artikelen"
-      className="absolute z-20 mt-1 max-h-60 w-80 overflow-y-auto rounded-lg bg-popover text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10"
-    >
-      {!current && <div className="px-2.5 py-1.5 text-muted-foreground">Zoeken...</div>}
-      {current?.failed && <div className="px-2.5 py-1.5 text-destructive">Zoeken mislukt</div>}
-      {current && !current.failed && current.items.length === 0 && (
-        <div className="px-2.5 py-1.5 text-muted-foreground">Geen artikelen gevonden</div>
-      )}
-      {current?.items.map((item, index) => (
-        <button
-          key={item.artnr}
-          type="button"
-          role="option"
-          aria-selected={index === highlight}
-          className={cn(
-            "flex w-full items-baseline gap-2 px-2.5 py-1.5 text-left hover:bg-accent hover:text-accent-foreground",
-            index === highlight && "bg-accent text-accent-foreground"
-          )}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => onSelect(item)}
-        >
-          <span className="font-medium">{item.artnr}</span>
-          <span className="min-w-0 flex-1 truncate">
-            {item.omschrijvingNl || item.omschrijvingFr}
-          </span>
-          <span className="shrink-0 text-muted-foreground">{item.verkoopprijs}</span>
-        </button>
-      ))}
-      {current && !current.failed && current.truncated && (
-        <div className="px-2.5 py-1 text-xs text-muted-foreground">
-          Meer resultaten — verfijn je zoekopdracht
-        </div>
-      )}
-    </div>
+    <>
+      {cloneElement(input, {
+        role: "combobox",
+        "aria-autocomplete": "list",
+        "aria-expanded": active,
+        "aria-controls": listboxId,
+        "aria-activedescendant": active && items?.[highlight] ? `${listboxId}-${highlight}` : undefined,
+      })}
+      <div
+        ref={rootRef}
+        id={listboxId}
+        hidden={!active}
+        role="listbox"
+        aria-label="Artikelen"
+        className="absolute z-20 mt-1 max-h-60 w-80 overflow-y-auto rounded-lg bg-popover text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10"
+      >
+        {!current && <div className="px-2.5 py-1.5 text-muted-foreground">Zoeken...</div>}
+        {current?.failed && <div role="alert" className="px-2.5 py-1.5 text-destructive">Zoeken mislukt</div>}
+        {current && !current.failed && current.items.length === 0 && (
+          <div className="px-2.5 py-1.5 text-muted-foreground">Geen artikelen gevonden</div>
+        )}
+        {current?.items.map((item, index) => (
+          <button
+            key={item.artnr}
+            id={`${listboxId}-${index}`}
+            type="button"
+            role="option"
+            aria-selected={index === highlight}
+            className={cn(
+              "flex w-full items-baseline gap-2 px-2.5 py-1.5 text-left hover:bg-accent hover:text-accent-foreground",
+              index === highlight && "bg-accent text-accent-foreground"
+            )}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onSelect(item)}
+          >
+            <span className="font-medium">{item.artnr}</span>
+            <span className="min-w-0 flex-1 truncate">
+              {item.omschrijvingNl || item.omschrijvingFr}
+            </span>
+            <span className="shrink-0 text-muted-foreground">{item.verkoopprijs}</span>
+          </button>
+        ))}
+        {current && !current.failed && current.truncated && (
+          <div className="px-2.5 py-1 text-xs text-muted-foreground">
+            Meer resultaten — verfijn je zoekopdracht
+          </div>
+        )}
+      </div>
+    </>
   );
 }
