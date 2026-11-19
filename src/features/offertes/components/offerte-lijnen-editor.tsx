@@ -709,6 +709,7 @@ export function OfferteLijnenEditor(props: OfferteLijnenEditorProps) {
                       onFieldChange={row.onFieldChange}
                       ariaLabel={`Omschrijving lijn ${row.displayLijnnr}`}
                       disabled={row.busy}
+                      className="w-32 sm:w-full"
                     />
                   </TableCell>
                   <TableCell>

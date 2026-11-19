@@ -96,6 +96,7 @@ describe("OfferteLijnenEditor - local mode", () => {
   it("pins move/delete actions and their header to the right for every line kind", () => {
     render(<LocalHarness initial={[makeLocalLijn(), makeLocalLijn({ clientId: "title", artnr: "K00" })]} />);
     expect(screen.getByRole("table").parentElement).toHaveClass("overflow-x-auto", "scroll-pr-48");
+    expect(screen.getByRole("textbox", { name: "Omschrijving lijn 10" })).toHaveClass("w-32", "sm:w-full");
     expect(screen.getByRole("columnheader", { name: "Acties" })).toHaveClass("sticky", "right-0", "bg-muted");
     const deletes = screen.getAllByRole("button", { name: /^Verwijder lijn/ });
     expect(deletes).toHaveLength(2);
