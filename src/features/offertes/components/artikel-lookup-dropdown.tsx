@@ -51,7 +51,7 @@ export function ArtikelLookupDropdown({
   const requestId = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLSpanElement>(null);
-  const [position, setPosition] = useState<{ left: number; top: number; above: boolean } | null>(null);
+  const [position, setPosition] = useState<{ left: number; top: number; width: number; above: boolean } | null>(null);
   const hasPortal = position !== null;
   const listboxId = useId();
 
@@ -80,9 +80,11 @@ export function ArtikelLookupDropdown({
       const anchor = anchorRef.current?.querySelector("input");
       if (!anchor) return;
       const rect = anchor.getBoundingClientRect();
+      const width = Math.min(320, window.innerWidth - 16);
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
       const height = rootRef.current?.getBoundingClientRect().height || 240;
       const above = window.innerHeight - rect.bottom - 4 < height;
-      setPosition({ left: rect.left, top: above ? rect.top - 4 : rect.bottom + 4, above });
+      setPosition({ left, top: above ? rect.top - 4 : rect.bottom + 4, width, above });
     }
     updatePosition();
     if (!active) return;
@@ -134,7 +136,7 @@ export function ArtikelLookupDropdown({
         hidden={!active}
         role="listbox"
         aria-label="Artikelen"
-        style={{ left: position.left, top: position.top, transform: position.above ? "translateY(-100%)" : undefined }}
+        style={{ left: position.left, top: position.top, width: position.width, transform: position.above ? "translateY(-100%)" : undefined }}
         className="fixed z-30 max-h-60 w-80 overflow-y-auto rounded-lg bg-popover text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10"
       >
         {!current && <div className="px-2.5 py-1.5 text-muted-foreground">Zoeken...</div>}
