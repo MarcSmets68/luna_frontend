@@ -152,6 +152,7 @@ describe("PakbonAanmakenDialog", () => {
     await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
     expect(await screen.findByText("Pakbon 99 aangemaakt; 1 van 2 lijnen toegevoegd.")).toBeInTheDocument();
     expect(screen.getByText("Backend lijnfout")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pakbon aanmaken" })).not.toBeInTheDocument();
     const addedRow = screen.getByText("Leverbaar").closest("tr")!;
     const failedRow = screen.getByText("Tweede leverbaar").closest("tr")!;
     expect(within(addedRow).getByText("Toegevoegd")).toBeInTheDocument();

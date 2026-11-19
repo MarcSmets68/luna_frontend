@@ -454,7 +454,10 @@ export function PakbonAanmakenDialog({
                           onChange={(e) => updateSelectie(lijn.lijnnr, { aantal: e.target.value })}
                         />
                         {lijnErrors[lijn.lijnnr] && (
-                          <p id={`lijn-error-${lijn.lijnnr}`} className="text-sm text-destructive">
+                          <p
+                            id={`lijn-error-${lijn.lijnnr}`}
+                            className="max-w-28 whitespace-normal break-words text-sm text-destructive"
+                          >
                             {lijnErrors[lijn.lijnnr]}
                           </p>
                         )}
@@ -501,13 +504,15 @@ export function PakbonAanmakenDialog({
           >
             {createdPaknr !== null ? "Sluiten" : "Annuleren"}
           </Button>
-          <Button
-            type="button"
-            onClick={handleConfirm}
-            disabled={saving || selectie.length === 0 || createdPaknr !== null}
-          >
-            {saving ? "Bezig..." : "Pakbon aanmaken"}
-          </Button>
+          {createdPaknr === null && (
+            <Button
+              type="button"
+              onClick={handleConfirm}
+              disabled={saving || selectie.length === 0}
+            >
+              {saving ? "Bezig..." : "Pakbon aanmaken"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
