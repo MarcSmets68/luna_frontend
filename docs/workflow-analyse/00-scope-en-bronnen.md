@@ -29,12 +29,13 @@
 - [FEIT] De precieze productiestatus is niet snel te vinden. Het is niet altijd duidelijk welke onderdelen nog bij een leverancier of lakkerij liggen en wanneer die aankomen. Dat vraagt veel mails en telefoons. Bron: Marc, intakeantwoord op vraag 6.
 - [FEIT] Voorraad wordt niet altijd op tijd bijbesteld. Het overzicht ontbreekt om te zien welke artikelen het dringendst moeten worden aangevuld. Bron: Marc, intakeantwoord op vraag 6.
 - [FEIT] Veel informatie gaat buiten het systeem om. Medewerkers bellen of lopen rond om de juiste informatie te verzamelen. Bron: Marc, intakeantwoord op vraag 6.
+- [FEIT] Volgens Marc speelt dit zoek- of invoerwerk het vaakst bij de overdracht van productie naar de lakkerij. Bron: Marc, intakeantwoord op vraag 7.
 
 ## Beschikbare bronnen
 
 | Bron | Wat is vastgesteld? | Wat bewijst de bron niet? |
 | --- | --- | --- |
-| **B1 — Opdrachtbrief en intake** | [FEIT] De brief geeft de scope, randvoorwaarden en belangrijkste systemen. De intake verduidelijkt de rolverdeling, de firmanaam, de gedeelde klantendatabank, de aanvraagkanalen, de teams, het projecteigenaarschap en de dagelijkse pijnpunten. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1–6. | [OPEN VRAAG] Welke rollen beheren de overdrachten, en in welke systemen? |
+| **B1 — Opdrachtbrief en intake** | [FEIT] De brief geeft de scope, randvoorwaarden en belangrijkste systemen. De intake verduidelijkt de rolverdeling, de firmanaam, de gedeelde klantendatabank, de aanvraagkanalen, de teams, het projecteigenaarschap en de dagelijkse pijnpunten. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1–7. | [OPEN VRAAG] Welke rollen beheren de overdrachten, en in welke systemen? |
 | **B2 — Luna-frontend** | [FEIT] De [schermcode](https://github.com/MarcSmets68/luna_frontend/tree/dbce3a2a8419cd507465d81ec4654518b39f533e/src/app) bevat onder meer offertes, orders, pakbonnen, voorraad, facturatie en NPP. De [API-client](https://github.com/MarcSmets68/luna_frontend/blob/dbce3a2a8419cd507465d81ec4654518b39f533e/src/lib/api-client.ts) is beschikbaar om later de koppelingen te volgen. | [OPEN VRAAG] Welke schermen worden door welke rollen gebruikt, en waar gebeurt het werk nog buiten Luna? |
 | **B3 — Luna-backend** | [FEIT] De aparte repo `luna_backend` bevat de [OpenEdge/PASOE-documentatie](https://github.com/MarcSmets68/luna_backend/blob/f7f3ae61832e5b893378e50a1e9bc89ddd305835/README.md), [ABL-webhandlers](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/Web), [bedrijfslogica](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/BusinessLogic) en [Bruno-voorbeelden van API-aanroepen](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/bruno). In de bekeken revisie zijn geen `.df`-bestanden aanwezig. | [OPEN VRAAG] Welke versie draait er, en waar staan het volledige legacy-schema en de oorspronkelijke procedures? |
 | **B4 — Afzonderlijke OpenEdge-code (privé)** | [FEIT] Een andere leesbare OpenEdge-repo bevat `.df`-bestanden voor zijn eigen klant- en orderschema. De bestanden zijn apart gehouden van de Luna-bronnen. Bron: de schemadefinities in die repo; private vindplaats niet gepubliceerd. | [OPEN VRAAG] Is er een bevestigde link met de huidige omgeving? De bestanden tellen niet als bewijs voor het gedeelde Luna-schema. |
@@ -70,7 +71,7 @@
 ### Pijnpunten en prioriteiten
 
 6. [FEIT] Drie dagelijkse problemen zijn benoemd. Zie [Dagelijkse pijnpunten](#dagelijkse-pijnpunten). [OPEN VRAAG] Welke geanonimiseerde praktijkgevallen kunnen elk probleem illustreren?
-7. [OPEN VRAAG] Bij welke overdracht moet informatie het vaakst buiten het systeem worden opgezocht of daarna opnieuw worden ingevoerd?
+7. [FEIT] De aangeduide overdracht is die van productie naar de lakkerij. Zie [Dagelijkse pijnpunten](#dagelijkse-pijnpunten).
 8. [OPEN VRAAG] Welke twee processen moet Luna als eerste ondersteunen, en wat mag voorlopig buiten scope blijven?
 9. [OPEN VRAAG] Welke beslissingen moet de zaakvoerder met het dashboard kunnen nemen, en welke cijfers gebruikt die daar vandaag voor?
 
