@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OfferteDetailPage } from "../offerte-detail-page";
@@ -368,6 +368,60 @@ describe("OfferteDetailPage", () => {
     vi.mocked(window.confirm).mockReturnValue(false);
     expect(confirmNavigation()).toBe(false);
     expect(updateOfflijnMock).not.toHaveBeenCalled();
+  });
+
+  describe.each(["update", "add", "delete", "reorder"])("overlapping update and %s", (mutation) => {
+    it.each([true, false])("preserves both results when the second request finishes first: %s", async (secondFirst) => {
+      let resolveFirst!: (value: OfflijnItem) => void;
+      let resolveSecond!: (value: unknown) => void;
+      const first = new Promise<OfflijnItem>((resolve) => { resolveFirst = resolve; });
+      const second = new Promise<unknown>((resolve) => { resolveSecond = resolve; });
+      const lines = [mockLijnen[0], { ...mockLijnen[0], lijnnr: 2, artnr: "ART-002" }];
+      const added = { ...mockLijnen[0], lijnnr: 3, artnr: "ART-003" };
+      const updatedFirst = { ...lines[0], aantal: 12, bedrag: 888 };
+      const updatedSecond = { ...lines[1], aantal: 14, bedrag: 777 };
+      updateOfflijnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+      createOfflijnMock.mockReturnValue(second);
+      deleteOfflijnMock.mockReturnValue(second);
+      reorderOfflijnMock.mockReturnValue(second);
+      render(<OfferteDetailPage offerte={mockOfferte} lijnen={lines} />);
+      const firstInput = screen.getByRole("spinbutton", { name: "Aantal lijn 1" });
+      fireEvent.change(firstInput, { target: { value: "12" } });
+      fireEvent.blur(firstInput);
+      if (mutation === "update") {
+        const input = screen.getByRole("spinbutton", { name: "Aantal lijn 2" });
+        fireEvent.change(input, { target: { value: "14" } });
+        fireEvent.blur(input);
+      } else if (mutation === "add") {
+        await userEvent.click(screen.getByRole("button", { name: "Lijn toevoegen" }));
+      } else if (mutation === "delete") {
+        await userEvent.click(screen.getByRole("button", { name: "Verwijder lijn 2" }));
+      } else {
+        await userEvent.click(screen.getAllByRole("button", { name: "Omhoog" })[1]);
+      }
+      expect(updateOfflijnMock).toHaveBeenCalledTimes(mutation === "update" ? 2 : 1);
+      if (mutation === "add") expect(createOfflijnMock).toHaveBeenCalledTimes(1);
+      if (mutation === "delete") expect(deleteOfflijnMock).toHaveBeenCalledTimes(1);
+      if (mutation === "reorder") expect(reorderOfflijnMock).toHaveBeenCalledTimes(1);
+      const secondResult = mutation === "update" ? updatedSecond
+        : mutation === "add" ? added
+        : mutation === "reorder" ? [...lines].reverse() : {};
+      if (secondFirst) {
+        await act(async () => { resolveSecond(secondResult); });
+        expect(screen.getByRole("spinbutton", { name: "Aantal lijn 1" })).toBeDisabled();
+        await act(async () => { resolveFirst(updatedFirst); });
+      } else {
+        await act(async () => { resolveFirst(updatedFirst); });
+        await act(async () => { resolveSecond(secondResult); });
+      }
+      expect(screen.getByRole("spinbutton", { name: "Bedrag lijn 1" })).toHaveValue(888);
+      if (mutation === "update") expect(screen.getByRole("spinbutton", { name: "Bedrag lijn 2" })).toHaveValue(777);
+      if (mutation === "add") expect(screen.getByRole("combobox", { name: "Artnr lijn 3" })).toHaveValue("ART-003");
+      if (mutation === "delete") expect(screen.queryByRole("combobox", { name: "Artnr lijn 2" })).not.toBeInTheDocument();
+      if (mutation === "reorder") expect(screen.getAllByRole("combobox", { name: /^Artnr lijn/ }).map((input) => (input as HTMLInputElement).value)).toEqual(["ART-002", "ART-001"]);
+      expect(refreshMock).toHaveBeenCalledTimes(2);
+      expect(screen.getAllByRole("status").some((status) => status.textContent === "Opgeslagen")).toBe(true);
+    });
   });
 
   it("does not refresh when a line mutation fails", async () => {
