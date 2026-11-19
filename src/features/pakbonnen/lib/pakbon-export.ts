@@ -3,54 +3,69 @@ import { formatDatum } from "@/lib/format";
 import { isTitleLine } from "@/lib/line-classification";
 
 export type PakbonPrintRow = {
-  kind: "title" | "text" | "article";
+  kind: "order" | "title" | "text" | "article";
   cells: string[];
 };
 
 export function buildPakbonRows(lines: PaklijnItem[]): PakbonPrintRow[] {
-  return lines
-    .filter((line) => !line.subtotaal)
-    .map((line) => {
-      if (isTitleLine(line.artnr)) {
-        return { kind: "title", cells: [line.omschr] };
+  const rows: PakbonPrintRow[] = [];
+  let previousOrder: number | undefined;
+  for (const line of lines) {
+    if (line.subtotaal) {
+      continue;
+    }
+    if (line.bonnr !== previousOrder) {
+      if (line.bonnr > 0) {
+        const digits = String(line.bonnr).padStart(7, "0");
+        const order = `${digits.slice(0, -4)},${digits.slice(-4)}`;
+        rows.push({ kind: "order", cells: [`# ORDERBEVESTIGING :     ${order}`] });
       }
-      if (line.infolijn || line.kolomtitel) {
-        return { kind: "text", cells: [line.omschr] };
-      }
-      return {
+      previousOrder = line.bonnr;
+    }
+    if (isTitleLine(line.artnr)) {
+      rows.push({ kind: "title", cells: [line.omschr] });
+    } else if (line.infolijn || line.kolomtitel) {
+      rows.push({ kind: "text", cells: [line.omschr] });
+    } else {
+      rows.push({
         kind: "article",
         cells: [
-          String(line.bonnr),
           line.artnr,
           line.omschr,
-          new Intl.NumberFormat("nl-BE", { maximumFractionDigits: 0 }).format(line.aantal),
+          line.aantal === 0
+            ? ""
+            : new Intl.NumberFormat("nl-BE", { maximumFractionDigits: 3 }).format(line.aantal),
         ],
-      };
-    });
+      });
+    }
+  }
+  return rows;
 }
 
 export function buildPakbonSections(pakbon: PakbonItem, lines: PaklijnItem[]) {
-  const delivery = [pakbon.lnaam, pakbon.ladres, pakbon.lpostnr, pakbon.lstad];
   const customer = [
     pakbon.naam,
     pakbon.naam1,
     pakbon.adres,
     `${pakbon.postnr} ${pakbon.stad}`.trim(),
   ];
-  const deliveryAddress = delivery.every((value) => !value.trim())
-    ? customer
-    : [pakbon.lnaam, pakbon.ladres, `${pakbon.lpostnr} ${pakbon.lstad}`.trim()];
+  const deliveryAddress = [
+    pakbon.lnaam || pakbon.naam,
+    pakbon.naam1,
+    pakbon.ladres || pakbon.adres,
+    `${pakbon.lpostnr || pakbon.postnr} ${pakbon.lstad || pakbon.stad}`.trim(),
+  ];
   const bonnrs = [...new Set(lines.map((line) => line.bonnr).filter((nr) => nr > 0))];
   return {
     header: [
-      `Datum: ${formatDatum(pakbon.datum)} | Klantnr: ${pakbon.klnr}`,
+      `Datum: ${formatDatum(pakbon.datum)} | Klantkode: ${pakbon.klnr}`,
       `Bonnr(s): ${bonnrs.join(", ") || "—"}`,
     ],
     sections: [
-      ["Factuuradres", ...customer.filter(Boolean)],
+      ["Facturatieadres", ...customer.filter(Boolean)],
       ["Leveradres", ...deliveryAddress.filter(Boolean)],
-      ["Uw referentie", pakbon.uRef || "—"],
-      ["Verzending / tracknr", [pakbon.verzending, pakbon.tracknr].filter(Boolean).join(" / ") || "—"],
+      ["Uw ref.", pakbon.uRef || "—"],
+      ["Transport", [pakbon.verzending, pakbon.tracknr].filter(Boolean).join(" / ") || "—"],
       ...(pakbon.projectnr > 0 ? [["Projectnr", String(pakbon.projectnr)]] : []),
       ...(pakbon.opm ? [["Opmerking", pakbon.opm]] : []),
       ...(pakbon.afgehaald

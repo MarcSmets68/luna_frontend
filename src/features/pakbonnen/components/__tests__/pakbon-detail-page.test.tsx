@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/api-client", async (original) => ({ ...await original<object>(), getPakbon: mocks.get, getPaklijnen: mocks.lines, updatePakbon: mocks.update, deletePakbon: mocks.remove, afhalenPakbon: mocks.collect, deletePaklijn: mocks.deleteLine, updatePaklijn: mocks.updateLine, createPaklijn: mocks.createLine }));
 vi.mock("jspdf", () => ({ jsPDF: class {
   lastAutoTable = { finalY: 90 };
-  setFont = vi.fn(); setFontSize = vi.fn(); setTextColor = vi.fn(); text = mocks.text; line = vi.fn();
+  setFont = vi.fn(); setFontSize = vi.fn(); setTextColor = vi.fn(); setFillColor = vi.fn(); rect = vi.fn(); text = mocks.text; line = vi.fn();
   getTextWidth = () => 10; splitTextToSize = (text: string) => [text]; getNumberOfPages = mocks.pages; setPage = vi.fn(); addPage = vi.fn(); save = mocks.save;
 } }));
 vi.mock("jspdf-autotable", () => ({ default: mocks.table }));
@@ -81,9 +81,11 @@ describe("PakbonDetailPage", () => {
     show(); await userEvent.click(screen.getByRole("button", { name: "Afdrukken" }));
     await waitFor(() => expect(mocks.save).toHaveBeenCalledWith("pakbon-500.pdf"));
     expect(mocks.update).toHaveBeenCalledWith(500, { afgedrukt: true });
-    expect(mocks.table.mock.calls[1][1].head).toEqual([["Bonnr", "Artnr", "Omschrijving", "Aantal"]]);
+    expect(mocks.table.mock.calls[1][1].head).toEqual([["Artikelnr", "Omschrijving", "Aantal"]]);
     expect(screen.getByText("Afgedrukt").parentElement).toHaveTextContent("Ja");
-    expect(mocks.text.mock.calls.filter(([text]) => text === "Pakbon 500")).toHaveLength(1);
+    expect(mocks.text.mock.calls.filter(([text]) => text === "Verzendnota 500")).toHaveLength(1);
+    expect(mocks.text).toHaveBeenCalledWith("*500*", 170, 29, { align: "center" });
+    expect(mocks.text).toHaveBeenCalledWith("Totaal aantal items : 0", 15, 104);
   });
   it("draws one header per page and explicitly styles text rows", async () => {
     show();
@@ -92,17 +94,21 @@ describe("PakbonDetailPage", () => {
       line,
       { ...line, lijnnr: 2, artnr: "", infolijn: true },
       { ...line, lijnnr: 3, artnr: "", kolomtitel: true },
+      { ...line, lijnnr: 4, artnr: "LED", aantal: 1.5 },
     ]);
     await userEvent.click(screen.getByRole("button", { name: "Vernieuwen" }));
-    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(4));
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(5));
     await userEvent.click(screen.getByRole("button", { name: "Afdrukken" }));
-    expect(mocks.text.mock.calls.filter(([text]) => text === "Pakbon 500")).toHaveLength(2);
-    expect(mocks.text).toHaveBeenCalledWith("pagina 1/2", 195, 287, { align: "right" });
-    expect(mocks.text).toHaveBeenCalledWith("pagina 2/2", 195, 287, { align: "right" });
+    expect(mocks.text.mock.calls.filter(([text]) => text === "Verzendnota 500")).toHaveLength(2);
+    expect(mocks.text).toHaveBeenCalledWith("Blz. : 1/2", 195, 287, { align: "right" });
+    expect(mocks.text).toHaveBeenCalledWith("Blz. : 2/2", 195, 287, { align: "right" });
+    expect(mocks.text).toHaveBeenCalledWith("Totaal aantal items : 1", 15, 104);
     const body = mocks.table.mock.calls[1][1].body;
-    expect(body[0][0].styles).toEqual({ fontStyle: "bold", textColor: [96, 161, 114] });
-    expect(body[1][0].styles).toEqual({ fontStyle: "italic" });
+    expect(body[0][0].styles).toEqual({ fontStyle: "bold" });
+    expect(body[1][0].styles).toEqual({ fontStyle: "bold", textColor: [96, 161, 114] });
     expect(body[2][0].styles).toEqual({ fontStyle: "italic" });
+    expect(body[3][0].styles).toEqual({ fontStyle: "italic" });
+    expect(body[4]).toEqual(["LED", "Sectie groen", "1,5"]);
   });
   it("keeps the download on print-status failure and does not remark printed documents", async () => {
     show(); mocks.update.mockRejectedValue(new Error("Status geweigerd"));
