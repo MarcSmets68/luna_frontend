@@ -1,7 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PakbonAanmakenDialog, buildPakbonPayload } from "../pakbon-aanmaken-dialog";
+import {
+  PakbonAanmakenDialog,
+  buildPakbonPayload,
+  buildTitelPaklijnPayload,
+} from "../pakbon-aanmaken-dialog";
 import { ApiError } from "@/lib/api-client";
 import type { BonItem, BonLijnItem } from "@/lib/api-client";
 
@@ -112,6 +116,90 @@ beforeEach(() => {
 });
 
 describe("PakbonAanmakenDialog", () => {
+  it("builds a zero-value title payload without changing the source", () => {
+    const title = lijn({ artnr: "K00", korting: 15 });
+    expect(buildTitelPaklijnPayload(title)).toMatchObject({
+      artnr: "K00",
+      aantal: 0,
+      teLeveren: 0,
+      vprijs: 0,
+      aprijs: 0,
+      korting: 0,
+      bedrag: 0,
+      bonnr: title.bonnr,
+      blijnnr: title.lijnnr,
+    });
+    expect(title.korting).toBe(15);
+  });
+
+  it("shows a meaningful conflict message for automatic numbering", async () => {
+    createPakbonMock.mockRejectedValue(new ApiError(409, "Conflict"));
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(await screen.findByText(
+      "Automatische nummering is mislukt: het pakbonnummer bestaat al. Probeer opnieuw of kies zelf een ander nummer."
+    )).toBeInTheDocument();
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
+  });
+
+  it("shows per-row results and excludes titles from the summary", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("Backend lijnfout"));
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    expect(await screen.findByText("Pakbon 99 aangemaakt; 1 van 2 lijnen toegevoegd.")).toBeInTheDocument();
+    expect(screen.getByText("Backend lijnfout")).toBeInTheDocument();
+    const addedRow = screen.getByText("Leverbaar").closest("tr")!;
+    const failedRow = screen.getByText("Tweede leverbaar").closest("tr")!;
+    expect(within(addedRow).getByText("Toegevoegd")).toBeInTheDocument();
+    expect(within(failedRow).getByText("Mislukt")).toBeInTheDocument();
+  });
+
+  it("marks remaining rows separately from the failed row", async () => {
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockRejectedValue(new Error("Titel geweigerd"));
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Titel geweigerd");
+    const titleRow = screen.getByText("Titel").closest("tr")!;
+    expect(within(titleRow).getByText("Mislukt")).toBeInTheDocument();
+    expect(screen.getAllByText("Nog toe te voegen")).toHaveLength(2);
+  });
+
+  it.each(["button", "escape", "overlay"])("allows closing after partial failure with %s", async (method) => {
+    const onOpenChange = vi.fn();
+    createPakbonMock.mockResolvedValue({ paknr: 99 });
+    createPaklijnMock.mockRejectedValue(new Error("Lijnfout"));
+    render(<PakbonAanmakenDialog bon={mockBon} lijnen={mockLijnen} open onOpenChange={onOpenChange} />);
+    await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
+    await screen.findByText("Lijnfout");
+    if (method === "button") {
+      await userEvent.click(screen.getByRole("button", { name: "Sluiten" }));
+    } else if (method === "escape") {
+      await userEvent.keyboard("{Escape}");
+    } else {
+      await userEvent.click(document.querySelector('[data-slot="dialog-overlay"]')!);
+    }
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(deletePakbonMock).not.toHaveBeenCalled();
+  });
+
+  it("hides title rows for sections without deliverable lines", () => {
+    renderDialog([
+      lijn({ lijnnr: 1, artnr: "K00", omschrijving: "Lege sectie" }),
+      lijn({ lijnnr: 2, teLeveren: 0 }),
+      lijn({ lijnnr: 3, artnr: "K00", omschrijving: "Leverbare sectie" }),
+      lijn({ lijnnr: 4 }),
+      lijn({ lijnnr: 5, artnr: "K00", omschrijving: "Laatste lege sectie" }),
+    ]);
+    expect(screen.queryByText("Lege sectie")).not.toBeInTheDocument();
+    expect(screen.queryByText("Laatste lege sectie")).not.toBeInTheDocument();
+    expect(screen.getByText("Leverbare sectie")).toBeInTheDocument();
+  });
+
   it.each([
     [{}, { lnaam: mockBon.naam, ladres: mockBon.adres, lpostnr: mockBon.postnr, lstad: mockBon.stad }],
     [{ lnaam: " Magazijn ", ladres: "Straat", lpostnr: "1", lstad: "Gent" }, { lnaam: " Magazijn ", ladres: "Straat", lpostnr: "1", lstad: "Gent" }],
@@ -228,7 +316,7 @@ describe("PakbonAanmakenDialog", () => {
     createPaklijnMock.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("Fout")).mockResolvedValue({});
     renderDialog();
     await userEvent.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
-    await screen.findByText(/Mislukt: 2/);
+    await screen.findByText("Pakbon 99 aangemaakt; 0 van 2 lijnen toegevoegd.");
     expect(screen.getByLabelText("Lijn 2 opnemen in pakbon")).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByLabelText("Aantal voor lijn 2")).toBeDisabled();
     expect(screen.getByLabelText("Paknr")).toBeDisabled();
@@ -370,7 +458,7 @@ describe("PakbonAanmakenDialog", () => {
 
     expect(
       await screen.findByText(
-        "Lijn geweigerd. Pakbon 9. Gelukt: 1. Mislukt: 2. Nog toe te voegen: 2, 4."
+        "Pakbon 9 aangemaakt; 0 van 2 lijnen toegevoegd."
       )
     ).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
@@ -387,7 +475,7 @@ describe("PakbonAanmakenDialog", () => {
     await user.click(screen.getByRole("button", { name: "Pakbon aanmaken" }));
 
     expect(
-      await screen.findByText("Lijn geweigerd. Pakbon 9. Gelukt: geen. Mislukt: 1. Nog toe te voegen: 1, 2, 4.")
+      await screen.findByText("Pakbon 9 aangemaakt; 0 van 2 lijnen toegevoegd.")
     ).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });

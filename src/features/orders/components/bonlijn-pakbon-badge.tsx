@@ -17,7 +17,10 @@ export function BonlijnPakbonBadge({ bonnr, lijnnr }: { bonnr: number; lijnnr: n
     let cancelled = false;
     getBonLijnPakbonnen(bonnr, lijnnr)
       .then((data) => {
-        if (!cancelled) { setRefs(data); setFailed(false); }
+        if (!cancelled) {
+          setRefs(data);
+          setFailed(false);
+        }
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -27,7 +30,17 @@ export function BonlijnPakbonBadge({ bonnr, lijnnr }: { bonnr: number; lijnnr: n
     };
   }, [bonnr, lijnnr]);
 
-  if (failed) return <Badge variant="outline" title="Pakbonnen konden niet geladen worden" aria-label="Pakbonnen konden niet geladen worden">?</Badge>;
+  if (failed) {
+    return (
+      <Badge
+        variant="outline"
+        title="Pakbonnen konden niet geladen worden"
+        aria-label="Pakbonnen konden niet geladen worden"
+      >
+        ?
+      </Badge>
+    );
+  }
   if (!refs || refs.length === 0) return null;
 
   return (

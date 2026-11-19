@@ -184,6 +184,7 @@ export function BonDetailPage({
   // refresh a single row without a full page re-fetch.
   const [bon, setBon] = useState<BonItem>(initialBon);
   const [rows, setRows] = useState<BonLijnItem[]>(lijnen);
+  const heeftLeverbareLijnen = leverbareLijnen(rows).length > 0;
   const [expandedLijnnr, setExpandedLijnnr] = useState<number | null>(null);
   const [reserveringTarget, setReserveringTarget] = useState<BonLijnItem | null>(null);
   const [pakbonDialogOpen, setPakbonDialogOpen] = useState(false);
@@ -641,16 +642,16 @@ export function BonDetailPage({
 
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-[16px] font-semibold text-foreground">Lijnen</h2>
-            <span title={leverbareLijnen(rows).length === 0 ? "Niets meer te leveren" : undefined}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={leverbareLijnen(rows).length === 0}
-              onClick={() => setPakbonDialogOpen(true)}
-            >
-              Pakbon aanmaken
-            </Button>
+            <span title={!heeftLeverbareLijnen ? "Niets meer te leveren" : undefined}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!heeftLeverbareLijnen}
+                onClick={() => setPakbonDialogOpen(true)}
+              >
+                Pakbon aanmaken
+              </Button>
             </span>
           </div>
 
