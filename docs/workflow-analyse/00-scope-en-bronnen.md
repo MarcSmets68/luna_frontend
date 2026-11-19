@@ -34,12 +34,13 @@
 ### Gewenste prioriteiten
 
 - [FEIT] Marc wil vroeg in Luna de openstaande lakorders beter kunnen ordenen en daaruit bestellingen kunnen genereren. Dit is een intakeprioriteit, geen beschrijving van wat vandaag in gebruik is. Bron: Marc, intakeantwoord op vraag 8.
+- [FEIT] Marc geeft ook voorrang aan vlotter voorraadbeheer. Bron: Marc, aanvullend intakeantwoord op vraag 8.
 
 ## Beschikbare bronnen
 
 | Bron | Wat is vastgesteld? | Wat bewijst de bron niet? |
 | --- | --- | --- |
-| **B1 — Opdrachtbrief en intake** | [FEIT] De brief geeft de scope, randvoorwaarden en belangrijkste systemen. De intake verduidelijkt de rolverdeling, de firmanaam, de gedeelde klantendatabank, de aanvraagkanalen, de teams, het projecteigenaarschap, de dagelijkse pijnpunten en een prioriteit voor Luna. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1–8. | [OPEN VRAAG] Welke rollen beheren de overdrachten, en in welke systemen? |
+| **B1 — Opdrachtbrief en intake** | [FEIT] De brief geeft de scope, randvoorwaarden en belangrijkste systemen. De intake verduidelijkt de rolverdeling, de firmanaam, de gedeelde klantendatabank, de aanvraagkanalen, de teams, het projecteigenaarschap, de dagelijkse pijnpunten en de prioriteiten voor Luna. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1–8. | [OPEN VRAAG] Welke rollen beheren de overdrachten, en in welke systemen? |
 | **B2 — Luna-frontend** | [FEIT] De [schermcode](https://github.com/MarcSmets68/luna_frontend/tree/dbce3a2a8419cd507465d81ec4654518b39f533e/src/app) bevat onder meer offertes, orders, pakbonnen, voorraad, facturatie en NPP. De [API-client](https://github.com/MarcSmets68/luna_frontend/blob/dbce3a2a8419cd507465d81ec4654518b39f533e/src/lib/api-client.ts) is beschikbaar om later de koppelingen te volgen. | [OPEN VRAAG] Welke schermen worden door welke rollen gebruikt, en waar gebeurt het werk nog buiten Luna? |
 | **B3 — Luna-backend** | [FEIT] De aparte repo `luna_backend` bevat de [OpenEdge/PASOE-documentatie](https://github.com/MarcSmets68/luna_backend/blob/f7f3ae61832e5b893378e50a1e9bc89ddd305835/README.md), [ABL-webhandlers](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/Web), [bedrijfslogica](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/BusinessLogic) en [Bruno-voorbeelden van API-aanroepen](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/bruno). In de bekeken revisie zijn geen `.df`-bestanden aanwezig. | [OPEN VRAAG] Welke versie draait er, en waar staan het volledige legacy-schema en de oorspronkelijke procedures? |
 | **B4 — Afzonderlijke OpenEdge-code (privé)** | [FEIT] Een andere leesbare OpenEdge-repo bevat `.df`-bestanden voor zijn eigen klant- en orderschema. De bestanden zijn apart gehouden van de Luna-bronnen. Bron: de schemadefinities in die repo; private vindplaats niet gepubliceerd. | [OPEN VRAAG] Is er een bevestigde link met de huidige omgeving? De bestanden tellen niet als bewijs voor het gedeelde Luna-schema. |
@@ -76,7 +77,7 @@
 
 6. [FEIT] Drie dagelijkse problemen zijn benoemd. Zie [Dagelijkse pijnpunten](#dagelijkse-pijnpunten). [OPEN VRAAG] Welke geanonimiseerde praktijkgevallen kunnen elk probleem illustreren?
 7. [FEIT] De aangeduide overdracht is die van productie naar de lakkerij. Zie [Dagelijkse pijnpunten](#dagelijkse-pijnpunten).
-8. [FEIT] Openstaande lakorders ordenen en daaruit bestellingen genereren is een genoemde prioriteit. Zie [Gewenste prioriteiten](#gewenste-prioriteiten). [OPEN VRAAG] Welk tweede proces krijgt voorrang, en wat mag voorlopig buiten scope blijven?
+8. [FEIT] De twee genoemde prioriteiten zijn openstaande lakorders ordenen en daaruit bestellingen genereren, en vlotter voorraadbeheer. Zie [Gewenste prioriteiten](#gewenste-prioriteiten). [OPEN VRAAG] Wat mag voorlopig buiten scope blijven?
 9. [OPEN VRAAG] Welke beslissingen moet de zaakvoerder met het dashboard kunnen nemen, en welke cijfers gebruikt die daar vandaag voor?
 
 ### Systemen, integraties en bewijs
