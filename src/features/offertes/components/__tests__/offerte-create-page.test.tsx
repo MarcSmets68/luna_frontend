@@ -92,7 +92,7 @@ describe("OfferteCreatePage", () => {
 
     render(<OfferteCreatePage klant={mockKlant} />);
 
-    await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "ABC");
+    await user.type(screen.getByRole("combobox", { name: "Artnr nieuwe lijn" }), "ABC");
     await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
     await user.click(screen.getByRole("button", { name: "Opslaan" }));
 
@@ -112,7 +112,7 @@ describe("OfferteCreatePage", () => {
 
     render(<OfferteCreatePage klant={mockKlant} />);
 
-    await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "ABC");
+    await user.type(screen.getByRole("combobox", { name: "Artnr nieuwe lijn" }), "ABC");
     await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
     await user.click(screen.getByRole("button", { name: "Opslaan" }));
 

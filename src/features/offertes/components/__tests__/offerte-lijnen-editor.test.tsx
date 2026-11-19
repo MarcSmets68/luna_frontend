@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -91,6 +91,36 @@ function makeOfflijn(overrides: Partial<OfflijnItem> = {}): OfflijnItem {
 }
 
 describe("OfferteLijnenEditor - local mode", () => {
+  it("pins move/delete actions and their header to the right for every line kind", () => {
+    render(<LocalHarness initial={[makeLocalLijn(), makeLocalLijn({ clientId: "title", artnr: "K00" })]} />);
+    expect(screen.getByRole("table").parentElement).toHaveClass("overflow-x-auto", "scroll-pr-48");
+    expect(screen.getByRole("columnheader", { name: "Acties" })).toHaveClass("sticky", "right-0", "bg-muted");
+    const deletes = screen.getAllByRole("button", { name: /^Verwijder lijn/ });
+    expect(deletes).toHaveLength(2);
+    for (const button of deletes) {
+      const cell = button.closest("td")!;
+      expect(cell).toHaveClass("sticky", "right-0", "bg-card");
+      expect(within(cell).getByRole("button", { name: "Omhoog" })).toBeInTheDocument();
+      expect(within(cell).getByRole("button", { name: "Omlaag" })).toBeInTheDocument();
+    }
+    expect(screen.getByRole("button", { name: /lijn toevoegen/i }).closest("td")).toHaveClass("sticky", "right-0", "bg-card");
+  });
+
+  it("links the disclosure state to a stable line-details region", async () => {
+    const user = userEvent.setup();
+    render(<LocalHarness initial={[makeLocalLijn()]} />);
+    const toggle = screen.getByRole("button", { name: "Meer velden" });
+    const regionId = toggle.getAttribute("aria-controls")!;
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById(regionId)).not.toBeVisible();
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("region", { name: "Details lijn 10" })).toHaveAttribute("id", regionId);
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById(regionId)).not.toBeVisible();
+  });
+
   it("renders each local line's artnr and omschrijving as editable inputs", () => {
     const onChange = vi.fn();
     render(
@@ -105,7 +135,7 @@ describe("OfferteLijnenEditor - local mode", () => {
     const onChange = vi.fn();
     render(<OfferteLijnenEditor mode="local" lijnen={[]} onChange={onChange} />);
 
-    await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "NEW1");
+    await user.type(screen.getByRole("combobox", { name: "Artnr nieuwe lijn" }), "NEW1");
     await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
 
     expect(createOfflijnMock).not.toHaveBeenCalled();
@@ -197,7 +227,7 @@ describe("OfferteLijnenEditor - persisted mode", () => {
     const input = screen.getByRole("spinbutton", { name: `Aantal lijn ${lijn.lijnnr}` });
     fireEvent.change(input, { target: { value: "3" } });
     fireEvent.blur(input);
-    expect(await screen.findByText("Opslaan mislukt")).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Opslaan mislukt");
     expect(screen.queryByText("Opgeslagen")).not.toBeInTheDocument();
   });
   it("does not call updateOfflijn while typing - only commits on blur", async () => {
@@ -216,7 +246,7 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       />
     );
 
-    const artnrInput = screen.getByRole("textbox", { name: /artnr lijn/i });
+    const artnrInput = screen.getByRole("combobox", { name: /artnr lijn/i });
     await user.clear(artnrInput);
     await user.type(artnrInput, "NEWART");
 
@@ -243,7 +273,7 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       />
     );
 
-    const artnrInput = screen.getByRole("textbox", { name: /artnr lijn/i });
+    const artnrInput = screen.getByRole("combobox", { name: /artnr lijn/i });
     await user.clear(artnrInput);
     await user.type(artnrInput, "NEWART");
     await user.tab(); // blur
@@ -268,7 +298,7 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       />
     );
 
-    const artnrInput = screen.getByRole("textbox", { name: /artnr lijn/i });
+    const artnrInput = screen.getByRole("combobox", { name: /artnr lijn/i });
     await user.click(artnrInput);
     await user.tab(); // focus then blur, no edit
 
@@ -290,7 +320,7 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       />
     );
 
-    expect(screen.getByRole("textbox", { name: /artnr lijn/i })).toHaveValue("OLD1");
+    expect(screen.getByRole("combobox", { name: /artnr lijn/i })).toHaveValue("OLD1");
 
     // Simulate the parent replacing the list after e.g. a different field's
     // successful server round-trip or a reorder response.
@@ -305,7 +335,7 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       />
     );
 
-    expect(screen.getByRole("textbox", { name: /artnr lijn/i })).toHaveValue("SYNCED");
+    expect(screen.getByRole("combobox", { name: /artnr lijn/i })).toHaveValue("SYNCED");
   });
 
   it("asks for confirmation before deleting a persisted line and deletes on confirm", async () => {
@@ -330,7 +360,8 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       "Lijn verwijderen? Dit kan niet ongedaan worden gemaakt."
     );
     await waitFor(() => expect(deleteOfflijnMock).toHaveBeenCalledWith(100, 1, 10));
-    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledWith([]));
+    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledTimes(1));
+    expect(onLijnenChange.mock.calls[0][0]([lijn])).toEqual([]);
   });
 
   it("does not delete when the confirm dialog is cancelled", async () => {
@@ -355,7 +386,7 @@ describe("OfferteLijnenEditor - persisted mode", () => {
     expect(onLijnenChange).not.toHaveBeenCalled();
   });
 
-  it("calls reorderOfflijn and replaces the list with the full reordered response", async () => {
+  it("calls reorderOfflijn and applies the returned order to the latest lines", async () => {
     const user = userEvent.setup();
     const onLijnenChange = vi.fn();
     const lijnA = makeOfflijn({ lijnnr: 10, artnr: "AAA" });
@@ -376,7 +407,26 @@ describe("OfferteLijnenEditor - persisted mode", () => {
     await user.click(downButtons[0]);
 
     await waitFor(() => expect(reorderOfflijnMock).toHaveBeenCalledWith(100, 1, 10, "down"));
-    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledWith([lijnB, lijnA]));
+    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledTimes(1));
+    expect(onLijnenChange.mock.calls[0][0]([lijnA, lijnB])).toEqual([lijnB, lijnA]);
+    const updatedA = { ...lijnA, aantal: 7 };
+    const added = makeOfflijn({ lijnnr: 30 });
+    expect(onLijnenChange.mock.calls[0][0]([updatedA, added])).toEqual([updatedA, added]);
+  });
+
+  it("blocks another reorder while allowing unrelated row edits during a reorder", async () => {
+    let resolvePending!: (value: OfflijnItem[]) => void;
+    const pending = new Promise<OfflijnItem[]>((resolve) => { resolvePending = resolve; });
+    const lines = [makeOfflijn({ lijnnr: 10 }), makeOfflijn({ lijnnr: 20 }), makeOfflijn({ lijnnr: 30 })];
+    reorderOfflijnMock.mockReturnValue(pending);
+    render(<OfferteLijnenEditor mode="persisted" offnr={100} versie={1} lijnen={lines} onLijnenChange={vi.fn()} />);
+    await userEvent.click(screen.getAllByRole("button", { name: "Omlaag" })[0]);
+    for (const button of screen.getAllByRole("button", { name: /^(Omhoog|Omlaag)$/ })) {
+      expect(button).toBeDisabled();
+    }
+    expect(screen.getByRole("spinbutton", { name: "Aantal lijn 20" })).toBeEnabled();
+    await act(async () => { resolvePending([lines[1], lines[0], lines[2]]); });
+    expect(screen.getAllByRole("button", { name: "Omlaag" })[0]).toBeEnabled();
   });
 
   it("shows a readable error and leaves the list untouched when the reorder guard rejects", async () => {
@@ -441,7 +491,7 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       />
     );
 
-    await user.type(screen.getByRole("textbox", { name: "Artnr nieuwe lijn" }), "NEW1");
+    await user.type(screen.getByRole("combobox", { name: "Artnr nieuwe lijn" }), "NEW1");
     await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
 
     await waitFor(() => expect(createOfflijnMock).toHaveBeenCalledTimes(1));
@@ -450,7 +500,8 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       1,
       expect.objectContaining({ artnr: "NEW1", subtotaal: false, kolomtitel: false, infolijn: false })
     );
-    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledWith([lijn, created]));
+    await waitFor(() => expect(onLijnenChange).toHaveBeenCalledTimes(1));
+    expect(onLijnenChange.mock.calls[0][0]([lijn])).toEqual([lijn, created]);
   });
 
   it("sends only the subtotaal flag (mutually exclusive with kolomtitel/infolijn) when adding a subtotaal line", async () => {
@@ -524,7 +575,7 @@ describe("OfferteLijnenEditor - persisted mode", () => {
       />
     );
 
-    const artnrInput = screen.getByRole("textbox", { name: /artnr lijn/i });
+    const artnrInput = screen.getByRole("combobox", { name: /artnr lijn/i });
     await user.type(artnrInput, "X");
     await user.tab(); // blur triggers the commit attempt
 
@@ -624,7 +675,7 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
       await new Promise((resolve) => setTimeout(resolve, ms));
     });
   }
-  const newArtnr = () => screen.getByRole("textbox", { name: "Artnr nieuwe lijn" });
+  const newArtnr = () => screen.getByRole("combobox", { name: "Artnr nieuwe lijn" });
   const val = (name: string) => (screen.getByLabelText(name) as HTMLInputElement).value;
 
   it("does not search below 2 chars and searches once after the debounce at 2+", async () => {
@@ -733,7 +784,8 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
     render(<LocalHarness spy={spy} />);
     await user.type(newArtnr(), "LED");
     await advance();
-    expect(screen.getByText("Zoeken mislukt")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Zoeken mislukt");
+    expect(newArtnr()).not.toHaveAttribute("aria-activedescendant");
     await user.click(screen.getByRole("button", { name: /lijn toevoegen/i }));
     expect((spy.mock.calls[0][0] as LocalLijn[])[0].artnr).toBe("LED");
   });
@@ -762,7 +814,7 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
     const a = makeLocalLijn({ clientId: "a", artnr: "AAA", btwKode: "21" });
     const b = makeLocalLijn({ clientId: "b", artnr: "BBB" });
     render(<LocalHarness initial={[a, b]} spy={spy} />);
-    const input = screen.getByRole("textbox", { name: "Artnr lijn 10" });
+    const input = screen.getByRole("combobox", { name: "Artnr lijn 10" });
     await user.clear(input);
     await user.type(input, "LED");
     spy.mockClear();
@@ -788,7 +840,7 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
     updateOfflijnMock.mockResolvedValue({ ...lijn, artnr: "LED100" });
     const onLijnenChange = vi.fn();
     render(<PersistedHarness lijn={lijn} onLijnenChange={onLijnenChange} />);
-    const input = screen.getByRole("textbox", { name: /artnr lijn/i });
+    const input = screen.getByRole("combobox", { name: /artnr lijn/i });
     await user.clear(input);
     await user.type(input, "LED");
     await advance();
@@ -808,7 +860,7 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
     const lijn = makeOfflijn();
     updateOfflijnMock.mockRejectedValue(new Error("Opslaan mislukt"));
     render(<PersistedHarness lijn={lijn} />);
-    const input = screen.getByRole("textbox", { name: /artnr lijn/i });
+    const input = screen.getByRole("combobox", { name: /artnr lijn/i });
     await user.clear(input);
     await user.type(input, "LED");
     await advance();
@@ -825,7 +877,7 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
     async (kind) => {
       render(<LocalHarness />);
       await user.selectOptions(screen.getByRole("combobox", { name: "Type nieuwe lijn" }), kind);
-      expect(screen.queryByRole("textbox", { name: "Artnr nieuwe lijn" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "Artnr nieuwe lijn" })).not.toBeInTheDocument();
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     }
   );
@@ -833,7 +885,7 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
   it("existing non-artikel rows render no artnr input", () => {
     const titel = makeLocalLijn({ clientId: "t", artnr: "K00", omschrijving: "Sectie" });
     render(<LocalHarness initial={[titel]} />);
-    expect(screen.queryByRole("textbox", { name: /^Artnr lijn/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /^Artnr lijn/ })).not.toBeInTheDocument();
   });
 
   it("Escape closes the dropdown", async () => {
@@ -849,11 +901,65 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
   it("ArrowDown + Enter selects the highlighted item", async () => {
     zoekMock.mockResolvedValue({ items: [LED, SPOT], truncated: false });
     render(<LocalHarness />);
+    expect(newArtnr()).toHaveAttribute("aria-expanded", "false");
+    expect(newArtnr()).not.toHaveAttribute("aria-activedescendant");
     await user.type(newArtnr(), "LED");
     await advance();
-    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+    const listbox = screen.getByRole("listbox");
+    expect(newArtnr()).toHaveAttribute("aria-expanded", "true");
+    expect(newArtnr()).toHaveAttribute("aria-controls", listbox.id);
+    const options = within(listbox).getAllByRole("option");
+    expect(options[0]).toHaveAttribute("aria-selected", "false");
+    await user.keyboard("{ArrowDown}");
+    expect(newArtnr()).toHaveAttribute("aria-activedescendant", options[0].id);
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{ArrowUp}");
+    expect(newArtnr()).toHaveAttribute("aria-activedescendant", options[1].id);
+    expect(options[0]).toHaveAttribute("aria-selected", "false");
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+    expect(newArtnr()).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(newArtnr()).toHaveAttribute("aria-expanded", "false");
+    expect(newArtnr()).not.toHaveAttribute("aria-activedescendant");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    await user.type(newArtnr(), "2");
+    await advance();
+    await user.keyboard("{ArrowUp}{Enter}");
     expect(val("Artnr nieuwe lijn")).toBe("LED200");
     expect(val("Omschrijving nieuwe lijn")).toBe("Spot FR");
+    expect(newArtnr()).toHaveAttribute("aria-expanded", "false");
+    expect(newArtnr()).not.toHaveAttribute("aria-activedescendant");
+  });
+
+  it("does not reference an active option when the search is empty", async () => {
+    zoekMock.mockResolvedValue({ items: [], truncated: false });
+    render(<LocalHarness />);
+    await user.type(newArtnr(), "XX");
+    await advance();
+    await user.keyboard("{ArrowDown}{ArrowUp}{Enter}");
+    expect(newArtnr()).toHaveValue("XX");
+    expect(newArtnr()).not.toHaveAttribute("aria-activedescendant");
+    expect(within(screen.getByRole("listbox")).queryByRole("option")).not.toBeInTheDocument();
+    expect(screen.getByText("Geen artikelen gevonden")).toBeVisible();
+  });
+
+  it("links persisted and local row comboboxes to their own listboxes", async () => {
+    zoekMock.mockResolvedValue({ items: [LED], truncated: false });
+    updateOfflijnMock.mockResolvedValue(makeOfflijn());
+    render(<><LocalHarness initial={[makeLocalLijn({ clientId: "local-1" })]} /><PersistedHarness lijn={makeOfflijn()} /></>);
+    const inputs = screen.getAllByRole("combobox", { name: /^Artnr/ });
+    expect(new Set(inputs.map((input) => input.getAttribute("aria-controls"))).size).toBe(inputs.length);
+    for (const input of inputs.filter((input) => input.getAttribute("aria-label") !== "Artnr nieuwe lijn")) {
+      await user.clear(input);
+      await user.type(input, "LED");
+      await advance();
+      const listbox = screen.getByRole("listbox");
+      expect(input).toHaveAttribute("aria-controls", listbox.id);
+      await user.keyboard("{ArrowDown}");
+      expect(input).toHaveAttribute("aria-activedescendant", within(listbox).getByRole("option").id);
+      await user.keyboard("{Escape}");
+      expect(input).toHaveAttribute("aria-expanded", "false");
+    }
   });
 
   it("Enter without a highlighted item does not select; persisted Enter still commits the typed value", async () => {
@@ -861,7 +967,7 @@ describe("OfferteLijnenEditor - artikel lookup", () => {
     const lijn = makeOfflijn();
     updateOfflijnMock.mockResolvedValue({ ...lijn, artnr: "LEDX" });
     render(<PersistedHarness lijn={lijn} />);
-    const input = screen.getByRole("textbox", { name: /artnr lijn/i });
+    const input = screen.getByRole("combobox", { name: /artnr lijn/i });
     await user.clear(input);
     await user.type(input, "LEDX");
     await advance();

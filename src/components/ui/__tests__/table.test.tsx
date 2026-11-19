@@ -13,6 +13,13 @@ function Example({ mobileLabel }: { mobileLabel?: string }) {
 }
 
 describe("responsive Table", () => {
+  it.each([undefined, "Artikelen"])("keeps caller scroll-container classes with mobile label %s", (mobileLabel) => {
+    render(<Table mobileLabel={mobileLabel} containerClassName="scroll-pr-28 ring-2"><TableBody><TableRow><TableCell>ART-001</TableCell></TableRow></TableBody></Table>);
+    const table = screen.getByRole("table");
+    expect(table.parentElement).toHaveClass("scroll-pr-28", "ring-2");
+    expect(table).not.toHaveAttribute("containerClassName");
+  });
+
   it("leaves unconfigured tables unchanged, including offer-detail consumers", () => {
     render(<Example />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();

@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Columns3 } from "lucide-react"
 
-type TableProps = React.ComponentProps<"table"> & { mobileLabel?: string }
+type TableProps = React.ComponentProps<"table"> & { mobileLabel?: string; containerClassName?: string }
 
-function Table({ className, mobileLabel, ...props }: TableProps) {
+function Table({ className, mobileLabel, containerClassName, ...props }: TableProps) {
   const [expanded, setExpanded] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const id = React.useId()
@@ -42,7 +42,7 @@ function Table({ className, mobileLabel, ...props }: TableProps) {
       id={mobileLabel ? id : undefined}
       data-slot="table-container"
       data-mobile-scroll={mobileLabel ? (expanded ? "all" : "priority") : undefined}
-      className={cn("relative w-full overflow-x-auto rounded-xl border border-border bg-card shadow-(--shadow-surface)", mobileLabel && "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring")}
+      className={cn("relative w-full overflow-x-auto rounded-xl border border-border bg-card shadow-(--shadow-surface)", mobileLabel && "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring", containerClassName)}
       role={mobileLabel ? "region" : undefined}
       aria-label={mobileLabel ? `${mobileLabel}, horizontaal schuifbare tabel` : undefined}
       aria-describedby={mobileLabel ? `${id}-hint` : undefined}
