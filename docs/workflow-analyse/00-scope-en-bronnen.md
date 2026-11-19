@@ -7,11 +7,16 @@
 - [FEIT] Fase 0 beperkt zich tot intake: bronnen registreren, hiaten benoemen en vragen stellen. Deze fase bevat geen beschrijving van werkprocessen, geen toekomstontwerp en geen wijzigingen aan toepassing, databank, boards of mailboxen. Bron: opdrachtbrief, werkregels en fase 0.
 - [AANNAME] De twee Luna-repo's zijn het vertrekpunt voor de technische inventaris. Aanwezige code, voorbeelden en schermen tonen wat er in de repo staat, niet welke versie draait of wat medewerkers dagelijks doen.
 
+### Rolverdeling Nomaled en Lichthuis
+
+- [FEIT] Volgens Marc vallen Nomaled en Lichthuis onder dezelfde firma. Nomaled maakt vooral verlichtingsarmaturen en verkoopt aan dealers (B2B). Lichthuis maakt lichtstudies en verkoopt aan klanten. Daarbij kan Lichthuis ook producten van Nomaled gebruiken. Bron: Marc, intakeantwoord op vraag 1.
+- [AANNAME] De bedoelde dealerregio is de Benelux. Bron: voorlopige lezing van het intakeantwoord op vraag 1; de regio is nog te bevestigen.
+
 ## Beschikbare bronnen
 
 | Bron | Wat is vastgesteld? | Wat bewijst de bron niet? |
 | --- | --- | --- |
-| **B1 — Opdrachtbrief** | [FEIT] De meegestuurde brief benoemt onder meer Sikta, NPP, de bestaande ABL-toepassing, monday.com en Google-diensten. Hij geeft de scope en randvoorwaarden. Bron: context, werkregels en fase 0. | [OPEN VRAAG] Welke teams, systemen en overdrachten horen vandaag bij elk bedrijf? |
+| **B1 — Opdrachtbrief en intake** | [FEIT] De brief benoemt onder meer Sikta, NPP, de bestaande ABL-toepassing, monday.com en Google-diensten. Hij geeft de scope en randvoorwaarden. Het eerste intakeantwoord verduidelijkt de rolverdeling op hoofdlijnen. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoord op vraag 1. | [OPEN VRAAG] Welke teams, systemen en overdrachten horen vandaag bij elke activiteit? |
 | **B2 — Luna-frontend** | [FEIT] De [schermcode](https://github.com/MarcSmets68/luna_frontend/tree/dbce3a2a8419cd507465d81ec4654518b39f533e/src/app) bevat onder meer offertes, orders, pakbonnen, voorraad, facturatie en NPP. De [API-client](https://github.com/MarcSmets68/luna_frontend/blob/dbce3a2a8419cd507465d81ec4654518b39f533e/src/lib/api-client.ts) is beschikbaar om later de koppelingen te volgen. | [OPEN VRAAG] Welke schermen worden door welke rollen gebruikt, en waar gebeurt het werk nog buiten Luna? |
 | **B3 — Luna-backend** | [FEIT] De aparte repo `luna_backend` bevat de [OpenEdge/PASOE-documentatie](https://github.com/MarcSmets68/luna_backend/blob/f7f3ae61832e5b893378e50a1e9bc89ddd305835/README.md), [ABL-webhandlers](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/Web), [bedrijfslogica](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/BusinessLogic) en [Bruno-voorbeelden van API-aanroepen](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/bruno). In de bekeken revisie zijn geen `.df`-bestanden aanwezig. | [OPEN VRAAG] Welke versie draait er, en waar staan het volledige legacy-schema en de oorspronkelijke procedures? |
 | **B4 — Afzonderlijke OpenEdge-code (privé)** | [FEIT] Een andere leesbare OpenEdge-repo bevat `.df`-bestanden voor zijn eigen klant- en orderschema. De bestanden zijn apart gehouden van de Luna-bronnen. Bron: de schemadefinities in die repo; private vindplaats niet gepubliceerd. | [OPEN VRAAG] Is er een bevestigde link met de huidige omgeving? De bestanden tellen niet als bewijs voor het gedeelde Luna-schema. |
@@ -35,13 +40,13 @@
 
 ### Nomaled en Lichthuis
 
-1. [OPEN VRAAG] Welke activiteiten doet elk bedrijf zelf, en wat doen ze samen?
-2. [OPEN VRAAG] Op welk moment gaat een klant of project van het ene bedrijf naar het andere, en namens welk bedrijf gaan offerte en factuur buiten?
-3. [OPEN VRAAG] Via welke kanalen komen aanvragen en bestellingen binnen per bedrijf, en welke rol spelen de toonzaal en webshop vandaag?
+1. [FEIT] Vraag over eigen en gedeelde activiteiten beantwoord. Zie [Rolverdeling Nomaled en Lichthuis](#rolverdeling-nomaled-en-lichthuis).
+2. [OPEN VRAAG] Wanneer wordt een klant of project tussen Nomaled en Lichthuis doorverwezen, en onder welke naam gaan offertes en facturen buiten?
+3. [OPEN VRAAG] Via welke kanalen komen aanvragen en bestellingen binnen bij Nomaled en bij Lichthuis, en welke rol spelen de toonzaal en webshop vandaag?
 
 ### Afdelingen en rollen
 
-4. [OPEN VRAAG] Welke teams of rollen zijn er per bedrijf, en welke worden gedeeld?
+4. [OPEN VRAAG] Welke teams of rollen horen bij Nomaled, bij Lichthuis of bij allebei?
 5. [OPEN VRAAG] Wie is eigenaar van een project van aanvraag tot levering, en wie beslist bij overdrachten of uitzonderingen?
 
 ### Pijnpunten en prioriteiten
@@ -62,5 +67,5 @@
 ## Afsluiting en voorstel
 
 - [FEIT] Klaar: de scope, de gecontroleerde bronverwijzingen, de hiaten en de intakevragen voor fase 0 staan hierboven.
-- [OPEN VRAAG] Nog niet vastgesteld: de taakverdeling tussen beide bedrijven, de systemen die effectief draaien, het volledige gedeelde schema en de verplichte koppelingen. Beantwoord de intakevragen voor zover gekend; duid voor de rest aan wie kan helpen of waar het bewijs te vinden is.
+- [OPEN VRAAG] Nog niet vastgesteld: wie de overdrachten tussen Nomaled en Lichthuis beheert, welke systemen effectief draaien, wat het volledige gedeelde schema is en welke koppelingen verplicht zijn. Beantwoord de resterende intakevragen voor zover gekend; duid voor de rest aan wie kan helpen of waar het bewijs te vinden is.
 - [AANNAME] Voorstel voor fase 1: begin na expliciet akkoord met de twee Luna-repo's en het bevestigde schema en de legacy-bronnen. Gebruik ontbrekende bronnen niet als bewijs en hou verschillen tussen code en praktijk expliciet open. Werk eerst de systeeminventaris en het datamodel van de huidige werking uit.
