@@ -50,10 +50,10 @@ export function buildPakbonSections(pakbon: PakbonItem, lines: PaklijnItem[]) {
     `${pakbon.postnr} ${pakbon.stad}`.trim(),
   ];
   const deliveryAddress = [
-    pakbon.lnaam || pakbon.naam,
+    pakbon.lnaam.trim() || pakbon.naam,
     pakbon.naam1,
-    pakbon.ladres || pakbon.adres,
-    `${pakbon.lpostnr || pakbon.postnr} ${pakbon.lstad || pakbon.stad}`.trim(),
+    pakbon.ladres.trim() || pakbon.adres,
+    `${pakbon.lpostnr.trim() || pakbon.postnr} ${pakbon.lstad.trim() || pakbon.stad}`.trim(),
   ];
   const bonnrs = [...new Set(lines.map((line) => line.bonnr).filter((nr) => nr > 0))];
   return {

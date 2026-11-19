@@ -43,6 +43,10 @@ describe("pakbon export", () => {
     expect(result.sections).toContainEqual(["Uw ref.", "REF"]);
     expect(result.sections).toContainEqual(["Transport", "Post / BE1"]);
   });
+  it("treats whitespace-only delivery fields as empty", () => {
+    expect(buildPakbonSections(kop({ lnaam: "  ", ladres: "\t", lpostnr: " ", lstad: "\n" }), []).sections[1]).toEqual(["Leveradres", "Klant", "Dienst", "Straat 1", "9000 Gent"]);
+    expect(buildPakbonSections(kop({ lnaam: " Werf ", ladres: " ", lpostnr: " 8000 ", lstad: " " }), []).sections[1]).toEqual(["Leveradres", "Werf", "Dienst", "Straat 1", "8000 Gent"]);
+  });
   it("includes unique orders, project and collection details", () => {
     const result = buildPakbonSections(kop({ projectnr: 9, afgehaald: true, afgehaaldId: "Jan", afgehaaldDatum: "2026-09-18" }), [line(), line(), line({ bonnr: 43 })]);
     expect(result.header[1]).toBe("Bonnr(s): 42, 43");
