@@ -24,16 +24,44 @@
 - [FEIT] Administratie, boekhouding en magazijn ondersteunen zowel Lichthuis als Nomaled. Bron: Marc, intakeantwoord op vraag 4.
 - [FEIT] De persoon die de offerte heeft opgesteld, is de eigenaar van het project. Bron: Marc, intakeantwoord op vraag 5.
 
+### Dagelijkse pijnpunten
+
+- [FEIT] De precieze productiestatus is niet snel te vinden. Het is niet altijd duidelijk welke onderdelen nog bij een leverancier of lakkerij liggen en wanneer die aankomen. Dat vraagt veel mails en telefoons. Bron: Marc, intakeantwoord op vraag 6.
+- [FEIT] Voorraad wordt niet altijd op tijd bijbesteld. Het overzicht ontbreekt om te zien welke artikelen het dringendst moeten worden aangevuld. Bron: Marc, intakeantwoord op vraag 6.
+- [FEIT] Veel informatie gaat buiten het systeem om. Medewerkers bellen of lopen rond om de juiste informatie te verzamelen. Bron: Marc, intakeantwoord op vraag 6.
+- [FEIT] Volgens Marc speelt dit zoek- of invoerwerk het vaakst bij de overdracht van productie naar de lakkerij. Bron: Marc, intakeantwoord op vraag 7.
+
+### Gewenste prioriteiten
+
+- [FEIT] Marc wil vroeg in Luna de openstaande lakorders beter kunnen ordenen en daaruit bestellingen kunnen genereren. Dit is een intakeprioriteit, geen beschrijving van wat vandaag in gebruik is. Bron: Marc, intakeantwoord op vraag 8.
+- [FEIT] Marc geeft ook voorrang aan vlotter voorraadbeheer. Bron: Marc, aanvullend intakeantwoord op vraag 8.
+
+### Dashboard voor de zaakvoerder
+
+- [FEIT] Het dashboard moet tonen welke producten wel of niet verkopen en hoe dat verschilt per dealer. Dat moet helpen om voorzichtiger in te kopen zonder de werking in het gedrang te brengen. Bron: Marc, intakeantwoord op vraag 9.
+
+### Essentiële koppelingen
+
+- [FEIT] Marc noemt NPP en het eigen B2B-portaal van Nomaled essentieel voor Luna. Bron: Marc, intakeantwoord op vraag 10.
+
+### Boekhouding en Peppol
+
+- [FEIT] Volgens Marc wordt voor boekhouding ook Luna gebruikt, met een Peppol-module. Bron: Marc, intakeantwoord op vraag 11.
+
+### NPP en Bestelling-20LAK vandaag
+
+- [FEIT] Zowel productie als magazijn gebruiken NPP. Bestelling-20LAK is nog in gebruik als voorlopige oplossing. Bron: Marc, intakeantwoord op vraag 12.
+
 ## Beschikbare bronnen
 
 | Bron | Wat is vastgesteld? | Wat bewijst de bron niet? |
 | --- | --- | --- |
-| **B1 — Opdrachtbrief en intake** | [FEIT] De brief benoemt onder meer Sikta, NPP, de bestaande ABL-toepassing, monday.com en Google-diensten. Hij geeft de scope en randvoorwaarden. De intake verduidelijkt de rolverdeling, de firmanaam, de gedeelde klantendatabank, de gebruikelijke aanvraagkanalen, de teams op hoofdlijnen en het projecteigenaarschap. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1–5. | [OPEN VRAAG] Welke rollen beheren de overdrachten, en in welke systemen? |
+| **B1 — Opdrachtbrief en intake** | [FEIT] De brief geeft de scope, randvoorwaarden en belangrijkste systemen. De intake verduidelijkt de organisatiestructuur, de aanvraagkanalen, het projecteigenaarschap, de pijnpunten, de prioriteiten en het gebruik van enkele systemen. Bronnen: opdrachtbrief, context en werkregels; Marc, intakeantwoorden op vragen 1–12. | [OPEN VRAAG] Welke rollen beheren de overdrachten, en in welke systemen? |
 | **B2 — Luna-frontend** | [FEIT] De [schermcode](https://github.com/MarcSmets68/luna_frontend/tree/dbce3a2a8419cd507465d81ec4654518b39f533e/src/app) bevat onder meer offertes, orders, pakbonnen, voorraad, facturatie en NPP. De [API-client](https://github.com/MarcSmets68/luna_frontend/blob/dbce3a2a8419cd507465d81ec4654518b39f533e/src/lib/api-client.ts) is beschikbaar om later de koppelingen te volgen. | [OPEN VRAAG] Welke schermen worden door welke rollen gebruikt, en waar gebeurt het werk nog buiten Luna? |
 | **B3 — Luna-backend** | [FEIT] De aparte repo `luna_backend` bevat de [OpenEdge/PASOE-documentatie](https://github.com/MarcSmets68/luna_backend/blob/f7f3ae61832e5b893378e50a1e9bc89ddd305835/README.md), [ABL-webhandlers](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/Web), [bedrijfslogica](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/src/Luna/BusinessLogic) en [Bruno-voorbeelden van API-aanroepen](https://github.com/MarcSmets68/luna_backend/tree/f7f3ae61832e5b893378e50a1e9bc89ddd305835/bruno). In de bekeken revisie zijn geen `.df`-bestanden aanwezig. | [OPEN VRAAG] Welke versie draait er, en waar staan het volledige legacy-schema en de oorspronkelijke procedures? |
 | **B4 — Afzonderlijke OpenEdge-code (privé)** | [FEIT] Een andere leesbare OpenEdge-repo bevat `.df`-bestanden voor zijn eigen klant- en orderschema. De bestanden zijn apart gehouden van de Luna-bronnen. Bron: de schemadefinities in die repo; private vindplaats niet gepubliceerd. | [OPEN VRAAG] Is er een bevestigde link met de huidige omgeving? De bestanden tellen niet als bewijs voor het gedeelde Luna-schema. |
 | **B5 — Afzonderlijke NPP-code (privé)** | [FEIT] Naast de NPP-code in B2 en B3 is een afzonderlijke NPP-repo leesbaar, met onder meer schermcode voor reservaties. Bron: de code van het reservatiescherm in die repo; private vindplaats niet gepubliceerd. | [OPEN VRAAG] Welke applicatie en versie gebruiken productie en magazijn op scanner en touchscreen? |
-| **B6 — Bestelling-20LAK** | [FEIT] De [invoerpagina](https://github.com/MarcSmets68/bestelling-20LAK/blob/e4b47432d5cf5e798ac72924b59d7eee5b415913/client/pages/Index.tsx) bevat CSV-invoer en de [gegevenspagina](https://github.com/MarcSmets68/bestelling-20LAK/blob/e4b47432d5cf5e798ac72924b59d7eee5b415913/client/pages/Data.tsx) verwerkt de ingelezen regels. | [OPEN VRAAG] Wordt deze route vandaag gebruikt naast de lakproductiefunctionaliteit in Luna, en zo ja door wie? |
+| **B6 — Bestelling-20LAK** | [FEIT] De [invoerpagina](https://github.com/MarcSmets68/bestelling-20LAK/blob/e4b47432d5cf5e798ac72924b59d7eee5b415913/client/pages/Index.tsx) bevat CSV-invoer en de [gegevenspagina](https://github.com/MarcSmets68/bestelling-20LAK/blob/e4b47432d5cf5e798ac72924b59d7eee5b415913/client/pages/Data.tsx) verwerkt de ingelezen regels. Marc bevestigt voorlopig gebruik in B1. | [OPEN VRAAG] Wie gebruikt Bestelling-20LAK en op welk moment naast de lakproductiefunctionaliteit in Luna? |
 | **B7 — Publieke websites** | [FEIT] De startpagina's van [Nomaled](https://www.nomaled.be/) en [Lichthuis](https://www.lichthuis.be/) zijn leesbaar. Lichthuis vermeldt lichtadvies, lichtstudie, relighting en maatwerk. Bron: de publieke startpagina's. | [OPEN VRAAG] Is er naast het B2B-portaal en de toonzaal ook een webshop voor particulieren? De publieke startpagina's zijn geen bewijs van de werking van het portaal of een webshop. |
 
 ## Ontbrekende of niet bevestigde bronnen
@@ -45,7 +73,7 @@
 | **Luna, NPP en lakproductie in gebruik** | [OPEN VRAAG] Welke versies draaien, welke functies zijn actief en hoe gaat een reservatie of lakbestelling vandaag van start tot afhandeling? Er is geen draaiende omgeving, scanner of touchscreen geraadpleegd. Zie B2, B3, B5 en B6. |
 | **monday.com** | [OPEN VRAAG] Welke werkborden sturen planning en overdrachten aan? Geen bedrijfsbord of export ingezien; bordstructuur, statussen en automatiseringen ontbreken. Zie B1. |
 | **Gmail, Drive en Calendar** | [OPEN VRAAG] Welke werkafspraken, gedeelde mappen, sjablonen en planningsbronnen zijn relevant? Geen bedrijfsbestanden, mailboxen of agenda's ingezien. Geanonimiseerde voorbeelden volstaan voor de intake. Zie B1. |
-| **B2B-portaal, boekhouding en eventuele webshop** | [OPEN VRAAG] Welke pakketten en koppelingen zijn in gebruik? Het eigen B2B-portaal is in de intake bevestigd maar niet ingezien. Er is geen documentatie over uitwisseling, exports of beheer bekeken. Zie B1 en B7. |
+| **B2B-portaal, boekhouding en eventuele webshop** | [OPEN VRAAG] Welke pakketten en koppelingen zijn verder in gebruik? Het eigen B2B-portaal en het gebruik van Luna met een Peppol-module zijn in de intake bevestigd, niet in de draaiende omgeving nagekeken. Er is geen documentatie over uitwisseling, exports of beheer bekeken. Zie B1 en B7. |
 | **Interne procesdocumenten en praktijk** | [OPEN VRAAG] Wie kan de processen bevestigen? Een rollenoverzicht, lege sjablonen en geanonimiseerde voorbeelden van verkoop, productie en administratie ontbreken. Zie B1. |
 
 ## Intakevragen voor Marc
@@ -63,21 +91,21 @@
 
 ### Pijnpunten en prioriteiten
 
-6. [OPEN VRAAG] Welke drie problemen kosten vandaag het meest tijd of geld? Geef per probleem één geanonimiseerd voorbeeld en hoe vaak het voorkomt.
-7. [OPEN VRAAG] Bij welke overdracht moet informatie het vaakst opnieuw worden ingevoerd of opgezocht?
-8. [OPEN VRAAG] Welke twee processen moet Luna als eerste ondersteunen, en wat mag voorlopig buiten scope blijven?
-9. [OPEN VRAAG] Welke beslissingen moet de zaakvoerder met het dashboard kunnen nemen, en welke cijfers gebruikt die daar vandaag voor?
+6. [FEIT] Drie dagelijkse problemen zijn benoemd. Zie [Dagelijkse pijnpunten](#dagelijkse-pijnpunten). [OPEN VRAAG] Welke geanonimiseerde praktijkgevallen kunnen elk probleem illustreren?
+7. [FEIT] De aangeduide overdracht is die van productie naar de lakkerij. Zie [Dagelijkse pijnpunten](#dagelijkse-pijnpunten).
+8. [FEIT] De twee genoemde prioriteiten zijn openstaande lakorders ordenen en daaruit bestellingen genereren, en vlotter voorraadbeheer. Zie [Gewenste prioriteiten](#gewenste-prioriteiten). [OPEN VRAAG] Wat mag voorlopig buiten scope blijven?
+9. [FEIT] Het dashboard moet aankoopbeslissingen ondersteunen met inzicht in productverkopen en verschillen per dealer. Zie [Dashboard voor de zaakvoerder](#dashboard-voor-de-zaakvoerder). [OPEN VRAAG] Welke cijfers en bronnen gebruikt de zaakvoerder daar vandaag voor?
 
 ### Systemen, integraties en bewijs
 
-10. [OPEN VRAAG] Welke koppelingen zijn vanaf de eerste uitrol verplicht: NPP, monday.com, Gmail, Calendar, Drive, boekhouding, B2B-portaal, eventuele webshop of iets anders? Welk systeem is per verplichte koppeling de hoofdbron?
-11. [OPEN VRAAG] Welke pakketten gebruiken jullie voor de boekhouding, het B2B-portaal en een eventuele webshop? Welke gegevens gaan automatisch, via een export of manueel naar of van de bestaande toepassing?
-12. [OPEN VRAAG] Werken productie en magazijn vandaag met de aparte NPP-app, NPP in Luna of iets anders? Hoe past Bestelling-20LAK in het huidige werk?
+10. [FEIT] NPP en het B2B-portaal zijn als essentieel benoemd. Zie [Essentiële koppelingen](#essentiële-koppelingen). [OPEN VRAAG] Moeten monday.com, Gmail, Calendar, Drive, boekhouding, een eventuele webshop of andere koppelingen al bij de eerste uitrol mee? Welk systeem is de hoofdbron per verplichte koppeling?
+11. [FEIT] Voor boekhouding gebruiken jullie ook Luna met een Peppol-module. Zie [Boekhouding en Peppol](#boekhouding-en-peppol). [OPEN VRAAG] Welke boekhoudstappen dekt Luna af, welke andere pakketten gebruiken jullie, en welke gegevens worden automatisch, via export of manueel uitgewisseld?
+12. [FEIT] Productie en magazijn gebruiken NPP. Bestelling-20LAK is nog een voorlopige oplossing. Zie [NPP en Bestelling-20LAK vandaag](#npp-en-bestelling-20lak-vandaag). [OPEN VRAAG] Welke NPP-versie gebruiken ze, en wie gebruikt Bestelling-20LAK op welk moment?
 13. [OPEN VRAAG] Waar kunnen we het actuele `.df`-schema zonder records en de legacy-code of een demo van de gebruikte schermen alleen-lezen raadplegen?
 14. [OPEN VRAAG] Welke monday.com-borden en Drive-sjablonen mogen we raadplegen, rechtstreeks of via geanonimiseerde exports?
 
 ## Afsluiting en voorstel
 
 - [FEIT] Klaar: de scope, de gecontroleerde bronverwijzingen, de hiaten en de intakevragen voor fase 0 staan hierboven.
-- [OPEN VRAAG] Nog niet vastgesteld: wie de overdrachten tussen Nomaled en Lichthuis beheert, welke systemen effectief draaien, wat het volledige gedeelde schema is en welke koppelingen verplicht zijn. Beantwoord de resterende intakevragen voor zover gekend; duid voor de rest aan wie kan helpen of waar het bewijs te vinden is.
+- [OPEN VRAAG] Nog niet vastgesteld: wie de overdrachten tussen Nomaled en Lichthuis beheert, welke systemen effectief draaien, wat het volledige gedeelde schema is en welke andere koppelingen verplicht zijn. Beantwoord de resterende intakevragen voor zover gekend; duid voor de rest aan wie kan helpen of waar het bewijs te vinden is.
 - [AANNAME] Voorstel voor fase 1: begin na expliciet akkoord met de twee Luna-repo's en het bevestigde schema en de legacy-bronnen. Gebruik ontbrekende bronnen niet als bewijs en hou verschillen tussen code en praktijk expliciet open. Werk eerst de systeeminventaris en het datamodel van de huidige werking uit.
