@@ -6,5 +6,6 @@
 
 - [Fase 0 — Scope en bronnen](00-scope-en-bronnen.md): beschikbare en ontbrekende bronnen, afbakening en intakevragen.
 - [PRD — Lakorders en voorraadbeheer](prd-lakorders-en-voorraad.md): apart bouwvoorstel op basis van de intake, met acceptatiecriteria en uitrolvoorwaarden.
+  - [T0 — Bronmapping en beslissingen](t0-lakorders-en-voorraad-bronmapping.md): voorlopige code-mapping en wat nog nodig is voordat de live bron of bestelbevestiging kan worden aangesloten.
 
 [FEIT] De opdracht voorziet een stop na elke fase. Fase 1 begint pas na akkoord. Bron: opdrachtbrief, werkregel 6.
