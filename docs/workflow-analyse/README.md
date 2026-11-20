@@ -5,5 +5,6 @@
 ## Inhoudstafel
 
 - [Fase 0 — Scope en bronnen](00-scope-en-bronnen.md): beschikbare en ontbrekende bronnen, afbakening en intakevragen.
+- [PRD — Lakorders en voorraadbeheer](prd-lakorders-en-voorraad.md): apart bouwvoorstel op basis van de intake, met acceptatiecriteria en uitrolvoorwaarden.
 
 [FEIT] De opdracht voorziet een stop na elke fase. Fase 1 begint pas na akkoord. Bron: opdrachtbrief, werkregel 6.
