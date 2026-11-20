@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment, useState } from "react";
 import {
   Table,
@@ -166,7 +167,13 @@ type BestellingGroep = {
   items: LakproductieItem[];
 };
 
-export function LakproductiePage({ items }: { items: LakproductieItem[] }) {
+export function LakproductiePage({
+  items,
+  toonOpvolgproef = false,
+}: {
+  items: LakproductieItem[];
+  toonOpvolgproef?: boolean;
+}) {
   const [selectedItem, setSelectedItem] = useState<LakproductieItem | null>(null);
   const [filters, setFilters] = useState<LakproductieFiltersState>(DEFAULT_LAKPRODUCTIE_FILTERS);
   const [overrides, setOverrides] = useState<Record<string, LakproductieOverride>>({});
@@ -204,6 +211,11 @@ export function LakproductiePage({ items }: { items: LakproductieItem[] }) {
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-[26px] font-bold text-foreground">Lakproduktie</h1>
         <div className="flex items-center gap-3">
+          {toonOpvolgproef && (
+            <Link href="/lakproduktie/opvolging" className="text-sm text-primary underline-offset-4 hover:underline">
+              Lakorders opvolgen (proef)
+            </Link>
+          )}
           <div className="text-[13px] text-[#5e5e5e]">{filteredItems.length} orderregels</div>
           <Button
             type="button"

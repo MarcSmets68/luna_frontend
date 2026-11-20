@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import type { LakproductieBron, LakproductieStatus } from "@/lib/api-client";
 
-const BRON_LABELS: Record<LakproductieBron, string> = {
+export const BRON_LABELS: Record<LakproductieBron, string> = {
   "lopende-orders": "Order",
   "lopende-productielijnen": "Productielijn",
   "min-max-voorraad": "Min-max",
